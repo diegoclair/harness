@@ -14,10 +14,14 @@ type Carousel struct {
 	// Default: "instagram-4x5".
 	Platform string `yaml:"platform,omitempty" json:"platform,omitempty"`
 
-	// Theme name (preset shipped with the skill) OR path to a custom
-	// theme YAML on disk. Presets: "dark-tech", "light-editorial",
-	// "cream-lifestyle", "neo-brutalist", "minimal-mono".
-	// Default: "dark-tech".
+	// Theme name (example theme shipped with the skill) OR path to a
+	// custom theme YAML on disk. Built-in examples are intended as
+	// on-ramps for first render, NOT as destinations — users should
+	// run `theme create` to author a brand-specific theme:
+	//   "example-dark-tech", "example-light-editorial",
+	//   "example-minimal-mono", "example-duotone-deep",
+	//   "example-neo-brutalist".
+	// Default: "example-dark-tech".
 	Theme string `yaml:"theme,omitempty" json:"theme,omitempty"`
 
 	// Handle shown at the bottom of every slide (e.g. "@lybel.com.br").

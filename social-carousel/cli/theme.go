@@ -31,7 +31,7 @@ const (
 // The returned Theme has safe defaults applied for required fields.
 func loadTheme(name string) (*Theme, error) {
 	if name == "" {
-		name = "dark-tech"
+		name = "example-dark-tech"
 	}
 
 	var (

@@ -6,7 +6,7 @@
 # No background effect, no border style, no gradient.
 # Font: Outfit 800 heading + DM Sans body.
 # Best for: LinkedIn educational carousels, frameworks, listicles.
-name: minimal-mono
+name: example-minimal-mono
 description: >
   White background, near-black text and accent. Zero visual noise.
   Best for: LinkedIn, educational frameworks, text-heavy content.

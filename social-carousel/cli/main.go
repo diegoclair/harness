@@ -15,7 +15,7 @@ import (
 )
 
 // version is injected at build time via -ldflags "-X main.version=..."
-var version = "v0.1.0"
+var version = "v0.1.1"
 
 const (
 	exitOK              = 0

@@ -28,7 +28,7 @@ func loadCarousel(path string) (*Carousel, error) {
 		c.Platform = "instagram-4x5"
 	}
 	if c.Theme == "" {
-		c.Theme = "dark-tech"
+		c.Theme = "example-dark-tech"
 	}
 	if c.ShowSlideNumber == nil {
 		t := true

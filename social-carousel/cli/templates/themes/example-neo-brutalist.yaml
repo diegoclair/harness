@@ -6,7 +6,7 @@
 # Font combo B: Space Grotesk (heading) + Inter (body).
 # No background effect — the yellow IS the effect.
 # Note: accent_alt is empty — accent == fg for true mono-brutalist feel.
-name: neo-brutalist
+name: example-neo-brutalist
 description: >
   Bold yellow background with near-black text and neo-brutalist borders.
   Best for: design, creative, youth brands, high-energy content.

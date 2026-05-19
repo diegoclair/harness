@@ -49,7 +49,7 @@ func hasCode(r LintReport, code string) bool {
 
 func darkTech() *Theme {
 	return &Theme{
-		Name:        "dark-tech",
+		Name:        "example-dark-tech",
 		BgPrimary:   "#0D1117",
 		FgPrimary:   "#FFFFFF",
 		Accent:      "#11C47E",

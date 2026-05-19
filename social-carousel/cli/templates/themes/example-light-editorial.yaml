@@ -6,7 +6,7 @@
 # Font combo A: Playfair Display (heading) + DM Sans (body).
 # Playfair also used for quotes (font_quote).
 # No background effect — clean white space is the aesthetic.
-name: light-editorial
+name: example-light-editorial
 description: >
   Warm cream background with terracotta accent and editorial serif heading.
   Best for: lifestyle, wellness, personal brand, storytelling.

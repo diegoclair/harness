@@ -23,11 +23,11 @@ import "embed"
 //	    cta.html.tmpl
 //	    text.html.tmpl
 //	  themes/
-//	    dark-tech.yaml
-//	    light-editorial.yaml
-//	    cream-lifestyle.yaml
-//	    neo-brutalist.yaml
-//	    minimal-mono.yaml
+//	    example-dark-tech.yaml
+//	    example-light-editorial.yaml
+//	    example-minimal-mono.yaml
+//	    example-duotone-deep.yaml
+//	    example-neo-brutalist.yaml
 //	  fonts/
 //	    Outfit-Bold.woff2
 //	    Outfit-Regular.woff2

@@ -1,6 +1,6 @@
 ---
 name: social-carousel
-version: 0.1.0
+version: 0.1.1
 description: Generates viral Instagram and LinkedIn carousels from a small YAML brief using a local Go CLI. Drives headless Chrome via chromedp to produce PNGs (Instagram) or a combined PDF (LinkedIn) — zero per-image cost, zero account, zero round-trip to paid SaaS APIs. Ships with 5 design presets, 7 layout templates (cover, list, big-number, quote, comparison, screenshot, cta), and a linter that validates copy against 30 codified rules from viral-carousel research (slide-3 value bomb, ≤12-word hook, single CTA, contrast ≥4.5:1, etc.). Use this skill whenever the user asks to create, design, draft or generate a carousel for Instagram, LinkedIn, or any social platform — even when they don't explicitly say "carousel" but ask for a "post serie", "swipe post", "slides for X", or "8 slides about Y". Replies match the user's language and tone.
 allowed-tools: |
   Bash(social-carousel *)
@@ -19,7 +19,7 @@ allowed-tools: |
 
 This skill solves all three problems with one binary:
 - **HTML+CSS templates** versioned in Git, rendered by `chromedp` (headless Chrome). No SaaS account, no per-image cost.
-- **5 design presets** + a `theme create` command to author custom themes from a brief you already iterated.
+- **5 example themes** (prefixed `example-` to signal "starting point, not destination") + a `theme create` command to author brand-specific themes from a brief you already iterated. The first carousel of a session SHOULD trigger a brand-identity interview (see Step 0 below) rather than defaulting to an example.
 - **30-rule linter** (`check` command) that catches copy issues before render — `slide 3 must be value bomb`, `cta has 3 verbs`, `hook has 18 words (max 12)`. Blocks render unless `--force`. This is the single biggest differentiator over every SaaS competitor.
 
 ## Language rule
@@ -60,7 +60,7 @@ There is no MCP equivalent for carousel generation. The `social-carousel` Go CLI
 | Validate a carousel | `social-carousel check carousel.yaml` | output: 1 line per issue, no slide bodies returned |
 | Render to PNG/PDF | `social-carousel render carousel.yaml` | output: file paths, no image bytes returned |
 | List themes | `social-carousel theme list` | ~30 tokens |
-| Show a theme | `social-carousel theme show dark-tech` | ~150 tokens (small YAML) |
+| Show a theme | `social-carousel theme show example-dark-tech` | ~150 tokens (small YAML) |
 | Create custom theme | `social-carousel theme create --from carousel.yaml --name mybrand` | ~30 tokens |
 
 The agent never sees image bytes, never sees a full carousel body once the YAML is on disk, and never round-trips through a paid API.
@@ -69,7 +69,7 @@ The agent never sees image bytes, never sees a full carousel body once the YAML 
 
 ```yaml
 platform: instagram-4x5      # instagram-4x5 | instagram-1x1 | linkedin-4x5
-theme: dark-tech             # preset name OR path to ~/.config/social-carousel/themes/*.yaml
+theme: example-dark-tech             # preset name OR path to ~/.config/social-carousel/themes/*.yaml
 handle: "@username"          # printed in footer; "" omits footer handle
 logo: ./assets/logo.png      # optional, ≤60×60 px rendered
 slides:
@@ -127,6 +127,21 @@ Anchor every carousel to one of the four archetypes in [reference/examples.md](r
 
 ### "Create a carousel about X"
 
+**Step 0 — Brand check (NEVER skip on first carousel of a session).** Before picking a kind or scaffolding, ask the user about their visual identity:
+
+> "Antes de gerar, me conta sua identidade visual: tem cores específicas (hex code ou nome)? Fonte preferida? Logo? Se já tem isso definido pra outro material (landing, deck, perfil), me passa que eu uso o mesmo. Se não tem nada definido ainda, vou usar um tema de exemplo MAS te aviso quais decisões tomei pra você ajustar depois."
+
+(Adapt language to match the user; the questions stay the same.)
+
+Why this matters: the skill ships **example themes** (`example-dark-tech`, `example-minimal-mono`, etc.) precisely so the first render works without a brand setup. But if every user defaults to the same example, every carousel made with this skill looks like every other one — the LinkedIn equivalent of "Canva-style". The example themes are an on-ramp, NOT the destination.
+
+Three outcomes from this question:
+- **User has a brand defined** → author an inline custom theme block in the YAML (see *I want a custom theme* below) using their tokens. Save it permanently via `theme create` once they like the first render.
+- **User has partial info** (e.g. "I like mint and dark backgrounds") → still author a custom theme block; pick reasonable defaults for what they didn't specify; explicitly call out which decisions are yours.
+- **User says "use a template" or "I don't know"** → pick ONE example theme that matches the topic tone (B2B → `example-dark-tech` or `example-minimal-mono`; lifestyle → `example-light-editorial`; etc.) and tell the user explicitly: "Estou usando `example-X` como exemplo. Antes de você postar, vale criar um tema seu — me avisa se quiser fazer isso depois."
+
+Skip step 0 ONLY on follow-up carousels in the same session where the user already answered. Treat the brand info as session state.
+
 1. **Pick a kind.** Map the user's intent to one of the 6 scaffolds:
    - `listicle` — "N things that…", "N mistakes that…", "N tips for…"
    - `framework` — "how to do X", "step-by-step for Y", "method Z"
@@ -154,8 +169,8 @@ Anchor every carousel to one of the four archetypes in [reference/examples.md](r
 
 ### "I want a custom theme for my brand"
 
-1. **Pick a starting preset** that's visually close. List with `social-carousel theme show dark-tech`.
-2. **Author an inline theme block** in a carousel YAML — replace the `theme: dark-tech` string with a mapping:
+1. **Pick a starting preset** that's visually close. List with `social-carousel theme show example-dark-tech`.
+2. **Author an inline theme block** in a carousel YAML — replace the `theme: example-dark-tech` string with a mapping:
    ```yaml
    theme:
      name: my-brand
@@ -217,7 +232,7 @@ The body above is the entry point — daily use, mental model, common workflows.
 
 ## Brand-agnostic by design
 
-This skill ships zero project-specific data. The 5 presets are intentionally generic (`dark-tech`, `light-editorial`, `cream-lifestyle`-style — none of them have "Lybel" colors hardcoded). Users author their own themes via `theme create`. The same skill works for a personal trainer, a B2B SaaS, or a content creator — only the theme YAML changes.
+This skill ships zero project-specific data. The 5 example themes are intentionally generic (`example-dark-tech`, `example-light-editorial`, `example-minimal-mono`, `example-duotone-deep`, `example-neo-brutalist` — none have any brand-specific colors hardcoded). The `example-` prefix is deliberate: these are on-ramps for the first render, NOT destinations. Users are expected to author their own themes via `theme create`. The same skill works for a personal trainer, a B2B SaaS, or a content creator — only the theme YAML changes.
 
 ## What this skill is NOT for
 

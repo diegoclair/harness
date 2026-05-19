@@ -6,7 +6,7 @@
 # Background effect: dots — subtle grid that appears at full-size.
 # Font combo D: Outfit (heading) + DM Sans (body).
 # Contrast: white on #0D1117 → ~21:1 (far exceeds WCAG AAA 7:1).
-name: dark-tech
+name: example-dark-tech
 description: >
   High-contrast dark background with Volt Mint accent.
   Best for: tech, SaaS, authority content, B2B.

@@ -81,7 +81,7 @@ var scaffolds = map[string]string{
 	"listicle": `# Listicle carousel (H-13 hook: "N things nobody tells you — #4 is the worst").
 # 10 slides; item #4 delivers the "value bomb" promised in the hook.
 platform: instagram-4x5
-theme: dark-tech
+theme: example-dark-tech
 handle: "@yourhandle"
 slides:
   - layout: cover
@@ -122,7 +122,7 @@ hashtags: ["#soloprovider"]
 `,
 	"framework": `# Framework carousel — H-01 result-promise.
 platform: instagram-4x5
-theme: dark-tech
+theme: example-dark-tech
 handle: "@yourhandle"
 slides:
   - layout: cover
@@ -165,7 +165,7 @@ hashtags: []
 `,
 	"case-study": `# Case study — H-03 confessional mistake.
 platform: instagram-4x5
-theme: light-editorial
+theme: example-light-editorial
 handle: "@yourhandle"
 slides:
   - layout: cover
@@ -209,7 +209,7 @@ hashtags: []
 `,
 	"comparison": `# Comparison — H-02 counter-intuitive.
 platform: instagram-4x5
-theme: minimal-mono
+theme: example-minimal-mono
 handle: "@yourhandle"
 slides:
   - layout: cover
@@ -257,7 +257,7 @@ hashtags: []
 `,
 	"story": `# Story — H-11 personal transformation.
 platform: instagram-4x5
-theme: cream-lifestyle
+theme: example-light-editorial
 handle: "@yourhandle"
 slides:
   - layout: cover
@@ -294,7 +294,7 @@ hashtags: []
 `,
 	"data-drop": `# Data drop — H-07 borrowed authority.
 platform: instagram-4x5
-theme: duotone-deep
+theme: example-duotone-deep
 handle: "@yourhandle"
 slides:
   - layout: cover

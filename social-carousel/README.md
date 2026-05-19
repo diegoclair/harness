@@ -65,7 +65,7 @@ social-carousel render my-carousel.yaml --pdf
 
 ```yaml
 platform: instagram-4x5   # instagram-4x5 | instagram-1x1 | linkedin-4x5
-theme: dark-tech          # preset OR path to ~/.config/social-carousel/themes/*.yaml
+theme: example-dark-tech          # preset OR path to ~/.config/social-carousel/themes/*.yaml
 handle: "@username"
 slides:
   - layout: cover
@@ -108,11 +108,11 @@ The 27 rules encode published research from 15+ sources (Buffer, MarketingAgent,
 
 | Preset | Vibe |
 |---|---|
-| `dark-tech` | Authority. Black bg, Volt-Mint accent, Outfit + DM Sans. |
-| `light-editorial` | Premium/wellness. Cream bg, terracotta accent, Playfair + DM Sans. |
-| `minimal-mono` | Clarity. White bg, mono ink, Outfit + DM Sans. No accent color. |
-| `neo-brutalist` | Bold. Yellow bg + black borders + offset shadows. Space Grotesk + Inter. |
-| `duotone-deep` | Calm contrast. Deep-blue bg, soft-blue accent. Outfit + DM Sans. |
+| `example-dark-tech` | Authority. Black bg, Volt-Mint accent, Outfit + DM Sans. |
+| `example-light-editorial` | Premium/wellness. Cream bg, terracotta accent, Playfair + DM Sans. |
+| `example-minimal-mono` | Clarity. White bg, mono ink, Outfit + DM Sans. No accent color. |
+| `example-neo-brutalist` | Bold. Yellow bg + black borders + offset shadows. Space Grotesk + Inter. |
+| `example-duotone-deep` | Calm contrast. Deep-blue bg, soft-blue accent. Outfit + DM Sans. |
 
 Custom theme:
 
