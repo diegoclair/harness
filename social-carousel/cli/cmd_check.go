@@ -13,6 +13,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"path/filepath"
 )
 
 // runCheck is the testable entry point for `social-carousel check`.
@@ -66,6 +67,14 @@ func runCheck(args []string, stdout, stderr io.Writer) (int, error) {
 	if err != nil {
 		fmt.Fprintln(stderr, "check:", err)
 		return exitUnknownErr, err
+	}
+
+	// Apply project-local config (carousel.config.yml) as a defaults
+	// source. Looked up by walking from the input file's dir up to the
+	// first match / `.git/` boundary. Carousel YAML fields always win
+	// over project config — this only fills blanks.
+	if pc, pcErr := LoadProjectConfig(filepath.Dir(inputFile)); pcErr == nil && pc != nil {
+		pc.ApplyToCarousel(c)
 	}
 
 	// Resolve theme using the shared loader in theme.go.

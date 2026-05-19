@@ -82,6 +82,12 @@ func runRender(args []string, stdout, stderr io.Writer) (int, error) {
 		return exitInputErr, err
 	}
 
+	// Apply project-local config (carousel.config.yml) — defaults only;
+	// fields set in the carousel YAML always win.
+	if pc, pcErr := LoadProjectConfig(filepath.Dir(inputFile)); pcErr == nil && pc != nil {
+		pc.ApplyToCarousel(c)
+	}
+
 	if len(c.Slides) == 0 {
 		fmt.Fprintln(stderr, "render: carousel has no slides")
 		return exitInputErr, errInvalidUsage

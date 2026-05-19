@@ -10,11 +10,7 @@ import (
 )
 
 const (
-	// themeDir is the subdirectory under XDG_CONFIG_HOME / ~/.config
-	// where user-authored custom themes are stored.
-	themeDir = "social-carousel/themes"
-
-	// embeddedThemePrefix is the path inside templatesFS where preset
+	// embeddedThemePrefix is the path inside templatesFS where example
 	// theme YAML files live.
 	embeddedThemePrefix = "templates/themes"
 )
@@ -118,15 +114,28 @@ func listThemes() (presets []string, custom []string, err error) {
 // --------------------------------------------------------------------------
 
 // customThemeDir returns the directory where user themes are stored.
+//
+// Cross-platform via os.UserConfigDir():
+//
+//	Linux:   $XDG_CONFIG_HOME/social-carousel/themes  (fallback ~/.config/)
+//	macOS:   ~/Library/Application Support/social-carousel/themes
+//	Windows: %AppData%\social-carousel\themes
+//
+// Falls back to the v0.1.x XDG-style path (~/.config/...) on platforms
+// where os.UserConfigDir() fails, so any themes saved before v0.2.0 on
+// Linux remain readable.
 func customThemeDir() (string, error) {
-	if xdg := os.Getenv("XDG_CONFIG_HOME"); xdg != "" {
-		return filepath.Join(xdg, "social-carousel", "themes"), nil
+	dir, err := GlobalThemesDir()
+	if err == nil {
+		return dir, nil
 	}
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return "", err
+	// Fallback: legacy v0.1.x path. Linux only — macOS / Windows users
+	// on v0.1.x had no themes (the old code's XDG fallback didn't work
+	// outside Unix), so nothing is lost.
+	if legacy, ok := legacyXDGThemesDir(); ok {
+		return legacy, nil
 	}
-	return filepath.Join(home, ".config", themeDir), nil
+	return "", err
 }
 
 // customThemePath returns the full path for a named custom theme YAML.
