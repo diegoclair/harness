@@ -3,6 +3,25 @@
 All notable changes to `social-carousel` will be documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.2.0] - 2026-05-19
+
+### Added
+
+- **Project-local config** — `carousel.config.yml` in the project root provides defaults for `theme`, `handle`, and `platform`. The CLI walks up from the carousel YAML's directory looking for the file (stops at a `.git/` boundary or after 10 levels — matches prettier / editorconfig semantics). Carousel YAML fields ALWAYS win over project config; it only fills blanks. Picked up automatically by `check` and `render`.
+- **Taste memory** — accumulated design preferences the agent reads before generating, persisted as markdown with YAML frontmatter. Two layers, project wins on overlap:
+  - Global: `~/.claude/skills/social-carousel/memory/taste.md` (cross-project taste)
+  - Project: `<project>/carousel-design.md` (versionable, brand-specific)
+  - Rule fields: `text`, `scope` (global / brand:slug), `confidence` (high / low), `captured` (YYYY-MM-DD).
+  - Low-confidence rules auto-expire after 30 days on next render (silent housekeeping).
+- **`social-carousel paths [--cwd DIR]`** — single new command, the only one added for the v0.2.0 surface. Prints all filesystem locations (taste files, project config, themes dir) cross-OS. Designed for the AI agent: it doesn't need to know where macOS / Linux / Windows put config — the CLI resolves and prints, the agent reads/writes the files with its native Read/Write tools. No CRUD wrappers (`taste show/add`, `config init/resolve`) — those would be surface area for nothing since the agent already has file IO.
+- **Cross-platform global config dir** — replaced the v0.1.x XDG-hardcoded `~/.config/social-carousel/` with `os.UserConfigDir()` so macOS gets `~/Library/Application Support/social-carousel/` and Windows gets `%AppData%\social-carousel\` per platform convention. Legacy XDG path stays readable as a Linux fallback so any v0.1.x user themes are preserved.
+- **SKILL.md Step 0a — Resolve paths + read taste memory** documents the new layer and explicitly tells the agent: "use `social-carousel paths` to resolve locations, then Read/Write the files directly. Echo-back before persisting a rule. Default scope=global / confidence=high. Slide-specific corrections are NOT preferences — don't save them."
+
+### Changed
+
+- `customThemeDir()` in `theme.go` now resolves via the new cross-SO `GlobalThemesDir()` helper, with the legacy XDG path as a Linux-only fallback.
+- `render` now performs a silent best-effort prune of expired low-confidence taste rules (30-day cutoff). Failure to prune does not block render.
+
 ## [0.1.1] - 2026-05-19
 
 ### Changed (breaking — first 24h after v0.1.0)

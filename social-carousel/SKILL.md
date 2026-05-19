@@ -1,6 +1,6 @@
 ---
 name: social-carousel
-version: 0.1.1
+version: 0.2.0
 description: Generates viral Instagram and LinkedIn carousels from a small YAML brief using a local Go CLI. Drives headless Chrome via chromedp to produce PNGs (Instagram) or a combined PDF (LinkedIn) — zero per-image cost, zero account, zero round-trip to paid SaaS APIs. Ships with 5 design presets, 7 layout templates (cover, list, big-number, quote, comparison, screenshot, cta), and a linter that validates copy against 30 codified rules from viral-carousel research (slide-3 value bomb, ≤12-word hook, single CTA, contrast ≥4.5:1, etc.). Use this skill whenever the user asks to create, design, draft or generate a carousel for Instagram, LinkedIn, or any social platform — even when they don't explicitly say "carousel" but ask for a "post serie", "swipe post", "slides for X", or "8 slides about Y". Replies match the user's language and tone.
 allowed-tools: |
   Bash(social-carousel *)
@@ -62,6 +62,7 @@ There is no MCP equivalent for carousel generation. The `social-carousel` Go CLI
 | List themes | `social-carousel theme list` | ~30 tokens |
 | Show a theme | `social-carousel theme show example-dark-tech` | ~150 tokens (small YAML) |
 | Create custom theme | `social-carousel theme create --from carousel.yaml --name mybrand` | ~30 tokens |
+| Resolve all paths (cross-OS) | `social-carousel paths [--cwd DIR]` | ~80 tokens (6 key=value lines) |
 
 The agent never sees image bytes, never sees a full carousel body once the YAML is on disk, and never round-trips through a paid API.
 
@@ -127,7 +128,48 @@ Anchor every carousel to one of the four archetypes in [reference/examples.md](r
 
 ### "Create a carousel about X"
 
-**Step 0 — Brand check (NEVER skip on first carousel of a session).** Before picking a kind or scaffolding, ask the user about their visual identity:
+**Step 0a — Resolve paths + read taste memory (run ONCE at session start).** Before the brand check, call `social-carousel paths --cwd <dir-of-the-future-yaml>`. The CLI prints all filesystem locations relevant to this skill — taste files, project config, themes dir — across Linux / macOS / Windows. You do NOT need to know where each OS puts its config; just read these paths.
+
+```
+$ social-carousel paths
+cwd=/path/to/current
+global_taste=/home/user/.claude/skills/social-carousel/memory/taste.md
+project_taste=/path/to/project/carousel-design.md   # empty if no project file
+project_config=/path/to/project/carousel.config.yml # empty if no project file
+global_config_dir=/home/user/.config/social-carousel
+themes_dir=/home/user/.config/social-carousel/themes
+```
+
+After resolving, **read** the taste files with your `Read` tool (skip silently if a path is empty or the file doesn't exist yet). The taste files are markdown with YAML frontmatter — the rules in the frontmatter are the source of truth:
+
+```markdown
+---
+rules:
+  - text: Never use yellow or gold in palettes
+    scope: global
+    captured: 2026-05-19
+    confidence: high
+  - text: For Lybel posts default to mint accent + slate
+    scope: brand:lybel
+    captured: 2026-05-19
+    confidence: high
+---
+# (body is regenerated from frontmatter on every CLI write — don't edit it by hand)
+```
+
+Apply these rules silently when making design / copy decisions in this session. They are the user's accumulated taste — overriding them without acknowledgement is exactly the failure mode this layer exists to prevent.
+
+**When to APPEND a new rule** (use `Write` / `Edit` on the file frontmatter directly — no CLI command for this; the CLI does not wrap file IO that you can already do natively):
+
+- The user uses an **imperative scope-word**: "never", "always", "prefer", "stop using", "from now on", "default to". Or an explicit "remember: …" in the brief.
+- ECHO BACK before saving — never silent capture: *"Salvando como regra permanente: '<rule>'. Diga 'só dessa vez' se preferir que eu não persista."* One-line confirmation.
+- Classify scope: generic preference → `scope: global`; brand-specific ("for Lybel use X") → `scope: brand:<slug>`; slide-specific ("this slide is too long") → DO NOT save, it's a one-off edit.
+- Default `confidence: high` for explicit corrections; only use `confidence: low` for inferences you made without an explicit user signal (these auto-expire after 30 days on the next render — protects against early-session noise).
+- Default `captured: <today-YYYY-MM-DD>`.
+
+If the project has a `carousel-design.md` (project_taste), append project-scoped rules there. If only the global file exists, append all rules to global until the user introduces a brand.
+
+**Step 0b — Brand check (NEVER skip on first carousel of a session).** Before picking a kind or scaffolding, ask the user about their visual identity:
 
 > "Antes de gerar, me conta sua identidade visual: tem cores específicas (hex code ou nome)? Fonte preferida? Logo? Se já tem isso definido pra outro material (landing, deck, perfil), me passa que eu uso o mesmo. Se não tem nada definido ainda, vou usar um tema de exemplo MAS te aviso quais decisões tomei pra você ajustar depois."
 

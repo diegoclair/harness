@@ -15,7 +15,7 @@ import (
 )
 
 // version is injected at build time via -ldflags "-X main.version=..."
-var version = "v0.1.1"
+var version = "v0.2.0"
 
 const (
 	exitOK              = 0
@@ -38,6 +38,7 @@ USAGE:
   social-carousel theme    VERB [flags]
   social-carousel setup    [--check]
   social-carousel update   [--check]
+  social-carousel paths    [--cwd DIR]
   social-carousel --version | --help
 
 RENDER:
@@ -131,6 +132,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) 
 		return runUpdate(args[1:], stdout, stderr)
 	case "postinstall":
 		return runPostinstall(args[1:], stdout, stderr)
+	case "paths":
+		return runPaths(args[1:], stdout, stderr)
 	}
 	fmt.Fprintln(stderr, "unknown command:", args[0])
 	fmt.Fprint(stderr, helpText)

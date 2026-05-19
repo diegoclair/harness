@@ -88,6 +88,16 @@ func runRender(args []string, stdout, stderr io.Writer) (int, error) {
 		pc.ApplyToCarousel(c)
 	}
 
+	// Best-effort taste hygiene: drop low-confidence rules older than
+	// 30 days from the global taste file. Silent — failures here must
+	// not block render. The 30-day cutoff matches research B's guidance
+	// on early-session noise expiry.
+	if gpath, gerr := GlobalTastePath(); gerr == nil {
+		if tf, terr := LoadTasteFile(gpath); terr == nil && len(tf.Rules) > 0 {
+			_, _ = tf.PruneExpired(30)
+		}
+	}
+
 	if len(c.Slides) == 0 {
 		fmt.Fprintln(stderr, "render: carousel has no slides")
 		return exitInputErr, errInvalidUsage
