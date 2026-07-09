@@ -2,7 +2,9 @@
   cta.html.tmpl — Slide layout: CALL TO ACTION (last slide)
   ----------------------------------------------------------
   Fields used:
+    .Slide.Label     string — optional uppercase eyebrow above the headline
     .Slide.Headline  string — question or command, ≤12 words (A5)
+    .Slide.Sub       string — optional supporting line below the headline
     .Slide.CTAText   string — specific action text (A2)
     .Slide.SwipeBack bool   — show "← Back to start" (A3)
 
@@ -13,8 +15,9 @@
     A4: handle_and_logo_visible (handled by footer)
     A5: headline_words <= 12
 
-  Layout: headline top-center → CTA box center → swipe-back below.
-  CTA box: background=accent, padding 24×40, border-radius 16px, white bold text.
+  Layout: eyebrow → headline → sub → CTA box → swipe-back. Left-aligned.
+  The eyebrow + sub give the ask context (a bare headline + button reads as
+  a generic template); CTA box owns the accent fill.
 */ -}}
 {{define "layout-cta"}}
 {{- $hw := wordCount .Slide.Headline -}}
@@ -30,8 +33,24 @@
     flex-direction: column;
     justify-content: center;
     align-items: flex-start;
-    gap: 48px;
+    gap: 40px;
     padding-bottom: var(--footer-reserve, 120px);
+  }
+
+  .cta-head {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  .cta-eyebrow {
+    font-family: var(--font-body);
+    font-size: 24px;
+    font-weight: 600;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0;
   }
 
   .cta-headline {
@@ -41,6 +60,17 @@
     letter-spacing: -0.02em;
     color: var(--fg-primary);
     max-width: 900px;
+  }
+
+  .cta-sub {
+    font-family: var(--font-body);
+    font-size: 38px;
+    font-weight: 400;
+    line-height: 1.4;
+    letter-spacing: 0.01em;
+    color: var(--fg-secondary);
+    max-width: 820px;
+    margin: 0;
   }
   .cta-headline--poster { font-size: 120px; }
   .cta-headline--medium { font-size: 96px;  }
@@ -77,9 +107,17 @@
 </style>
 
 <div class="cta-wrapper">
-  {{- if .Slide.Headline }}
-  <h2 class="cta-headline cta-headline--{{ $headTier }}">{{ highlight .Slide.Headline }}</h2>
-  {{- end }}
+  <div class="cta-head">
+    {{- if .Slide.Label }}
+    <p class="cta-eyebrow">{{ .Slide.Label }}</p>
+    {{- end }}
+    {{- if .Slide.Headline }}
+    <h2 class="cta-headline cta-headline--{{ $headTier }}">{{ highlight .Slide.Headline }}</h2>
+    {{- end }}
+    {{- if .Slide.Sub }}
+    <p class="cta-sub">{{ highlight .Slide.Sub }}</p>
+    {{- end }}
+  </div>
 
   {{- /* The CTA box already owns the accent (background fill). Strip
        **emphasis** from cta_text so we don't double-paint. Headline above

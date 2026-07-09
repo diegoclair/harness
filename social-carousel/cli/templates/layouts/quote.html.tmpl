@@ -2,6 +2,7 @@
   quote.html.tmpl — Slide layout: PULL QUOTE
   -------------------------------------------
   Fields used:
+    .Slide.Label       string — optional uppercase eyebrow above the quote
     .Slide.Quote       string — quote body, ≤25 words (Q1)
     .Slide.Attribution string — "Nome, Cargo/Contexto" (Q3)
 
@@ -32,21 +33,35 @@
     position: relative;
   }
 
-  /* Decorative opening " — Q2 */
+  /* Decorative opening " — Q2. Uses color-mix rather than opacity so the
+     mint reads on a dark background (10% opacity mint on navy was nearly
+     invisible); ~22% mint blended toward transparent keeps it a soft brand
+     watermark without competing with the quote text. */
   .quote-wrapper::before {
     content: '\201C';           /* " left double quotation mark */
     position: absolute;
-    top: -40px;
+    top: -60px;
     left: -20px;
     font-family: var(--font-quote);
     font-size: 280px;
     font-weight: 700;
     line-height: 1;
-    color: var(--accent);
-    opacity: 0.10;              /* Q2: 0.08–0.12 */
+    color: color-mix(in srgb, var(--accent) 24%, transparent);
     pointer-events: none;
     z-index: 0;
     user-select: none;
+  }
+
+  .quote-eyebrow {
+    position: relative;
+    z-index: 1;
+    font-family: var(--font-body);
+    font-size: 24px;
+    font-weight: 600;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 40px 0;
   }
 
   .quote-text {
@@ -83,6 +98,9 @@
 </style>
 
 <div class="quote-wrapper">
+  {{- if .Slide.Label }}
+  <p class="quote-eyebrow">{{ .Slide.Label }}</p>
+  {{- end }}
   <blockquote class="quote-text quote-text--{{ $qTier }}">{{ highlight .Slide.Quote }}</blockquote>
   {{- if .Slide.Attribution }}
   <p class="quote-attribution">{{ highlight .Slide.Attribution }}</p>

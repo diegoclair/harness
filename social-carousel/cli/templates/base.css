@@ -142,6 +142,8 @@ body {
  *   --border-style   "" | "frame" | "accent-line" | "neo-brutalist"
  */
 :root {
+  --theme-bg:      #0D1117;   /* immutable anchors (see carousel.html.tmpl) */
+  --theme-fg:      #FFFFFF;
   --bg-primary:    #0D1117;
   --bg-secondary:  #1A2332;
   --fg-primary:    #FFFFFF;
@@ -184,7 +186,10 @@ body {
   content: '';
   position: absolute;
   inset: 0;
-  background-image: radial-gradient(circle, rgba(255, 255, 255, 0.12) 1px, transparent 1px);
+  /* Derive dot color from the slide's foreground so the texture stays
+     visible on any tone (dark, secondary-dark, or a light clarity slide) —
+     a hardcoded white dot vanishes on light backgrounds. */
+  background-image: radial-gradient(circle, color-mix(in srgb, var(--fg-primary) 14%, transparent) 1px, transparent 1px);
   background-size: 32px 32px;
   pointer-events: none;
   z-index: 0;
@@ -245,13 +250,26 @@ body {
 }
 
 .slide[data-tone="clarity"] {
-  /* Light variant — invert. Themes can define --bg-clarity / --fg-clarity
-     to control the exact palette; fall back to a neutral ice-white pair. */
-  background-color: var(--bg-clarity, #F8FAFC);
-  color: var(--fg-clarity, #0F172A);
+  /* "clarity" is the deck's secondary tone — used to break monotony without
+     fracturing the visual system. By DEFAULT it stays on-brand: the theme's
+     secondary (elevated) dark surface, not a flat white card. A white card
+     dropped between dark slides is exactly what makes a deck read as two
+     glued-together systems (audit jul/2026). Themes that genuinely want a
+     light-on-dark contrast slide opt in by defining --bg-clarity/--fg-clarity.
+     --fg-primary is redefined in-scope so children painting
+     `color: var(--fg-primary)` inherit the right color automatically. */
+  --fg-primary: var(--fg-clarity, var(--theme-fg));
+  background-color: var(--bg-clarity, var(--bg-secondary));
+  color: var(--fg-clarity, var(--theme-fg));
 }
 
 .slide[data-tone="spotlight"] {
+  /* Accent is the background; text primitives flip to white in-scope.
+     --fg-secondary is also flipped to translucent white so the footer
+     handle/number stay legible (the theme's muted color can wash out on
+     the accent fill). */
+  --fg-primary: #FFFFFF;
+  --fg-secondary: rgba(255, 255, 255, 0.82);
   background-color: var(--accent);
   color: #FFFFFF;
 }

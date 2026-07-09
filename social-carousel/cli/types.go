@@ -145,6 +145,14 @@ type Theme struct {
 	FgSecondary string `yaml:"fg_secondary,omitempty"`  // muted text (caption, handle)
 	Accent      string `yaml:"accent"`                  // primary brand color
 	AccentAlt   string `yaml:"accent_alt,omitempty"`    // secondary accent
+	// Optional light-variant palette for the "clarity" tone. When set, a
+	// clarity slide renders on this light background instead of the default
+	// secondary-dark surface — restoring the deliberate dark→light→dark
+	// rhythm without the generic flat-white-card look (layouts now carry
+	// eyebrow + hierarchy + accent on any tone). Leave empty to keep clarity
+	// slides on the dark secondary surface.
+	BgClarity   string `yaml:"bg_clarity,omitempty"`
+	FgClarity   string `yaml:"fg_clarity,omitempty"`
 
 	// Typography. Family names must match what is registered in
 	// base.css via @font-face. Presets ship with Outfit + DM Sans;

@@ -27,12 +27,23 @@
   {{- /* ── Theme CSS variables derived from Theme struct ── */}}
   <style>
     :root {
+      /* Immutable theme anchors — never reassigned. Tone scopes redefine
+         --fg-primary/--bg-primary per slide, so they can't self-reference;
+         these hold the original theme values for those scopes to fall back to. */
+      --theme-bg:     {{ .Theme.BgPrimary }};
+      --theme-fg:     {{ .Theme.FgPrimary }};
       --bg-primary:   {{ .Theme.BgPrimary }};
       --bg-secondary: {{ if .Theme.BgSecondary }}{{ .Theme.BgSecondary }}{{ else }}{{ .Theme.BgPrimary }}{{ end }};
       --fg-primary:   {{ .Theme.FgPrimary }};
       --fg-secondary: {{ if .Theme.FgSecondary }}{{ .Theme.FgSecondary }}{{ else }}{{ .Theme.FgPrimary }}{{ end }};
       --accent:       {{ .Theme.Accent }};
       --accent-alt:   {{ if .Theme.AccentAlt }}{{ .Theme.AccentAlt }}{{ else }}{{ .Theme.Accent }}{{ end }};
+      {{- if .Theme.BgClarity }}
+      --bg-clarity:   {{ .Theme.BgClarity }};
+      {{- end }}
+      {{- if .Theme.FgClarity }}
+      --fg-clarity:   {{ .Theme.FgClarity }};
+      {{- end }}
       --font-heading: '{{ .Theme.FontHeading }}', sans-serif;
       --font-body:    '{{ .Theme.FontBody }}', 'Noto Color Emoji', sans-serif;
       --font-quote:   {{ if .Theme.FontQuote }}'{{ .Theme.FontQuote }}', serif{{ else }}'{{ .Theme.FontHeading }}', sans-serif{{ end }};

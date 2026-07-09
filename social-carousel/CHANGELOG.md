@@ -3,6 +3,22 @@
 All notable changes to `social-carousel` will be documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.2.1] - 2026-07-09
+
+### Fixed
+
+- **LinkedIn PDF page size** — the combined PDF now renders at the platform's logical size (1080×1350 pt for 4:5) with the 2× retina image embedded, instead of a 2160×2700 pt page. pdfcpu v0.12.1's `ImportImagesFile` sizes each page to the source image's pixel dimensions and ignores the import `PageDim`, producing a ~76×95 cm page that LinkedIn re-framed by stacking two slides per card. `combinePDF` now imports then `Resize`s each page to the logical dimensions.
+- **Invisible text on `clarity` / `spotlight` tone slides** — layouts paint `color: var(--fg-primary)`, but the tone scopes redefined `--fg-primary` with a self-referential fallback that resolved to black, rendering text invisibly on the tone's own background. Added immutable `--theme-fg`/`--theme-bg` anchors for the tone scopes to fall back to; contrast is now 14–17:1.
+
+### Changed
+
+- **Layout hierarchy + brand cohesion** — `cover`/`text`/`list`/`quote`/`cta` gained an optional mint eyebrow (`label`) and supporting line (`sub`), so intermediate slides carry the same hierarchy as the cover instead of flat centered text. `text` is now left-aligned with a mint anchor bar; the `list` title is set dominant over its items with accent-tinted dividers; the `cover` eyebrow is mint (was muted grey) for consistency. `text` supports three tiers: eyebrow → body → sub.
+- **`clarity` tone is on-brand by default** — renders on the theme's secondary-dark surface rather than a flat white card, so a clarity slide between dark slides no longer reads as a second design system. Dot texture derives from `--fg-primary` so it stays visible on any tone.
+
+### Added
+
+- **Theme `bg_clarity` / `fg_clarity`** — optional light-variant palette for the `clarity` tone. When set, clarity slides render on a deliberate light background (kept coherent via eyebrow + accent + left-align), restoring the dark→light→dark rhythm without the generic white-card look. Leave empty to keep clarity on the dark secondary surface.
+
 ## [0.2.0] - 2026-05-19
 
 ### Added

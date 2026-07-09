@@ -1,8 +1,10 @@
 {{- /*
   text.html.tmpl — Slide layout: FREE-FORM TEXT (fallback)
   ---------------------------------------------------------
-  Field used:
-    .Slide.Body string — body text, ≤30 words (U9)
+  Fields used:
+    .Slide.Body  string — body text, ≤30 words (U9)
+    .Slide.Label string — optional uppercase eyebrow above the body
+    .Slide.Sub   string — optional supporting line below the body (proof/detail)
 
   Use sparingly. Best for transition/interstitial slides where no other
   layout fits.
@@ -12,6 +14,11 @@
     ≤8 words   → 144px (poster)
     9–16 words → 96px  (medium)
     17–30 words→ 68px  (long)
+
+  Left-aligned to match cover/cta/quote (centered text reads as
+  auto-generated — see reference/examples.md: Alić/Welsh discipline).
+  A mint anchor bar below the body ties every narrative slide back to the
+  brand accent and kills the empty lower band.
 
   Markdown-style **emphasis** in body renders in the accent color.
 */ -}}
@@ -27,27 +34,76 @@
     display: flex;
     flex-direction: column;
     justify-content: center;
-    align-items: center;
-    text-align: center;
-    padding-bottom: 96px;
+    align-items: flex-start;
+    text-align: left;
+    gap: 40px;
+    padding-bottom: var(--footer-reserve, 120px);
+  }
+
+  .text-eyebrow {
+    font-family: var(--font-body);
+    font-size: 24px;
+    font-weight: 600;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0;
   }
 
   .text-body {
     font-family: var(--font-heading);
     font-weight: 800;
     letter-spacing: -0.02em;
-    color: var(--fg-primary);
+    color: var(--fg-primary);   /* tone scopes redefine --fg-primary (see base.css) */
     max-width: 900px;
     text-wrap: balance;
   }
 
-  .text-body--poster { font-size: 144px; line-height: 1.0; }
-  .text-body--medium { font-size: 96px;  line-height: 1.1; }
-  .text-body--long   { font-size: 68px;  line-height: 1.25; max-width: 880px; }
+  .text-body--poster { font-size: 132px; line-height: 1.02; }
+  .text-body--medium { font-size: 92px;  line-height: 1.1; }
+  .text-body--long   { font-size: 64px;  line-height: 1.25; max-width: 880px; }
+
+  .text-sub {
+    font-family: var(--font-body);
+    font-size: 40px;
+    font-weight: 400;
+    line-height: 1.4;
+    letter-spacing: 0.01em;
+    color: var(--fg-secondary);
+    max-width: 800px;
+    margin: 0;
+  }
+
+  /* Group eyebrow + body + sub so the outer wrapper gap only separates
+     the text block from the anchor, keeping the copy tight together. */
+  .text-block {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 32px;
+  }
+
+  /* Mint anchor — recurring brand accent on every narrative slide. */
+  .text-anchor {
+    width: 96px;
+    height: 6px;
+    background-color: var(--accent);
+    border-radius: 3px;
+    margin-top: 8px;
+  }
 </style>
 
 <div class="text-wrapper">
-  <p class="text-body text-body--{{ $size }}">{{ highlight .Slide.Body }}</p>
+  <div class="text-block">
+    {{- if .Slide.Label }}
+    <p class="text-eyebrow">{{ .Slide.Label }}</p>
+    {{- end }}
+    <p class="text-body text-body--{{ $size }}">{{ highlight .Slide.Body }}</p>
+    {{- if .Slide.Sub }}
+    <p class="text-sub">{{ highlight .Slide.Sub }}</p>
+    {{- end }}
+  </div>
+  <div class="text-anchor" aria-hidden="true"></div>
 </div>
 
 {{template "footer" .}}
