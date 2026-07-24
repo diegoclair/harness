@@ -167,7 +167,7 @@ body {
   color: var(--fg-primary);
   font-family: var(--font-body);
   overflow: hidden;
-  padding: 80px;                /* U2: padding >= 80px all sides */
+  padding: 80px var(--pad-x, 80px); /* U2: padding >= 80px all sides; --pad-x widens L/R for grid-safe platforms */
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
@@ -510,16 +510,16 @@ body {
  * Every slide has a footer at the bottom with:
  *   left:  handle (@username)
  *   right: slide number (N/T)
- * Position: absolute, bottom ~56px, left/right 80px.
- * Stays inside the 80px padding zone = always within safe-zone.
+ * Position: absolute, bottom ~56px, left/right = --pad-x (default 80px).
+ * Tracks .slide's horizontal padding = always within safe-zone.
  * U10: handle_present; U11: slide_number_present
  */
 
 .slide-footer {
   position: absolute;
   bottom: 56px;
-  left: 80px;
-  right: 80px;
+  left: var(--pad-x, 80px);
+  right: var(--pad-x, 80px);
   display: flex;
   align-items: center;
   justify-content: space-between;

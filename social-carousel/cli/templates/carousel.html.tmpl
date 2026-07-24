@@ -47,6 +47,9 @@
       --font-heading: '{{ .Theme.FontHeading }}', sans-serif;
       --font-body:    '{{ .Theme.FontBody }}', 'Noto Color Emoji', sans-serif;
       --font-quote:   {{ if .Theme.FontQuote }}'{{ .Theme.FontQuote }}', serif{{ else }}'{{ .Theme.FontHeading }}', sans-serif{{ end }};
+      {{- if .Spec.SafePadX }}
+      --pad-x: {{ .Spec.SafePadX }}px;
+      {{- end }}
     }
   </style>
 </head>
@@ -61,6 +64,7 @@
     data-layout="{{ .Slide.Layout }}"
     data-tone="{{ .Slide.Tone }}"
     data-bg-effect="{{ $.Theme.BackgroundEffect }}"
+    data-platform="{{ $.Spec.Name }}"
     style="width:{{ $.Spec.Width }}px; height:{{ $.Spec.Height }}px;"
   >
     {{- /* Dispatch to layout partial */}}

@@ -175,18 +175,29 @@ type PlatformSpec struct {
 	DeviceScale    float64 // 2.0 for retina export → 2160×2700
 	OutputFormat   string // "png" | "pdf"
 	AspectShortcut string // "4:5" | "1:1" | "9:16"
+	// SafePadX is the horizontal content padding (px), replacing base.css's
+	// default 80px. Instagram's profile grid crops a 4:5 post to 3:4
+	// (~34px/side at 1080px width); this adds margin so text never sits in
+	// that crop zone. 0 means "use the CSS default" — feed-only platforms
+	// (LinkedIn) and formats the grid doesn't crop sideways keep it at 0.
+	SafePadX int
 }
+
+// gridSafePadX is the base.css default (80px) plus a safety margin over the
+// ~34px/side the Instagram profile grid crops from a 4:5 post at 1080px width.
+const gridSafePadX = 128
 
 // platformSpecs is the canonical table of supported export targets.
 // Add a new entry to extend the skill to a new platform.
 var platformSpecs = map[string]PlatformSpec{
 	"instagram-4x5": {
 		Name: "instagram-4x5", Width: 1080, Height: 1350, DeviceScale: 2.0,
-		OutputFormat: "png", AspectShortcut: "4:5",
+		OutputFormat: "png", AspectShortcut: "4:5", SafePadX: gridSafePadX,
 	},
 	"instagram-1x1": {
 		Name: "instagram-1x1", Width: 1080, Height: 1080, DeviceScale: 2.0,
 		OutputFormat: "png", AspectShortcut: "1:1",
+		// Grid crops 1:1 top/bottom, not sideways — no horizontal safe area needed.
 	},
 	"linkedin-4x5": {
 		Name: "linkedin-4x5", Width: 1080, Height: 1350, DeviceScale: 2.0,

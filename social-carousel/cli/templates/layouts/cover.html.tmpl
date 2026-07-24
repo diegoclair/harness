@@ -107,13 +107,13 @@
   .cover-swipe {
     position: absolute;
     bottom: 56px;
-    right: 80px;
+    right: var(--pad-x, 80px);
     font-size: 40px;
     color: var(--fg-secondary);
     opacity: 0.6;
     z-index: 10;
     /* do not overlap the slide number — offset left if number shown */
-    margin-right: 80px;
+    margin-right: var(--pad-x, 80px);
   }
 </style>
 
