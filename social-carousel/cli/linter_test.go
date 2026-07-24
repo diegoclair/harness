@@ -798,6 +798,86 @@ func TestLint_CM05_LabelsPresent_NoIssue(t *testing.T) {
 	}
 }
 
+// ---------------------------------------------------------------------------
+// ST-06: slide 3 content-word overlap with slides 2/4 — WARN past 60%.
+// ---------------------------------------------------------------------------
+
+func TestLint_ST06_RedundantSlide3_Warns(t *testing.T) {
+	c := &Carousel{
+		Handle: "@test",
+		Slides: []Slide{
+			{Layout: "cover", Hook: "Short hook"},
+			{Layout: "text", Body: "Providers lose clients when follow-up is manual and slow"},
+			{Layout: "big-number", Number: "87%", Caption: "of providers lose clients to manual slow follow-up"},
+			{Layout: "cta", Headline: "Save", CTAText: "Save"},
+		},
+	}
+	r := LintCarousel(c, darkTech())
+	found := false
+	for _, issue := range r.Issues {
+		if issue.Code == "ST-06" && issue.Severity == SeverityWarn {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("expected ST-06 WARN for redundant slide 3; issues=%+v", r.Issues)
+	}
+}
+
+func TestLint_ST06_DistinctSlide3_NoIssue(t *testing.T) {
+	c := &Carousel{
+		Handle: "@test",
+		Slides: []Slide{
+			{Layout: "cover", Hook: "Short hook"},
+			{Layout: "text", Body: "Providers lose clients when follow-up is manual"},
+			{Layout: "big-number", Number: "6", Caption: "days of silence before a client ghosts you"},
+			{Layout: "cta", Headline: "Save", CTAText: "Save"},
+		},
+	}
+	r := LintCarousel(c, darkTech())
+	if hasCode(r, "ST-06") {
+		t.Errorf("did not expect ST-06 for a distinct slide 3; issues=%+v", r.Issues)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// CR-01: stock influencer phrases — WARN, substring match.
+// ---------------------------------------------------------------------------
+
+func TestLint_CR01_InfluencerPhrase_Warns(t *testing.T) {
+	c := &Carousel{
+		Handle: "@test",
+		Slides: []Slide{
+			{Layout: "cover", Hook: "Short hook"},
+			{Layout: "cta", Headline: "Salva esse post", CTAText: "Salva esse post e me manda um DM"},
+		},
+	}
+	r := LintCarousel(c, darkTech())
+	found := false
+	for _, issue := range r.Issues {
+		if issue.Code == "CR-01" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("expected CR-01 for stock influencer phrase; issues=%+v", r.Issues)
+	}
+}
+
+func TestLint_CR01_CleanCopy_NoIssue(t *testing.T) {
+	c := &Carousel{
+		Handle: "@test",
+		Slides: []Slide{
+			{Layout: "cover", Hook: "Short hook"},
+			{Layout: "cta", Headline: "Ainda dá tempo", CTAText: "Comente LYBEL"},
+		},
+	}
+	r := LintCarousel(c, darkTech())
+	if hasCode(r, "CR-01") {
+		t.Errorf("did not expect CR-01 for clean copy; issues=%+v", r.Issues)
+	}
+}
+
 func TestSlide_HookStyle_Decodes(t *testing.T) {
 	src := []byte("layout: cover\nhook: \"Hi\"\nhook_style: gradient\n")
 	var s Slide

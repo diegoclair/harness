@@ -1,7 +1,7 @@
 ---
 name: social-carousel
-version: 0.2.1
-description: Generates viral Instagram and LinkedIn carousels from a small YAML brief using a local Go CLI. Drives headless Chrome via chromedp to produce PNGs (Instagram) or a combined PDF (LinkedIn) — zero per-image cost, zero account, zero round-trip to paid SaaS APIs. Ships with 5 design presets, 7 layout templates (cover, list, big-number, quote, comparison, screenshot, cta), and a linter that validates copy against 30 codified rules from viral-carousel research (slide-3 value bomb, ≤12-word hook, single CTA, contrast ≥4.5:1, etc.). Use this skill whenever the user asks to create, design, draft or generate a carousel for Instagram, LinkedIn, or any social platform — even when they don't explicitly say "carousel" but ask for a "post serie", "swipe post", "slides for X", or "8 slides about Y". Replies match the user's language and tone.
+version: 0.3.0
+description: Generates viral Instagram and LinkedIn carousels from a small YAML brief using a local Go CLI. Drives headless Chrome via chromedp to produce PNGs (Instagram) or a combined PDF (LinkedIn) — zero per-image cost, zero account, zero round-trip to paid SaaS APIs. Ships with 5 design presets, 7 layout templates (cover, list, big-number, quote, comparison, screenshot, cta), a linter that validates copy against 34 codified rules from viral-carousel research (slide-3 value bomb, ≤12-word hook, single CTA, contrast ≥4.5:1, etc.), and an adversarial copy-review checklist for the editorial judgment the linter can't automate. Use this skill whenever the user asks to create, design, draft or generate a carousel for Instagram, LinkedIn, or any social platform — even when they don't explicitly say "carousel" but ask for a "post serie", "swipe post", "slides for X", or "8 slides about Y". Replies match the user's language and tone.
 allowed-tools: |
   Bash(social-carousel *)
   Bash(make build)
@@ -24,11 +24,11 @@ This skill solves all three problems with one binary:
 
 ## Language rule
 
-This document is in English because Claude reasons more robustly with English instructions. User-facing output, however, must match the user's language and tone (formal/informal). Slide content (hooks, copy, hashtags) stays in whatever language the user wrote — only technical scaffolding names (layout types, theme keys) stay in English.
+This document is in English because Claude reasons more robustly with English instructions. User-facing output, however, must match the user's language and tone (formal/informal). Slide content (hooks, copy, hashtags) stays in whatever language the user wrote — only technical scaffolding names (layout types, theme keys) stay in English. For PT-BR carousels specifically, read the "PT-BR guidance" section of [reference/copy-review.md](reference/copy-review.md) before drafting — it covers register (informal Brazilian, not institutional), a PT influencer-speak list to avoid, and how to adapt the EN hook formulas without a stiff calque.
 
 ## Four rules to internalize once
 
-1. **Read `reference/examples.md` BEFORE writing slide copy.** Not "if unsure" — *always*. The linter encodes the WHAT (word counts, structure, contrast). It cannot encode the HOW-IT-LOOKS-WHEN-GOOD. `examples.md` carries 4 verified canonical carousels (Alić / Welsh / Broekema / Chris Do) with engagement numbers, hook formulas, and per-archetype layout sequences. Pick the archetype that matches the user's intent BEFORE scaffolding — otherwise you optimize for lint compliance and ship a slide that "looks fine but feels off." If you cannot name which reference your carousel is mirroring, you skipped this step.
+1. **Read `reference/examples.md` AND `reference/copy-review.md` BEFORE writing slide copy.** Not "if unsure" — *always*. The linter encodes the WHAT (word counts, structure, contrast). It cannot encode the HOW-IT-LOOKS-WHEN-GOOD, nor can it catch redundant value bombs, buried triggers, or a CTA that only makes sense with earlier context. `examples.md` carries 4 verified canonical carousels (Alić / Welsh / Broekema / Chris Do) with engagement numbers, hook formulas, and per-archetype layout sequences. `copy-review.md` carries 7 adversarial checks distilled from real 6.5/10 reviews. Pick the archetype that matches the user's intent BEFORE scaffolding — otherwise you optimize for lint compliance and ship a slide that "looks fine but feels off." If you cannot name which reference your carousel is mirroring, you skipped this step.
 
 2. **Always run `check` before `render`.** The linter encodes viral-carousel research that is not obvious from looking at a YAML. A YAML that "looks fine" can still fail rule `ST-05` (slide 3 should be a value bomb) or `A1` (CTA has multiple verbs). `render` runs `check` by default and blocks on errors. Do NOT pass `--force` to silence the linter unless the user explicitly asked you to ship a non-conforming carousel.
 
@@ -121,6 +121,9 @@ The linter checks compliance. It cannot check whether the carousel is *good*. Af
 2. **Read slide 3.** Is it the most surprising slide in the deck? If not, you wrote it to satisfy the value-bomb rule, not the reader. Swap with whichever slide *would* surprise.
 3. **Skim slides 4–7.** Do they all sound alike? Mix layouts — alternate `list`/`comparison`/`big-number`/`text`. Same layout three+ slides in a row reads monotone.
 4. **Read the CTA aloud.** Does it ask for ONE specific thing the reader can do in 5 seconds? "Save + comment + share + follow + DM me" gets zero of those actions. Pick one verb.
+5. **Compare slide 3 against slides 2 and 4.** Is it actually NEW information, or the same claim in different words? If two slides could merge without losing an idea, one is filler — see [copy-review.md check #1](reference/copy-review.md).
+6. **Read every slide aloud (the cringe test).** Would you actually say this to a person, or does it only exist in influencer-speak / press-release voice? See [copy-review.md check #4](reference/copy-review.md).
+7. **Read ONLY the last slide, pretending you saw nothing else.** Does every reference resolve ("your name", "this", "it")? A CTA that depends on context from an earlier slide loses the reader who jumps straight to the end — see [copy-review.md check #3](reference/copy-review.md).
 
 Anchor every carousel to one of the four archetypes in [reference/examples.md](reference/examples.md) — see rule 1 above. The four are: **Alić** (typographic system / pure visual ceiling), **Welsh** (numbered framework / listicle), **Broekema** (data-led B2B/SaaS operator playbook), **Chris Do** (Instagram type-heavy / pull-quote teaching).
 
@@ -268,6 +271,7 @@ If no FIX and ≤2 NOTEs: declare ready, paste the caption_seed + hashtags, hand
 The body above is the entry point — daily use, mental model, common workflows. Detail lives in `reference/`.
 
 - **`reference/examples.md` — 4 canonical reference carousels (Alić / Welsh / Broekema / Chris Do) with verified engagement, links, hook formulas, layout sequences, and YAML mapping. MANDATORY read before writing slide copy (see rule 1 above). Pick the archetype that matches the user's brief BEFORE scaffolding.**
+- **`reference/copy-review.md` — 7-check adversarial copy audit (slide-3 novelty, trigger placement, self-sufficient CTA, cringe/read-aloud test, PT-BR register + phrase list, big-number "1" glyph, binary engagement question) distilled from real 6.5/10 production reviews. MANDATORY read alongside `examples.md` before writing slide copy (see rule 1 above).**
 - `reference/layouts.md` — when to use each of the 7 layouts; what fields are required vs optional; visual examples
 - `reference/linter-rules.md` — every linter rule with code, severity, the research it codifies, and how to fix
 - `reference/hooks.md` — the 13 hook formulas (H-01..H-13) plus a 4-question decision tree to narrow before you read all of them

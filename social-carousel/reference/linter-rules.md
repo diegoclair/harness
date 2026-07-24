@@ -1,4 +1,4 @@
-# Linter rules — the 30 codified rules
+# Linter rules — the 34 codified rules
 
 > When to read: when `social-carousel check` reports an issue you don't recognize, or when authoring custom logic and you want to know what the linter checks.
 
@@ -43,6 +43,10 @@ Algorithmic and cognitive: the cover layout has the visual hierarchy the feed ex
 ### ST-05 — Slide 3 must be value bomb — WARN
 80% of viewers who reach slide 3 finish the carousel. Slide 3 is the algorithmic inflexion point. Layouts that work as value bomb: `big-number`, `list`, `quote`. Layouts that fail there: `cover` (impossible — there's already one), `text` (no visual impact).
 **Fix:** move your strongest data/insight to slide 3.
+
+### ST-06 — Slide 3 content overlap with neighbors — WARN
+ST-05 only checks layout placement, not content. Real production failure: slides 2-3-4 restated the same claim in different words. Heuristic: strips stopwords (PT+EN) from slide 3's copy and slides 2/4's copy, then flags when ≥60% of slide 3's content words also appear in a neighbor.
+**Fix:** slide 3 must introduce new information — a fact, mechanism, or reframe — not reword a neighboring slide. This is a coarse word-overlap signal, not a semantic judgment: a WARN means "re-read these two slides," not "definitely redundant." See `reference/copy-review.md` check #1.
 
 ### AP-07 — Last slide must be CTA — WARN
 The reader who reaches the end is the most engaged. Wasting the final slot with `text` or `quote` skips the conversion.
@@ -135,6 +139,14 @@ Same logic as C1 but for the CTA slide.
 ### SP-02 — Text+spotlight body ≤ 12 words — WARN
 A `layout: text` + `tone: spotlight` slide renders the Body as a pull-quote, with oversized typography and decorative quotation marks. Past ~12 words the quotation marks crash into the text and the slide looks cramped — the opposite of the airy "pause" the spotlight is supposed to provide.
 **Fix:** trim to a pull-quote-length line, or drop the spotlight tone and use a regular text slide.
+
+## Editorial heuristics (from production adversarial review)
+
+These two rules encode failure patterns found in real adversarially-reviewed carousels (see `reference/copy-review.md`) rather than the original viral-carousel research corpus. Both are WARN-only, plain-mechanic checks (word overlap, substring match) — deliberately not semantic, to avoid false-positive noise eroding trust in the linter.
+
+### CR-01 — Stock influencer phrase — WARN
+Substring match (case-insensitive) against a short list of PT/EN phrases that pass every mechanical check but fail a read-aloud test — e.g. "te leio", "salva esse post" (bare, no reason attached), "smash that follow button". List lives in `influencerPhrases` in `cli/linter_rules.go`.
+**Fix:** read the line aloud; replace with what you'd actually say to one specific person. See `reference/copy-review.md` check #4 for the full audit (this rule only catches known clichés, not paraphrases or the institutional-voice direction of the same failure).
 
 ## What the linter does NOT check
 

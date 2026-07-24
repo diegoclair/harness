@@ -3,6 +3,19 @@
 All notable changes to `social-carousel` will be documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.3.0] - 2026-07-24
+
+### Added
+
+- **`reference/copy-review.md`** — 7-check adversarial copy audit distilled from two production carousels that scored 6.5/10 with reviewers, where every defect was editorial (never structural, the linter caught nothing). Checks: slide-3 novelty vs neighbors, arming the strongest trigger early, self-sufficient CTA referents, a read-aloud/cringe test (influencer-speak and press-release voice), PT-BR register + phrase list + hook-formula adaptation notes, the big-number "1" glyph pitfall, and a binary-question caption hook. Includes guidance for dispatching an adversarial-reviewer subagent before shipping.
+- **Linter rule ST-06 (slide-3 redundancy, WARN)** — flags when slide 3 shares ≥60% of its content words (stopwords stripped) with slide 2 or slide 4, the mechanical proxy for "value bomb reworded a neighbor instead of introducing new information."
+- **Linter rule CR-01 (stock influencer phrase, WARN)** — substring match against a short PT/EN cliché list ("te leio", "salva esse post" bare, "smash that follow button", etc.).
+- **`reference/layouts.md`** — pitfall note under `big-number`: a lone numeral "1" in a geometric sans (Outfit) can misread as a lowercase "l" at 200–300px; real production failure on a "1 link" slide.
+
+### Changed
+
+- **SKILL.md** — `reference/copy-review.md` is now a mandatory read alongside `examples.md` before writing slide copy; the 4 taste questions gained 3 more (slide-3 novelty, read-aloud/cringe, self-sufficient CTA); the language rule now points PT-BR carousels at copy-review.md's register + phrase-list section.
+
 ## [0.2.1] - 2026-07-09
 
 ### Fixed

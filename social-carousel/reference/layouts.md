@@ -66,6 +66,8 @@ The linter blocks render if:
 
 **When NOT to use:** if you don't have a real number. Inventing statistics is anti-pattern AP-11 and erodes credibility fast.
 
+**Pitfall — the numeral "1" glyph:** a lone `"1"` (or `"1x"`, `"1 link"`) rendered at 200–300 px in a geometric sans like Outfit is easy to misread as a lowercase "l" — the digit has no serif or foot to anchor it at that size. Real production failure on a "1 link" big-number slide. If the number IS "1", consider spelling it as a word ("UM" / "ONE") in the `subhead` or `caption` instead of relying on the numeral alone to read correctly at a glance, or pair it with unambiguous context immediately adjacent (e.g. `caption: "link. Só isso."`) so misreading the glyph doesn't break the sentence.
+
 ## quote
 
 **Purpose:** emotional connection, shareability, authority by association.

@@ -1,6 +1,7 @@
 // Package main — linter defines the engine and types for the viral-carousel
-// linter. It encodes 32 rules derived from marketing research in
-// _research/D-design-system-viral.md and _research/A-anatomia-viral.md.
+// linter. It encodes 34 rules derived from marketing research in
+// _research/D-design-system-viral.md and _research/A-anatomia-viral.md, plus
+// two editorial heuristics from production adversarial review (ST-06, CR-01).
 //
 // The linter runs synchronously and returns a [LintReport]. Callers decide
 // whether to block rendering based on ErrCount > 0.
@@ -78,10 +79,12 @@ func LintCarousel(c *Carousel, theme *Theme) LintReport {
 	lintSlideCount(&r, c)
 	lintCoverFirst(&r, c)
 	lintSlide3ValueBomb(&r, c)
+	lintSlide3Redundancy(&r, c)
 	lintLastSlideCTA(&r, c)
 	lintHandle(&r, c)
 	lintRhythm(&r, c)
 	lintSpotlightOveruse(&r, c)
+	lintCringePhrases(&r, c)
 	lintFontCount(&r, theme)
 	if theme != nil {
 		lintContrastBody(&r, theme)

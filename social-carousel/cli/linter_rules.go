@@ -1,4 +1,4 @@
-// Package main — linter_rules implements all 32 codified viral-carousel rules.
+// Package main — linter_rules implements all 34 codified viral-carousel rules.
 //
 // Rules are organised by scope:
 //
@@ -7,6 +7,8 @@
 //   - Layout-specific: cover (C*), list (L*), big-number (N*), quote (Q*),
 //     comparison (R*), screenshot (S*), cta (A*).
 //   - Anti-pattern extras: AP-04, AP-07 (already covered as carousel-level).
+//   - Editorial heuristics from production review: ST-06 (slide-3 redundancy),
+//     CR-01 (stock influencer phrases).
 //
 // Rule codes follow the research document (D-design-system-viral.md §TEMPLATE CHECKLIST).
 package main
@@ -55,6 +57,20 @@ func slideWords(s Slide) int {
 // layout name, e.g. "slide 3 (big-number)".
 func slideKind(idx int, s Slide) string {
 	return fmt.Sprintf("slide %d (%s)", idx+1, s.Layout)
+}
+
+// slideText concatenates every prose field of a slide into one string, for
+// checks that need the whole copy rather than a word count (redundancy,
+// phrase matching). Item lists are joined in too.
+func slideText(s Slide) string {
+	parts := []string{
+		s.Hook, s.Sub, s.Title, s.Body, s.Caption, s.Subhead, s.Context,
+		s.Quote, s.Attribution, s.Headline, s.CTAText, s.Label,
+	}
+	parts = append(parts, s.Items...)
+	parts = append(parts, s.BeforeItems...)
+	parts = append(parts, s.AfterItems...)
+	return strings.Join(parts, " ")
 }
 
 // ---------------------------------------------------------------------------
@@ -223,6 +239,125 @@ func lintSlide3ValueBomb(r *LintReport, c *Carousel) {
 			fmt.Sprintf("slide 3 uses layout '%s'; this is the algorithmic inflection point", s3.Layout),
 			"use big-number, list or quote to maximize retention on slide 3",
 		)
+	}
+}
+
+// contentWordStopwords are common function words (PT+EN) excluded from the
+// slide-3 redundancy overlap check — they carry no topical meaning and would
+// inflate the overlap score for any two slides on the same subject.
+var contentWordStopwords = map[string]bool{
+	"a": true, "o": true, "as": true, "os": true, "um": true, "uma": true,
+	"de": true, "do": true, "da": true, "dos": true, "das": true, "em": true,
+	"no": true, "na": true, "nos": true, "nas": true, "para": true, "pra": true,
+	"por": true, "com": true, "sem": true, "que": true, "e": true, "ou": true,
+	"seu": true, "sua": true, "seus": true, "suas": true, "é": true, "são": true,
+	"the": true, "of": true, "and": true, "or": true, "to": true, "in": true,
+	"on": true, "for": true, "with": true, "without": true, "is": true, "are": true,
+	"your": true, "you": true,
+}
+
+// contentWords lowercases s, strips punctuation, and returns the set of
+// words not in contentWordStopwords.
+func contentWords(s string) map[string]bool {
+	out := map[string]bool{}
+	for _, w := range strings.Fields(strings.ToLower(s)) {
+		w = strings.Trim(w, ".,!?:;\"'()**")
+		if w == "" || contentWordStopwords[w] {
+			continue
+		}
+		out[w] = true
+	}
+	return out
+}
+
+// wordOverlapRatio returns |a ∩ b| / min(|a|, |b|) — how much of the smaller
+// set is also in the larger one. Empty sets return 0 (nothing to compare).
+func wordOverlapRatio(a, b map[string]bool) float64 {
+	if len(a) == 0 || len(b) == 0 {
+		return 0
+	}
+	shared := 0
+	for w := range a {
+		if b[w] {
+			shared++
+		}
+	}
+	smaller := len(a)
+	if len(b) < smaller {
+		smaller = len(b)
+	}
+	return float64(shared) / float64(smaller)
+}
+
+// lintSlide3Redundancy implements rule ST-06: slide 3 must carry new
+// information, not reword its neighbors.
+//
+// ST-05 only checks that slide 3 uses a value-bomb-capable layout; it says
+// nothing about content. Real audit finding: slides 2-3-4 restated the same
+// claim in different phrasing ("redundancy disguised as rhetorical
+// repetition"). This is a coarse content-word overlap heuristic, not a
+// semantic check — high overlap is treated as a signal to re-read, not proof
+// of redundancy, hence WARN-only and a conservative 0.6 threshold.
+func lintSlide3Redundancy(r *LintReport, c *Carousel) {
+	if len(c.Slides) < 3 {
+		return
+	}
+	s3Words := contentWords(slideText(c.Slides[2]))
+	if len(s3Words) == 0 {
+		return
+	}
+
+	const threshold = 0.6
+	check := func(neighborIdx int) {
+		if neighborIdx < 0 || neighborIdx >= len(c.Slides) {
+			return
+		}
+		neighborWords := contentWords(slideText(c.Slides[neighborIdx]))
+		ratio := wordOverlapRatio(s3Words, neighborWords)
+		if ratio >= threshold {
+			r.addWarn("ST-06", 2,
+				fmt.Sprintf("slide 3 shares %.0f%% of its content words with slide %d — likely restating the same point",
+					ratio*100, neighborIdx+1),
+				"slide 3 should introduce new information (a fact, mechanism, or reframe), not reword a neighboring slide",
+			)
+		}
+	}
+	check(1) // slide 2
+	check(3) // slide 4
+}
+
+// influencerPhrases are stock phrases (PT+EN) that pass every mechanical
+// check but fail a read-aloud test — see reference/copy-review.md check #4.
+// Substring match, case-insensitive; kept short and specific to avoid false
+// positives on legitimate copy.
+var influencerPhrases = []string{
+	// PT
+	"te leio", "leio vocês", "salva esse post", "salva este post",
+	"deixa nos comentários que eu respondo", "deixa aqui nos comentários que eu respondo",
+	"bora lá", "bora nessa", "printa e me manda",
+	// EN
+	"i read you all", "save this post and", "drop a comment and i'll reply to everyone",
+	"like, comment, share, and follow", "smash that follow button",
+}
+
+// lintCringePhrases implements rule CR-01: flag stock influencer-speak.
+//
+// Deliberately a plain substring list (same pattern as AP-04's filler
+// phrases) rather than an NLP classifier — cheap, deterministic, and easy
+// to extend. It cannot catch paraphrases; treat a clean pass as "no known
+// cliché", not "definitely not cringe" (see copy-review.md's read-aloud
+// audit for the judgment call this rule can't make).
+func lintCringePhrases(r *LintReport, c *Carousel) {
+	for i, s := range c.Slides {
+		lower := strings.ToLower(slideText(s))
+		for _, phrase := range influencerPhrases {
+			if strings.Contains(lower, phrase) {
+				r.addWarn("CR-01", i,
+					fmt.Sprintf("%s: contains stock influencer phrase %q", slideKind(i, s), phrase),
+					"read the line aloud — replace with what you'd actually say to one specific person",
+				)
+			}
+		}
 	}
 }
 
