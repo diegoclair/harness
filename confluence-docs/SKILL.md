@@ -54,7 +54,7 @@ The body below is the entry point — daily use, mental model, common workflows.
 - `reference/operations-matrix.md` — CLI subcommand × constraint × fail mode × workaround. **Read before chaining table/section edits** — captures the gotchas not visible from `--help` (notably: `--match-cell` always matches the first column unless `--match-col` is provided in v0.11+)
 - `reference/editorial-patterns.md` — how pages should be written (Pattern 1: header; 2: Context→Problem→Solution; 3: clarity for outside readers; 4: no process meta-noise)
 - `reference/features.md` — CLI features: full-width pages, `:::properties` macro, Smart Link embeds, `check`, `new`, `km`
-- `reference/configuration.md` — credentials, spaces, cache lifecycle, install check, exit codes
+- `reference/configuration.md` — auth modes (`login` OAuth / `setup` API token), credentials, spaces, cache lifecycle, install check, exit codes
 
 Project-specific routing (your category structure, aliases, templates) lives on the **Confluence Home page**, fetched dynamically — the skill ships zero project-specific data.
 
@@ -265,6 +265,17 @@ Every page belongs to one of five standard doc types. These drive both the `chec
 | `explanation` | Conceptual "why" — not how to do something, but what it is and why it exists. | Onboarding gaps, recurring questions, concepts used across multiple pages. |
 | `how-to` | Step-by-step operational guide. Action-oriented; assumes the reader knows the concept. | Any repeatable operational task (deploy, configure, run a meeting, etc.). |
 | `capture` | Quick capture: spike result, meeting note, idea, research dump. Low-polish, high-freshness. | After a spike, meeting, or discovery that needs to be logged before it disappears. |
+
+## Authentication
+
+Two modes, both stored in the shared credentials file `~/.config/atlassian/credentials` (also used by `jira-tickets`):
+
+- **`confluence-docs login` (recommended)** — OAuth 2.0 browser login. Nothing to register: run it, the user authorizes in the browser, tokens auto-refresh from then on.
+- **`confluence-docs setup` (fallback)** — email + API token (Basic auth). Atlassian API tokens now expire after at most 1 year, which is why `login` is recommended; `setup` remains for headless/CI environments.
+
+**Orchestrating a first-time `login` for a user:** just run `confluence-docs login` — a browser opens and the user authorizes. Add `--site` if their account has several Atlassian sites, or `--no-browser` on a headless machine so they can open the printed URL themselves.
+
+`setup --check` validates whichever mode is active and reports it (`credentials valid (<name>, oauth, space: <key>)`); exit codes unchanged. Full details — flags, scopes, resolution order, credentials-file keys: `reference/configuration.md`.
 
 ## Updating the skill
 

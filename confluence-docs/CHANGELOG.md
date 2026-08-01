@@ -1,5 +1,35 @@
 # Changelog — confluence-docs
 
+## Unreleased
+
+### New: `confluence-docs login` — OAuth 2.0 browser login
+
+Browser-based OAuth login as the recommended alternative to API tokens, which Atlassian caps at 1 year of lifetime (mandatory since Dec/2024). Run `login`, authorize in the browser, done — no app to register and no token to paste.
+
+Released binaries carry the shared "Lybel Skills" OAuth app; its secret is injected at build time from a CI secret and is never committed. PKCE (S256) binds the authorization code to the process that started the login. Atlassian still rejects the token exchange without a client secret ([OAUTH20-2491](https://jira.atlassian.com/browse/OAUTH20-2491)), so a shipped CLI cannot be a true public client — the secret identifies the app, never the user, and grants stay per user and revocable. Builds from source have no bundled secret and fall back to `ATLASSIAN_OAUTH_CLIENT_SECRET` or `--client-id`/`--client-secret`.
+
+Flow: `login` opens the browser (WSL-aware), completes on a localhost callback (port 8517), and stores the grant in the shared credentials file. Access tokens auto-refresh from then on; rotating refresh tokens are persisted under a `credentials.lock` file lock so concurrent CLI processes never burn the rotation chain. OAuth calls route through `https://api.atlassian.com/ex/confluence/<cloudId>`.
+
+Flags: `--site NAME|URL` (multi-site accounts), `--no-browser`, `--scopes "s1 s2"`, `--client-id`, `--client-secret`, `--print-redirect-uri`. Full reference: `reference/configuration.md`.
+
+### Fix: page links pointed at the API gateway under OAuth
+
+`PageURL` and `pageWebURL` built browser links from the API base, so with an OAuth grant every printed link came out as `https://api.atlassian.com/ex/confluence/<cloudId>/wiki/...` — a valid API route that does not serve the web UI. Links now use the site domain (`https://<site>.atlassian.net/wiki/...`) via a new `ConfluenceWebBase` on the authorizer. Basic auth was unaffected.
+
+### Shared auth layer: `pkg/atlassian/auth`
+
+Authentication for both skills now resolves through one shared package, in priority order: CLI flags → `ATLASSIAN_EMAIL`/`ATLASSIAN_API_TOKEN` env vars → stored OAuth grant → stored/legacy email + API token. `setup` (email + API token) is unchanged and remains the fallback for headless/CI environments.
+
+### `setup --check` is OAuth-aware
+
+Now validates a stored OAuth session too and reports the active mode on success: `credentials valid (<name>, oauth, space: <key>)`. Exit codes unchanged (0 ok / 1 no creds / 2 invalid auth / 3 network).
+
+### Fix: legacy credentials-path inconsistency in the Confluence client
+
+The Confluence client still read the per-skill `confluence-docs/credentials` path ahead of the shared `atlassian/credentials` one, unlike the rest of the codebase. It now reads the shared atlassian path first, falling back to the legacy per-skill paths with the usual migration warning.
+
+---
+
 ## v0.14.1 (2026-05-15) — ADF spec compliance (shared with jira-tickets)
 
 Patch release. Shared `pkg/atlassian/adf` was emitting the `doc` node with `version: 1` nested under `attrs`; the spec puts it at the top level of the doc object. Confluence's REST API was tolerant of the old shape, so no `confluence-docs` user ever hit an error from it. The fix landed because Jira Cloud v3 rejects the non-spec form — without this commit, `jira-tickets issue create --description` and `issue comment --body` fail with HTTP 400.

@@ -35,6 +35,8 @@ The installer downloads the latest release, extracts to `~/.claude/skills/conflu
 
 ## Step 2 — Generate an Atlassian API token
 
+> **Alternative — OAuth `login` (recommended for long-term use):** API tokens expire after at most 1 year; `confluence-docs login` auto-refreshes forever and needs no app registration. Orchestration: run `confluence-docs login` — a browser opens for the user to authorize, and that's it. Add `--site NAME` if their account has several Atlassian sites, or `--no-browser` on a headless machine so they open the printed URL manually. Flag reference: [configuration.md](./configuration.md). If you use `login`, skip Steps 2–3 and continue at Step 4.
+
 Walk the user through this **in chat**:
 
 > 1. Open: https://id.atlassian.com/manage-profile/security/api-tokens
@@ -76,7 +78,7 @@ confluence-docs setup --check
 |---|---|---|
 | `0` | Credentials valid | Proceed to Step 5. |
 | `1` | No credentials file | Re-run Step 3. |
-| `2` | Rejected by Atlassian | Token wrong/revoked — regenerate (Step 2), redo Step 3. |
+| `2` | Rejected by Atlassian | Token wrong/revoked — regenerate (Step 2), redo Step 3. On the OAuth path: run `confluence-docs login` again. |
 | `3` | Network error | Confirm internet/VPN, retry. |
 
 ---

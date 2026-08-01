@@ -20,13 +20,14 @@ allowed-tools: |
 
 ## Overview
 
-Drives Claude against Jira Cloud through a local Go binary that returns **digests, JQL TSV slices, and surgical updates** instead of full ADF round-trips. The same Atlassian token used by the `confluence-docs` skill works here — both read credentials from `~/.config/atlassian/credentials` (with fallback to the per-skill files for back-compat).
+Drives Claude against Jira Cloud through a local Go binary that returns **digests, JQL TSV slices, and surgical updates** instead of full ADF round-trips. The same Atlassian credentials used by the `confluence-docs` skill work here — OAuth grant or API token — both skills read `~/.config/atlassian/credentials` (with fallback to the per-skill files for back-compat).
 
 ## Status (v0.3.0)
 
 | Operation | Where today |
 |---|---|
-| `setup` (credentials) | ✅ `jira-tickets setup` (writes to `~/.config/atlassian/credentials`, shared with `confluence-docs`) |
+| `login` (OAuth, recommended) | ✅ `jira-tickets login` (browser OAuth with the user's own app; tokens auto-refresh) |
+| `setup` (credentials fallback) | ✅ `jira-tickets setup` (writes to `~/.config/atlassian/credentials`, shared with `confluence-docs`) |
 | Authenticate / sanity probe | ✅ `jira-tickets myself` |
 | Search by JQL | ✅ `jira-tickets search "JQL"` (TSV or `--json`) |
 | Read issue (slim) | ✅ `jira-tickets issue digest --key K` (~500 bytes) |
@@ -97,13 +98,27 @@ jira-tickets issue create \
 
 ## Setup
 
+Two auth modes, both stored in `~/.config/atlassian/credentials` (shared with `confluence-docs`):
+
+**`login` (recommended)** — OAuth 2.0 browser login, nothing to register; tokens auto-refresh forever:
+
+```bash
+jira-tickets login                 # opens the browser; user authorizes; done
+jira-tickets login --site acme     # account with several Atlassian sites
+jira-tickets login --no-browser    # headless: user opens the printed URL manually
+```
+
+The grant is shared with `confluence-docs` — logging in from either CLI covers both.
+
+**`setup` (fallback)** — email + API token (Basic auth). Atlassian API tokens now expire after at most 1 year, which is why `login` is recommended; `setup` remains for headless/CI environments and users who prefer not to register an app:
+
 ```bash
 jira-tickets setup                                    # interactive wizard
 jira-tickets setup --email X --token Y                # non-interactive
-jira-tickets setup --check                            # exit 0 = valid creds
+jira-tickets setup --check                            # exit 0 = valid creds; reports the active mode (oauth or apitoken)
 ```
 
-If `confluence-docs` is already configured on this machine, `jira-tickets setup` reuses the same Atlassian credentials at `~/.config/atlassian/credentials` (or the legacy `~/.config/confluence-docs/credentials` as fallback). No need to paste the API token twice.
+If `confluence-docs` is already configured on this machine, both modes are reused automatically from `~/.config/atlassian/credentials` (or the legacy `~/.config/confluence-docs/credentials` as fallback). No need to log in or paste the API token twice.
 
 ## Update
 

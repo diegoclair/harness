@@ -113,6 +113,21 @@ skills/
 
 Each skill is self-contained. No CLI? Skip `cli/` and `install/` — `SKILL.md` + `reference/` is the minimum. Release assets are produced by CI and never committed.
 
+### Building with the bundled OAuth app
+
+`confluence-docs login` and `jira-tickets login` authorize against a shared Atlassian OAuth app so users never register one. Released binaries get its secret from the `ATLASSIAN_OAUTH_CLIENT_SECRET` repository secret, injected via `-ldflags` at build time — it is never committed.
+
+Local builds have no secret unless you provide one:
+
+```bash
+cp .env.local.example .env.local     # gitignored; paste the Client Secret
+cd confluence-docs/cli && make login # build with the secret, then log in
+```
+
+Without `.env.local`, `make build` still works and `make login` fails with an explicit message. A binary built that way can still authenticate against your own Atlassian app via `login --client-id X --client-secret Y`.
+
+Rotating the app secret in the Atlassian console requires updating it in three places: the GitHub repository secret, your `.env.local`, and any shell that exports it. Users are unaffected — the secret lives in the binary, not in their credentials file, so a new release carries it for them.
+
 ## Contributing
 
 This repo is open-source and the skills here must work for any company that clones them. PR rules:
