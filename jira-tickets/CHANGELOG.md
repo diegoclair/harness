@@ -1,6 +1,6 @@
 # Changelog — jira-tickets
 
-## Unreleased
+## v0.4.0 (2026-08-01) — OAuth browser login
 
 ### New: `jira-tickets login` — OAuth 2.0 browser login
 

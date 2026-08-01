@@ -7,6 +7,7 @@ Parked features, in rough priority order. Open a PR (or an issue) if you want to
 - **v0.1.0** — `myself`, `search "JQL"`, `issue digest`, `issue get`, `issue create`, `issue update --set`, `issue transitions`, `issue transition`, `issue comment`.
 - **v0.2.0** — `update` (self-update via GitHub API + tag prefix filter).
 - **v0.3.0** — `project list`, `project get`, `project update` (rename name/key/description). ADF spec fix that unblocks `issue create --description` and `issue comment --body` against Jira Cloud v3.
+- **v0.4.0** — `login` (OAuth browser sign-in against the bundled app; auto-refreshing tokens shared with `confluence-docs`).
 
 ## Backlog
 

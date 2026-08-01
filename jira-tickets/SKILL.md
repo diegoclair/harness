@@ -1,6 +1,6 @@
 ---
 name: jira-tickets
-version: 0.2.0
+version: 0.4.0
 description: Token-efficient Jira Cloud assistant for LLM agents. Reads, creates, updates, transitions and links Jira issues via a local Go CLI (10–50× cheaper than the Atlassian MCP for the same operations) and falls back to MCP only for the rare case the CLI can't cover. Use this skill whenever the user mentions Jira, tickets, issues, sprints, epics, story points, transitions, status changes, "move to In Progress", "create a task", "what's the status of PROJ-123", "assign to X", "what's in this sprint" — even when they don't explicitly say "Jira". Stores no project-specific data; everything is fetched fresh from Jira per session. Replies match the user's language.
 allowed-tools: |
   Bash(jira-tickets *)
@@ -16,17 +16,17 @@ allowed-tools: |
 
 # jira-tickets — Jira Cloud assistant
 
-> **v0.3.0 adds `project list/get/update`.** Sprint and epic-linking remain MCP-fallback for now (see status table below).
+> **`jira-tickets login` signs in through the browser — no app registration.** Sprint and epic-linking remain MCP-fallback for now (see status table below).
 
 ## Overview
 
 Drives Claude against Jira Cloud through a local Go binary that returns **digests, JQL TSV slices, and surgical updates** instead of full ADF round-trips. The same Atlassian credentials used by the `confluence-docs` skill work here — OAuth grant or API token — both skills read `~/.config/atlassian/credentials` (with fallback to the per-skill files for back-compat).
 
-## Status (v0.3.0)
+## Status (v0.4.0)
 
 | Operation | Where today |
 |---|---|
-| `login` (OAuth, recommended) | ✅ `jira-tickets login` (browser OAuth with the user's own app; tokens auto-refresh) |
+| `login` (OAuth, recommended) | ✅ `jira-tickets login` (browser OAuth, nothing to register; tokens auto-refresh) |
 | `setup` (credentials fallback) | ✅ `jira-tickets setup` (writes to `~/.config/atlassian/credentials`, shared with `confluence-docs`) |
 | Authenticate / sanity probe | ✅ `jira-tickets myself` |
 | Search by JQL | ✅ `jira-tickets search "JQL"` (TSV or `--json`) |
@@ -41,9 +41,9 @@ Drives Claude against Jira Cloud through a local Go binary that returns **digest
 | Project list | ✅ `jira-tickets project list [--limit N] [--start-at N] [--json]` |
 | Project get | ✅ `jira-tickets project get KEY [--json]` |
 | Project update | ✅ `jira-tickets project update KEY [--name X] [--key Y] [--description Z] [--dry-run]` |
-| Epic add/remove child | ⏳ v0.4.0+ (MCP fallback) |
-| Sprint move | ⏳ v0.4.0+ (MCP fallback) |
-| Custom-field shapes | ⏳ v0.4.0+ (only flat scalars in v0.1.0) |
+| Epic add/remove child | ⏳ v0.5.0+ (MCP fallback) |
+| Sprint move | ⏳ v0.5.0+ (MCP fallback) |
+| Custom-field shapes | ⏳ v0.5.0+ (only flat scalars today) |
 
 ## Why this skill (vs MCP alone)
 

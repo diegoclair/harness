@@ -1,6 +1,6 @@
 # Changelog — confluence-docs
 
-## Unreleased
+## v0.15.0 (2026-08-01) — OAuth browser login
 
 ### New: `confluence-docs login` — OAuth 2.0 browser login
 

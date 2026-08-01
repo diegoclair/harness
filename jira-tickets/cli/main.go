@@ -24,7 +24,7 @@ func init() {
 
 // version is injected at build time via -ldflags "-X main.version=..."
 // Falls back to the source-tree version when not set via ldflags (dev builds).
-var version = "v0.3.0"
+var version = "v0.4.0"
 
 const (
 	exitOK         = 0
