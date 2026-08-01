@@ -119,3 +119,9 @@ yarn-error.log*
 # (Go names the binary after the package directory; we want it in bin/.)
 */cli/cli
 */cli/cli.exe
+
+# ============================================================
+# Local secrets
+# ============================================================
+# Bundled OAuth app secret for local builds. See .env.local.example.
+.env.local

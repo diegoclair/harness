@@ -37,7 +37,9 @@ jobs:
 
       - name: Cross-compile binaries
         working-directory: confluence-docs/cli
-        run: make build-all VERSION=${{ steps.ver.outputs.clean }}
+        run: make build-all VERSION=${{ steps.ver.outputs.clean }} ATLASSIAN_OAUTH_CLIENT_SECRET="$ATLASSIAN_OAUTH_CLIENT_SECRET"
+        env:
+          ATLASSIAN_OAUTH_CLIENT_SECRET: ${{ secrets.ATLASSIAN_OAUTH_CLIENT_SECRET }}
 
       - name: Package platform ZIPs
         run: |

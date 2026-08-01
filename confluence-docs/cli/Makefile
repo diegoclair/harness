@@ -12,15 +12,24 @@
 #   make lint        go vet ./...
 
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
-LDFLAGS := -s -w -X main.version=$(VERSION)
 PKG     := .
 BIN     := confluence-docs
+
+# Secret of the bundled "Lybel Skills" OAuth app. The release workflow passes
+# it on the command line; locally it comes from the gitignored .env.local at
+# the repo root (see .env.local.example). Empty is fine — `login` then needs
+# --client-secret or $ATLASSIAN_OAUTH_CLIENT_SECRET. Never commit a value.
+-include ../../.env.local
+ATLASSIAN_OAUTH_CLIENT_SECRET ?=
+AUTH_PKG := github.com/diegoclair/skills/pkg/atlassian/auth
+
+LDFLAGS := -s -w -X main.version=$(VERSION) -X $(AUTH_PKG).DefaultClientSecret=$(ATLASSIAN_OAUTH_CLIENT_SECRET)
 
 # Where the Claude skill loader expects to find the binary.
 # Override at invocation time if your Claude config lives elsewhere.
 INSTALL_DIR ?= $(HOME)/.claude/skills/confluence-docs/bin
 
-.PHONY: all build build-all test install clean fmt lint deps release
+.PHONY: all build build-all test login install clean fmt lint deps release
 
 all: build
 
@@ -29,19 +38,28 @@ deps:
 
 build:
 	@mkdir -p bin
-	go build -ldflags "$(LDFLAGS)" -o bin/$(BIN) $(PKG)
+	@# silenced: the ldflags carry the app secret
+	@go build -ldflags "$(LDFLAGS)" -o bin/$(BIN) $(PKG)
 
 build-all: clean-dist
 	@mkdir -p dist
-	GOOS=darwin  GOARCH=amd64 go build -ldflags "$(LDFLAGS)" -o dist/$(BIN)-darwin-amd64    $(PKG)
-	GOOS=darwin  GOARCH=arm64 go build -ldflags "$(LDFLAGS)" -o dist/$(BIN)-darwin-arm64    $(PKG)
-	GOOS=linux   GOARCH=amd64 go build -ldflags "$(LDFLAGS)" -o dist/$(BIN)-linux-amd64     $(PKG)
-	GOOS=linux   GOARCH=arm64 go build -ldflags "$(LDFLAGS)" -o dist/$(BIN)-linux-arm64     $(PKG)
-	GOOS=windows GOARCH=amd64 go build -ldflags "$(LDFLAGS)" -o dist/$(BIN)-windows-amd64.exe $(PKG)
+	@# silenced: the ldflags carry the app secret
+	@GOOS=darwin  GOARCH=amd64 go build -ldflags "$(LDFLAGS)" -o dist/$(BIN)-darwin-amd64    $(PKG)
+	@GOOS=darwin  GOARCH=arm64 go build -ldflags "$(LDFLAGS)" -o dist/$(BIN)-darwin-arm64    $(PKG)
+	@GOOS=linux   GOARCH=amd64 go build -ldflags "$(LDFLAGS)" -o dist/$(BIN)-linux-amd64     $(PKG)
+	@GOOS=linux   GOARCH=arm64 go build -ldflags "$(LDFLAGS)" -o dist/$(BIN)-linux-arm64     $(PKG)
+	@GOOS=windows GOARCH=amd64 go build -ldflags "$(LDFLAGS)" -o dist/$(BIN)-windows-amd64.exe $(PKG)
 	@echo "built dist/ artifacts for version $(VERSION)"
 
 test:
 	go test -v ./...
+
+# Local OAuth smoke test: build with the bundled app secret and log in.
+login: build
+ifeq ($(strip $(ATLASSIAN_OAUTH_CLIENT_SECRET)),)
+	$(error no ATLASSIAN_OAUTH_CLIENT_SECRET — copy .env.local.example to .env.local at the repo root and fill it in)
+endif
+	./bin/confluence-docs login
 
 install: build
 	@mkdir -p $(INSTALL_DIR)
