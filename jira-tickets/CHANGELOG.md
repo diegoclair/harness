@@ -1,5 +1,25 @@
 # Changelog — jira-tickets
 
+## v0.4.1 (2026-08-01) — `setup --check` stops assuming Confluence
+
+`jira-tickets setup --check` reported "no active space configured" for a valid
+grant and told the user to run `confluence-docs` to fix it. The shared
+`pkg/atlassian/setup` was written for Confluence and every caller inherited its
+assumptions, so a fresh install ended with "Not yet configured" even when
+credentials were fine.
+
+The package now takes a `Product` (`SetProduct`, alongside the existing
+`SetSkillName`), which decides three things: an active space is required only
+for Confluence, fix-up messages name the binary the user actually ran, and
+credentials are validated against that product's API — `/rest/api/3/myself`
+for Jira instead of Confluence's `user/current`, which 404s on Jira-only sites.
+
+A 404 from the product API is also no longer reported as a network error: it
+means the site has no such product, which is a normal shape since Atlassian
+only grants scopes for products a site actually has.
+
+---
+
 ## v0.4.0 (2026-08-01) — OAuth browser login
 
 ### New: `jira-tickets login` — OAuth 2.0 browser login

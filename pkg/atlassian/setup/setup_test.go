@@ -890,3 +890,106 @@ func TestCheck_OAuthInvalid(t *testing.T) {
 		t.Errorf("expected 'run `login` again' hint in stderr, got %q", errOut)
 	}
 }
+
+// asJiraSkill switches the package to the jira-tickets identity for one test
+// and restores the default afterwards.
+func asJiraSkill(t *testing.T) {
+	t.Helper()
+	prevName, prevProduct := skillName, product
+	SetSkillName("jira-tickets")
+	SetProduct(ProductJira)
+	t.Cleanup(func() { skillName, product = prevName, prevProduct })
+}
+
+// Jira has no notion of an active Confluence space, so requiring one made
+// `jira-tickets setup --check` report "not configured" for a perfectly valid
+// grant — and told the user to run confluence-docs to fix it.
+func TestCheck_JiraDoesNotRequireSpace(t *testing.T) {
+	dir := t.TempDir()
+	overrideConfigDir(t, dir)
+	asJiraSkill(t)
+	writeTempOAuthCreds(t, dir)
+
+	// No per-skill config file at all: nothing sets an active space for Jira.
+	if err := os.RemoveAll(filepath.Join(dir, "jira-tickets")); err != nil {
+		t.Fatal(err)
+	}
+
+	mock := &captureHTTPClient{
+		mockHTTPClient: mockHTTPClient{statusCode: 200, body: okUserBody("Alice", "acc-001")},
+	}
+	out, errOut, code := runSetup(t, mock, "", "--check")
+	if code != ExitOK {
+		t.Fatalf("want exit 0, got %d\nstdout: %s\nstderr: %s", code, out, errOut)
+	}
+	if strings.Contains(errOut, "active space") {
+		t.Errorf("jira must not require an active space, stderr: %q", errOut)
+	}
+	if strings.Contains(out, "space:") {
+		t.Errorf("success line must omit the space for jira, got %q", out)
+	}
+	// Credentials must be validated against Jira: the Confluence endpoint 404s
+	// on sites that only have Jira installed.
+	if !strings.Contains(mock.lastURL, "/ex/jira/cloud-123/rest/api/3/myself") {
+		t.Errorf("want the Jira myself endpoint, got %q", mock.lastURL)
+	}
+}
+
+// Shared messages must name the binary the user actually ran.
+func TestCheck_MessagesUseCallingSkillName(t *testing.T) {
+	dir := t.TempDir()
+	overrideConfigDir(t, dir)
+	asJiraSkill(t)
+
+	mock := &mockHTTPClient{statusCode: 200, body: okUserBody("User", "acc-001")}
+	_, errOut, code := runSetup(t, mock, "", "--check")
+	if code != ExitNoCreds {
+		t.Fatalf("want exit %d, got %d", ExitNoCreds, code)
+	}
+	if !strings.Contains(errOut, "jira-tickets setup") {
+		t.Errorf("expected the jira-tickets binary in the fix hint, got %q", errOut)
+	}
+	if strings.Contains(errOut, "confluence-docs") {
+		t.Errorf("jira-tickets must not tell users to run confluence-docs, got %q", errOut)
+	}
+}
+
+// Confluence keeps its existing contract.
+func TestCheck_ConfluenceStillRequiresSpace(t *testing.T) {
+	dir := t.TempDir()
+	overrideConfigDir(t, dir)
+	writeTempOAuthCreds(t, dir)
+	if err := os.RemoveAll(filepath.Join(dir, "confluence-docs")); err != nil {
+		t.Fatal(err)
+	}
+
+	mock := &mockHTTPClient{statusCode: 200, body: okUserBody("Alice", "acc-001")}
+	_, errOut, code := runSetup(t, mock, "", "--check")
+	if code != ExitNoCreds {
+		t.Fatalf("want exit %d (no space), got %d", ExitNoCreds, code)
+	}
+	if !strings.Contains(errOut, "active space") {
+		t.Errorf("expected the active-space error, got %q", errOut)
+	}
+}
+
+// A 404 from the product API means the site lacks that product, not a network
+// failure — Atlassian grants scopes only for products a site actually has.
+func TestCheck_ProductMissingOnSite(t *testing.T) {
+	dir := t.TempDir()
+	overrideConfigDir(t, dir)
+	asJiraSkill(t)
+	writeTempOAuthCreds(t, dir)
+
+	mock := &mockHTTPClient{statusCode: http.StatusNotFound}
+	_, errOut, code := runSetup(t, mock, "", "--check")
+	if code != ExitNoCreds {
+		t.Fatalf("want exit %d, got %d (stderr: %s)", ExitNoCreds, code, errOut)
+	}
+	if !strings.Contains(errOut, "no Jira") {
+		t.Errorf("expected a 'site has no Jira' message, got %q", errOut)
+	}
+	if strings.Contains(errOut, "network error") {
+		t.Errorf("a 404 is not a network error, got %q", errOut)
+	}
+}

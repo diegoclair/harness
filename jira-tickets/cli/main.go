@@ -20,11 +20,12 @@ func init() {
 	// etc.) to this skill. Credentials themselves live atlassian-wide at
 	// ~/.config/atlassian/credentials — see pkg/atlassian/setup.ConfigPath.
 	setup.SetSkillName("jira-tickets")
+	setup.SetProduct(setup.ProductJira)
 }
 
 // version is injected at build time via -ldflags "-X main.version=..."
 // Falls back to the source-tree version when not set via ldflags (dev builds).
-var version = "v0.4.0"
+var version = "v0.4.1"
 
 const (
 	exitOK         = 0

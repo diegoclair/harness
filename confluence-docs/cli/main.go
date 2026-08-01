@@ -22,6 +22,7 @@ func init() {
 	// the equivalent call in jira-tickets/cli/main.go so neither skill relies
 	// on a hidden default.
 	setup.SetSkillName("confluence-docs")
+	setup.SetProduct(setup.ProductConfluence)
 }
 
 // version is injected at build time via -ldflags "-X main.version=..."

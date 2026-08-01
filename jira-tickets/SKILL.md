@@ -1,6 +1,6 @@
 ---
 name: jira-tickets
-version: 0.4.0
+version: 0.4.1
 description: Token-efficient Jira Cloud assistant for LLM agents. Reads, creates, updates, transitions and links Jira issues via a local Go CLI (10–50× cheaper than the Atlassian MCP for the same operations) and falls back to MCP only for the rare case the CLI can't cover. Use this skill whenever the user mentions Jira, tickets, issues, sprints, epics, story points, transitions, status changes, "move to In Progress", "create a task", "what's the status of PROJ-123", "assign to X", "what's in this sprint" — even when they don't explicitly say "Jira". Stores no project-specific data; everything is fetched fresh from Jira per session. Replies match the user's language.
 allowed-tools: |
   Bash(jira-tickets *)
@@ -22,7 +22,7 @@ allowed-tools: |
 
 Drives Claude against Jira Cloud through a local Go binary that returns **digests, JQL TSV slices, and surgical updates** instead of full ADF round-trips. The same Atlassian credentials used by the `confluence-docs` skill work here — OAuth grant or API token — both skills read `~/.config/atlassian/credentials` (with fallback to the per-skill files for back-compat).
 
-## Status (v0.4.0)
+## Status (v0.4.1)
 
 | Operation | Where today |
 |---|---|

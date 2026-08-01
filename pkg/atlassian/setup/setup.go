@@ -58,6 +58,27 @@ func SetSkillName(name string) {
 // SkillName returns the configured skill name (for tests/diagnostics).
 func SkillName() string { return skillName }
 
+// Product is the Atlassian product a skill talks to. It decides which API
+// validates credentials and whether an active Confluence space is part of
+// being "configured" — Jira has no equivalent notion.
+type Product int
+
+const (
+	ProductConfluence Product = iota
+	ProductJira
+)
+
+// Defaults to Confluence for back-compat with callers that predate SetProduct.
+var product = ProductConfluence
+
+// SetProduct configures which Atlassian product this skill targets. Must be
+// called from main() before any other function in this package.
+func SetProduct(p Product) { product = p }
+
+// usesActiveSpace reports whether an active space is required for this
+// product to count as configured.
+func usesActiveSpace() bool { return product == ProductConfluence }
+
 // httpClient is the interface used for HTTP calls so tests can inject a mock.
 type httpClient interface {
 	Do(req *http.Request) (*http.Response, error)
@@ -359,12 +380,17 @@ type userInfoResult struct {
 	Err error
 }
 
-// fetchCurrentUser calls the Confluence API to validate credentials.
+// fetchCurrentUser calls the configured product's API to validate credentials.
 // The Authorizer decides both the base URL and the Authorization header
-// (Basic against the site domain, Bearer against the OAuth gateway).
+// (Basic against the site domain, Bearer against the OAuth gateway). Probing
+// the right product matters on sites that only have one of them: Confluence's
+// endpoint 404s where Jira is the only product installed, and vice versa.
 func fetchCurrentUser(client httpClient, a auth.Authorizer) userInfoResult {
-	// Use the classic v1 REST endpoint which always exposes displayName.
+	// Both are classic v1/v3 REST endpoints that always expose displayName.
 	url := a.ConfluenceBase() + "/rest/api/user/current"
+	if product == ProductJira {
+		url = a.JiraBase() + "/rest/api/3/myself"
+	}
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -647,6 +673,40 @@ func runSet(key, value string, stdout, stderr io.Writer) (int, error) {
 	return ExitOK, nil
 }
 
+// productMissingMsg explains a 404 from the product API: the credentials are
+// fine, the site simply does not have that product installed. Atlassian only
+// grants scopes for products a site actually has, so this is a common shape
+// on Confluence-only or Jira-only sites.
+func productMissingMsg() string {
+	name := "Confluence"
+	if product == ProductJira {
+		name = "Jira"
+	}
+	return fmt.Sprintf("credentials are valid but this Atlassian site has no %s — %s cannot be used here", name, skillName)
+}
+
+// spaceSuffix renders the active space for the success line, or nothing for
+// products that have no such concept.
+func spaceSuffix(cfg Config) string {
+	if !usesActiveSpace() {
+		return ""
+	}
+	return ", space: " + cfg.SpaceKey
+}
+
+// hasActiveSpace reports whether the active-space requirement is satisfied,
+// printing the fix when it is not. Always true for products without spaces.
+func hasActiveSpace(cfg Config, stderr io.Writer) bool {
+	if !usesActiveSpace() {
+		return true
+	}
+	if cfg.SpaceID != "" && cfg.HomePageID != "" {
+		return true
+	}
+	fmt.Fprintf(stderr, "no active space configured — run `%s setup` or `%s space use <key>`\n", skillName, skillName)
+	return false
+}
+
 // runCheck validates existing credentials and returns the appropriate exit code.
 func runCheck(stdout, stderr io.Writer, client httpClient) (int, error) {
 	// A stored OAuth grant takes precedence unless auth_mode forces apitoken
@@ -660,34 +720,36 @@ func runCheck(stdout, stderr io.Writer, client httpClient) (int, error) {
 	email, token, err := ReadCredsFile(stderr)
 	if err != nil {
 		if os.IsNotExist(err) {
-			fmt.Fprintln(stderr, "no credentials configured — run `confluence-docs setup`")
+			fmt.Fprintf(stderr, "no credentials configured — run `%s setup`\n", skillName)
 		} else {
 			fmt.Fprintln(stderr, "no credentials configured")
 		}
 		return ExitNoCreds, nil
 	}
 	if email == "" || token == "" {
-		fmt.Fprintln(stderr, "no credentials configured — run `confluence-docs setup`")
+		fmt.Fprintf(stderr, "no credentials configured — run `%s setup`\n", skillName)
 		return ExitNoCreds, nil
 	}
 
 	cloud := resolveCloud()
 	if cloud == "" {
-		fmt.Fprintln(stderr, "no Confluence subdomain configured — run `confluence-docs setup`")
-		fmt.Fprintln(stderr, "  fix: run `confluence-docs setup` and provide your subdomain")
+		fmt.Fprintf(stderr, "no Atlassian site subdomain configured — run `%s setup`\n", skillName)
+		fmt.Fprintf(stderr, "  fix: run `%s setup` and provide your subdomain\n", skillName)
 		fmt.Fprintln(stderr, "       (e.g. 'mycompany' for mycompany.atlassian.net),")
 		fmt.Fprintln(stderr, "       or export ATLASSIAN_CLOUD=mycompany")
 		return ExitNoCreds, nil
 	}
 
-	// Also validate space is configured.
 	cfg := ReadConfigFile()
-	if cfg.SpaceID == "" || cfg.HomePageID == "" {
-		fmt.Fprintln(stderr, "no active space configured — run `confluence-docs setup` or `confluence-docs space use <key>`")
+	if !hasActiveSpace(cfg, stderr) {
 		return ExitNoCreds, nil
 	}
 
 	res := fetchCurrentUser(client, auth.Basic{Email: email, Token: token, Cloud: cloud})
+	if res.StatusCode == http.StatusNotFound {
+		fmt.Fprintf(stderr, "%s\n", productMissingMsg())
+		return ExitNoCreds, nil
+	}
 	if res.Err != nil {
 		fmt.Fprintf(stderr, "could not validate (network error): %v\n", res.Err)
 		return ExitNetworkErr, nil
@@ -705,17 +767,16 @@ func runCheck(stdout, stderr io.Writer, client httpClient) (int, error) {
 	if name == "" {
 		name = email
 	}
-	fmt.Fprintf(stdout, "credentials valid (%s, space: %s)\n", name, cfg.SpaceKey)
+	fmt.Fprintf(stdout, "credentials valid (%s%s)\n", name, spaceSuffix(cfg))
 	return ExitOK, nil
 }
 
-// runCheckOAuth validates a stored OAuth grant against the Confluence API.
+// runCheckOAuth validates a stored OAuth grant against the product's API.
 // The cloud subdomain is irrelevant here — the gateway routes by cloudId —
 // but the active space is still required, same as the apitoken path.
 func runCheckOAuth(creds auth.Credentials, stdout, stderr io.Writer, client httpClient) (int, error) {
 	cfg := ReadConfigFile()
-	if cfg.SpaceID == "" || cfg.HomePageID == "" {
-		fmt.Fprintln(stderr, "no active space configured — run `confluence-docs setup` or `confluence-docs space use <key>`")
+	if !hasActiveSpace(cfg, stderr) {
 		return ExitNoCreds, nil
 	}
 
@@ -725,6 +786,10 @@ func runCheckOAuth(creds auth.Credentials, stdout, stderr io.Writer, client http
 	a.HTTP = client
 
 	res := fetchCurrentUser(client, a)
+	if res.StatusCode == http.StatusNotFound {
+		fmt.Fprintf(stderr, "%s\n", productMissingMsg())
+		return ExitNoCreds, nil
+	}
 	if res.Err != nil {
 		if auth.IsReloginRequired(res.Err) {
 			fmt.Fprintln(stderr, "OAuth session invalid — run `login` again")
@@ -746,7 +811,7 @@ func runCheckOAuth(creds auth.Credentials, stdout, stderr io.Writer, client http
 	if name == "" {
 		name = creds.Site
 	}
-	fmt.Fprintf(stdout, "credentials valid (%s, oauth, space: %s)\n", name, cfg.SpaceKey)
+	fmt.Fprintf(stdout, "credentials valid (%s, oauth%s)\n", name, spaceSuffix(cfg))
 	return ExitOK, nil
 }
 
