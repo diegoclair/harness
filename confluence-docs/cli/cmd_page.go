@@ -75,15 +75,15 @@ func parseCommonPageFlags(args []string) (remaining []string, cloud, email, toke
 	return remaining, cloud, email, token, nil
 }
 
-// buildClient resolves cloud+creds and returns a ready-to-use ConfluenceClient.
+// buildClient resolves auth and returns a ready-to-use ConfluenceClient,
+// printing the resolution error to stderr on failure.
 func buildClient(cloud, email, token string, stderr io.Writer) (*adf.ConfluenceClient, bool) {
-	resolvedCloud := adf.ResolveCloud(cloud)
-	creds, err := adf.ResolveCreds(email, token)
+	client, err := newClient(cloud, email, token)
 	if err != nil {
 		fmt.Fprintln(stderr, err)
 		return nil, false
 	}
-	return adf.NewClient(resolvedCloud, creds), true
+	return client, true
 }
 
 // pageWebURL constructs the Confluence web UI URL for a page using the
@@ -91,9 +91,9 @@ func buildClient(cloud, email, token string, stderr io.Writer) (*adf.ConfluenceC
 // space key is not configured.
 func pageWebURL(client *adf.ConfluenceClient, pageID string) string {
 	if key, err := currentSpaceKey(); err == nil && key != "" {
-		return fmt.Sprintf("%s/spaces/%s/pages/%s", client.BaseURL(), key, pageID)
+		return fmt.Sprintf("%s/spaces/%s/pages/%s", client.WebBaseURL(), key, pageID)
 	}
 	// Fallback: just include the page ID as a path (still a valid redirect for
 	// most Confluence Cloud installations).
-	return fmt.Sprintf("%s/pages/%s", client.BaseURL(), pageID)
+	return fmt.Sprintf("%s/pages/%s", client.WebBaseURL(), pageID)
 }

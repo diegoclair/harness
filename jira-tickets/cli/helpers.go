@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
+	"github.com/diegoclair/skills/pkg/atlassian/auth"
 	"github.com/diegoclair/skills/pkg/atlassian/jira"
 	"github.com/diegoclair/skills/pkg/atlassian/setup"
 )
@@ -42,33 +44,44 @@ func parseCommonFlags(args []string) (remaining []string, cloud, email, token st
 	return remaining, cloud, email, token, nil
 }
 
-// buildClient resolves cloud + credentials from the flags-then-env-then-file
-// chain and returns a Jira client. Returns (nil, false) on failure, after
-// printing a helpful error to stderr.
+// buildClient resolves credentials via the shared auth package and returns a
+// Jira client. Returns (nil, false) on failure, after printing a helpful
+// error to stderr.
 //
-// Resolution order for each value:
-//   1. Explicit flag (--cloud / --email / --token)
-//   2. Environment variable (ATLASSIAN_CLOUD / ATLASSIAN_EMAIL / ATLASSIAN_API_TOKEN)
-//   3. On-disk credentials/config (~/.config/atlassian/credentials + per-skill config)
+// Resolution order (handled by auth.Resolve):
+//  1. Explicit flags (--email / --token, Basic)
+//  2. Environment variables (ATLASSIAN_EMAIL / ATLASSIAN_API_TOKEN, Basic)
+//  3. Stored OAuth grant (from `jira-tickets login`)
+//  4. Stored email+token, including legacy per-skill paths (Basic)
+//
+// The cloud subdomain (flag → ATLASSIAN_CLOUD → per-skill config) is only
+// required in Basic mode; OAuth routes by cloudId.
 func buildClient(cloud, email, token string, stderr io.Writer) (*jira.Client, bool) {
-	resolvedCloud := resolveCloud(cloud)
-	if resolvedCloud == "" {
-		fmt.Fprintln(stderr, "no Atlassian cloud subdomain configured — run `jira-tickets setup`, pass --cloud, or set ATLASSIAN_CLOUD.")
-		return nil, false
-	}
-
-	resolvedEmail, resolvedToken, err := resolveCreds(email, token, stderr)
+	a, err := auth.Resolve(auth.Options{
+		Email:            email,
+		Token:            token,
+		Cloud:            resolveCloud(cloud),
+		Stderr:           stderr,
+		LegacyCredsPaths: legacyCredsPaths(),
+	})
 	if err != nil {
 		fmt.Fprintln(stderr, err)
 		return nil, false
 	}
+	return jira.NewClientWithAuthorizer(a), true
+}
 
-	client, err := jira.NewClient(resolvedCloud, resolvedEmail, resolvedToken)
-	if err != nil {
-		fmt.Fprintln(stderr, err)
-		return nil, false
+// legacyCredsPaths lists the pre-OAuth per-skill credential files, tried by
+// auth.Resolve when the canonical atlassian-wide file is absent.
+func legacyCredsPaths() []string {
+	var paths []string
+	if dir, err := os.UserConfigDir(); err == nil {
+		paths = append(paths, filepath.Join(dir, "jira-tickets", "credentials"))
 	}
-	return client, true
+	if home, err := os.UserHomeDir(); err == nil {
+		paths = append(paths, filepath.Join(home, ".config", "jira-tickets", "credentials"))
+	}
+	return paths
 }
 
 // resolveCloud picks the cloud subdomain from (in order) explicit flag,
@@ -82,35 +95,6 @@ func resolveCloud(flag string) string {
 	}
 	cfg := setup.ReadConfigFile()
 	return cfg.Cloud
-}
-
-// resolveCreds picks (email, token) from (in order) explicit flags, env vars,
-// or the shared ~/.config/atlassian/credentials file (with legacy fallback
-// chain handled inside pkg/atlassian/setup).
-func resolveCreds(email, token string, stderr io.Writer) (string, string, error) {
-	if email != "" && token != "" {
-		return email, token, nil
-	}
-	envEmail := os.Getenv("ATLASSIAN_EMAIL")
-	envToken := os.Getenv("ATLASSIAN_API_TOKEN")
-	if envEmail != "" && envToken != "" {
-		return envEmail, envToken, nil
-	}
-
-	fileEmail, fileToken, err := setup.ReadCredsFile(stderr)
-	if err != nil {
-		return "", "", fmt.Errorf("no Atlassian credentials found — run `jira-tickets setup`, pass --email + --token, or set ATLASSIAN_EMAIL + ATLASSIAN_API_TOKEN. (read error: %w)", err)
-	}
-	if email == "" {
-		email = fileEmail
-	}
-	if token == "" {
-		token = fileToken
-	}
-	if email == "" || token == "" {
-		return "", "", fmt.Errorf("Atlassian email or token still missing after consulting flags, env, and file")
-	}
-	return email, token, nil
 }
 
 // parseStringList splits a comma-separated list, trimming whitespace and
@@ -131,11 +115,21 @@ func parseStringList(s string) []string {
 }
 
 // issueWebURL builds the Jira UI URL for an issue, e.g.
-// https://mycompany.atlassian.net/browse/PROJ-123. Falls back to the API
-// base URL when something is missing.
+// https://mycompany.atlassian.net/browse/PROJ-123. Returns "" when the site
+// cannot be determined.
 func issueWebURL(client *jira.Client, key string) string {
-	if client == nil || key == "" {
+	if client == nil || client.Auth == nil || key == "" {
 		return ""
 	}
-	return fmt.Sprintf("https://%s.atlassian.net/browse/%s", client.Cloud, key)
+	// Basic mode: JiraBase is the browsable site domain.
+	if client.Auth.Kind() == auth.ModeAPIToken {
+		return client.Auth.JiraBase() + "/browse/" + key
+	}
+	// OAuth mode: JiraBase is the API gateway; use the stored site subdomain.
+	if o, ok := client.Auth.(*auth.OAuth); ok {
+		if site := o.Creds().Site; site != "" {
+			return fmt.Sprintf("https://%s.atlassian.net/browse/%s", site, key)
+		}
+	}
+	return ""
 }

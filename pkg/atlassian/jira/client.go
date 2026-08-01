@@ -3,8 +3,9 @@
 // an issue in ~500 bytes, JQL search as TSV, transitions that don't fetch
 // the full ADF body.
 //
-// Auth: Basic auth — base64(email:token) — using an Atlassian API token
-// generated at https://id.atlassian.com/manage-profile/security/api-tokens.
+// Auth: delegated to the shared pkg/atlassian/auth package. Either Basic
+// auth (email + API token against the site domain) or an OAuth 2.0 Bearer
+// token (against the api.atlassian.com gateway, auto-refreshing).
 //
 // Retry policy: idempotent GETs are retried up to 3 times on 5xx responses
 // with exponential back-off (1s, 2s, 4s). Write methods (POST/PUT) are NOT
@@ -17,7 +18,6 @@ package jira
 
 import (
 	"bytes"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -25,28 +25,24 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/diegoclair/skills/pkg/atlassian/auth"
 )
 
 // Client is an authenticated handle to a Jira Cloud REST v3 endpoint.
-// Always constructed via NewClient — the zero value is not useful.
+// Always constructed via NewClient or NewClientWithAuthorizer — the zero
+// value is not useful.
 type Client struct {
-	// Cloud is the Atlassian cloud subdomain (e.g. "mycompany" for
-	// mycompany.atlassian.net). Required.
-	Cloud string
-
-	// Email is the Atlassian account email associated with the API token.
-	Email string
-
-	// Token is the Atlassian API token (NOT the password). Generated at
-	// https://id.atlassian.com/manage-profile/security/api-tokens.
-	Token string
+	// Auth signs outgoing requests and provides the product base URL
+	// (site domain for Basic, api.atlassian.com gateway for OAuth).
+	Auth auth.Authorizer
 
 	// HTTPClient is the underlying http.Client. Defaults to a 30s-timeout
 	// client. Tests inject a custom transport via this field.
 	HTTPClient *http.Client
 }
 
-// NewClient builds an authenticated Jira client. Returns an error only if
+// NewClient builds a Basic-auth Jira client. Returns an error only if
 // required fields (cloud, email, token) are empty — does NOT make an HTTP
 // call yet. Verify the credentials by calling Myself after construction.
 func NewClient(cloud, email, token string) (*Client, error) {
@@ -59,34 +55,29 @@ func NewClient(cloud, email, token string) (*Client, error) {
 	if token == "" {
 		return nil, fmt.Errorf("jira: API token is required")
 	}
+	return NewClientWithAuthorizer(auth.Basic{Email: email, Token: token, Cloud: cloud}), nil
+}
+
+// NewClientWithAuthorizer builds a Jira client around a pre-resolved
+// Authorizer (Basic or OAuth).
+func NewClientWithAuthorizer(a auth.Authorizer) *Client {
 	return &Client{
-		Cloud:      cloud,
-		Email:      email,
-		Token:      token,
+		Auth:       a,
 		HTTPClient: &http.Client{Timeout: 30 * time.Second},
-	}, nil
+	}
 }
 
 // BaseURL returns the Jira Cloud REST v3 base URL for this client.
 // Example: https://mycompany.atlassian.net/rest/api/3
 func (c *Client) BaseURL() string {
-	return fmt.Sprintf("https://%s.atlassian.net/rest/api/3", c.Cloud)
+	return c.Auth.JiraBase() + "/rest/api/3"
 }
 
 // AgileBaseURL returns the Jira Agile (v1) base URL for sprint/board ops.
 // Sprint membership and board state live behind /rest/agile/1.0, not v3.
 // Example: https://mycompany.atlassian.net/rest/agile/1.0
 func (c *Client) AgileBaseURL() string {
-	return fmt.Sprintf("https://%s.atlassian.net/rest/agile/1.0", c.Cloud)
-}
-
-// ---------- Auth ----------
-
-// basicAuth returns a Base64-encoded Basic auth header value for the client's
-// email and token.
-func (c *Client) basicAuth() string {
-	raw := c.Email + ":" + c.Token
-	return "Basic " + base64.StdEncoding.EncodeToString([]byte(raw))
+	return c.Auth.JiraBase() + "/rest/agile/1.0"
 }
 
 // ---------- Error types ----------
@@ -236,7 +227,10 @@ func (c *Client) doRequest(method, fullURL string, body io.Reader) ([]byte, int,
 		if err != nil {
 			return nil, 0, fmt.Errorf("jira: build request: %w", err)
 		}
-		req.Header.Set("Authorization", c.basicAuth())
+		if err := c.Auth.Apply(req); err != nil {
+			// Auth failures (e.g. expired OAuth grant) are not retryable.
+			return nil, 0, fmt.Errorf("jira: apply auth: %w", err)
+		}
 		req.Header.Set("Accept", "application/json")
 		if bodyBytes != nil {
 			req.Header.Set("Content-Type", "application/json")

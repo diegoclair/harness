@@ -11,6 +11,7 @@ import (
 	"io"
 	"os"
 
+	"github.com/diegoclair/skills/pkg/atlassian/auth"
 	"github.com/diegoclair/skills/pkg/atlassian/setup"
 )
 
@@ -36,6 +37,9 @@ var errInvalidUsage = errors.New("invalid usage")
 const helpText = `jira-tickets — token-efficient Jira Cloud CLI for LLM agents.
 
 USAGE:
+  jira-tickets login        [--client-id ID --client-secret SECRET] [--no-browser]
+                            OAuth 2.0 browser login with your own Atlassian app
+                            (auto-refreshing tokens; run with --help for details).
   jira-tickets setup        [--email X --token Y | --check | --print-config-path]
   jira-tickets myself       [--json]
   jira-tickets search       "JQL" [--limit N] [--fields a,b] [--next-page-token T] [--json]
@@ -89,8 +93,9 @@ UPDATE:
 
 CREDENTIALS:
   Read from ~/.config/atlassian/credentials (shared with confluence-docs)
-  with fallback to per-skill legacy paths. Run 'jira-tickets setup' to
-  configure. Same Atlassian API token works for both skills.
+  with fallback to per-skill legacy paths. Run 'jira-tickets login' (OAuth,
+  auto-refreshing) or 'jira-tickets setup' (API token) to configure. The
+  same credentials file serves both skills.
 `
 
 func main() {
@@ -114,6 +119,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) 
 	case "-v", "--version":
 		fmt.Fprintln(stdout, "jira-tickets", version)
 		return exitOK, nil
+	case "login":
+		return auth.RunLogin(args[1:], stdin, stdout, stderr)
 	case "setup":
 		return setup.Run(args[1:], stdin, stdout, stderr)
 	case "update":

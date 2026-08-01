@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 
+	"github.com/diegoclair/skills/pkg/atlassian/auth"
 	"github.com/diegoclair/skills/pkg/atlassian/setup"
 )
 
@@ -30,6 +31,7 @@ var version = "v0.14.1"
 const helpText = `confluence-docs — Confluence ADF toolkit: convert, edit, lint, and publish pages.
 
 USAGE:
+  confluence-docs login        [--client-id ID --client-secret SECRET] [--site NAME] [--no-browser]
   confluence-docs setup        [--email X --token Y | --check | --print-config-path]
   confluence-docs update       [--check]
   confluence-docs adf          [--file PATH] [--pretty]
@@ -47,6 +49,7 @@ USAGE:
   confluence-docs --help
 
 COMMANDS:
+  login         OAuth login with your own Atlassian app (auto-refreshing; alternative to setup's API token).
   setup         Interactive wizard to configure Atlassian API credentials.
   update        Self-update: fetch the latest release and re-run the installer.
   adf           Convert markdown (stdin or --file) to an ADF JSON document.
@@ -317,6 +320,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) 
 	case "-v", "--version":
 		fmt.Fprintln(stdout, "confluence-docs", version)
 		return exitOK, nil
+	case "login":
+		return auth.RunLogin(args[1:], stdin, stdout, stderr)
 	case "setup":
 		return setup.Run(args[1:], stdin, stdout, stderr)
 	case "update":

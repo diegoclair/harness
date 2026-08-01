@@ -6,7 +6,6 @@ package setup
 
 import (
 	"bufio"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -15,6 +14,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+
+	"github.com/diegoclair/skills/pkg/atlassian/auth"
 )
 
 // NOTE on masked input: golang.org/x/term would give us proper masked input
@@ -332,33 +333,20 @@ func ReadCloudFromCreds() string {
 	return cfg.Cloud
 }
 
-// WriteCreds writes email and token to the credentials file with secure
-// permissions (0600). Creates parent directories if needed.
-// The variadic cloud arg is accepted but ignored (cloud now goes to WriteConfig).
-// For compatibility with callers that still pass cloud, use WriteConfig separately.
+// WriteCreds stores email and token in the shared atlassian credentials file
+// (0600) via the auth store, preserving any stored OAuth grant fields.
+// Running setup is an explicit choice of token auth, so auth_mode is set to
+// apitoken. The variadic cloud arg is accepted but ignored (cloud now goes
+// to WriteConfig).
 func WriteCreds(email, token string, cloud ...string) error {
-	path, err := ConfigPath()
-	if err != nil {
+	c, err := auth.ReadCreds()
+	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
-		return fmt.Errorf("create config dir: %w", err)
-	}
-	content := fmt.Sprintf("email=%s\ntoken=%s\n", email, token)
-	if err := os.WriteFile(path, []byte(content), 0600); err != nil {
-		return fmt.Errorf("write credentials: %w", err)
-	}
-	// On Windows, os.WriteFile with 0600 is not sufficient to restrict access
-	// to the current user only. The proper approach requires
-	// golang.org/x/sys/windows to set an explicit ACL. This is a known
-	// limitation; the file has no permissive sharing but Windows does not
-	// enforce POSIX-style mode bits. A future setup_windows.go can add this.
-	if runtime.GOOS == "windows" {
-		// TODO: implement via golang.org/x/sys/windows if Windows support is
-		// prioritized.
-		_ = path
-	}
-	return nil
+	c.Email = email
+	c.Token = token
+	c.Mode = auth.ModeAPIToken
+	return auth.WriteCreds(c)
 }
 
 // userInfoResult holds the parsed response from the Confluence current-user API.
@@ -372,21 +360,20 @@ type userInfoResult struct {
 }
 
 // fetchCurrentUser calls the Confluence API to validate credentials.
-func fetchCurrentUser(client httpClient, email, token, cloud string) userInfoResult {
-	if cloud == "" {
-		cloud = resolveCloud()
-	}
-	baseURL := fmt.Sprintf("https://%s.atlassian.net/wiki", cloud)
+// The Authorizer decides both the base URL and the Authorization header
+// (Basic against the site domain, Bearer against the OAuth gateway).
+func fetchCurrentUser(client httpClient, a auth.Authorizer) userInfoResult {
 	// Use the classic v1 REST endpoint which always exposes displayName.
-	url := baseURL + "/rest/api/user/current"
+	url := a.ConfluenceBase() + "/rest/api/user/current"
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return userInfoResult{Err: fmt.Errorf("build request: %w", err)}
 	}
 
-	cred := email + ":" + token
-	req.Header.Set("Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte(cred)))
+	if err := a.Apply(req); err != nil {
+		return userInfoResult{Err: fmt.Errorf("apply auth: %w", err)}
+	}
 	req.Header.Set("Accept", "application/json")
 
 	resp, err := client.Do(req)
@@ -429,16 +416,16 @@ func fetchCurrentUser(client httpClient, email, token, cloud string) userInfoRes
 
 // fetchSpaces fetches accessible spaces from the Confluence API.
 // Returns the list of SpaceInfo and any error.
-func fetchSpaces(client httpClient, email, token, cloud string) ([]SpaceInfo, error) {
-	baseURL := fmt.Sprintf("https://%s.atlassian.net/wiki", cloud)
-	url := baseURL + "/api/v2/spaces?status=current&limit=250"
+func fetchSpaces(client httpClient, a auth.Authorizer) ([]SpaceInfo, error) {
+	url := a.ConfluenceBase() + "/api/v2/spaces?status=current&limit=250"
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("build request: %w", err)
 	}
-	cred := email + ":" + token
-	req.Header.Set("Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte(cred)))
+	if err := a.Apply(req); err != nil {
+		return nil, fmt.Errorf("apply auth: %w", err)
+	}
 	req.Header.Set("Accept", "application/json")
 
 	resp, err := client.Do(req)
@@ -584,6 +571,7 @@ func runWithClient(args []string, stdin io.Reader, stdout, stderr io.Writer, cli
 	if printFormat {
 		fmt.Fprintln(stdout, "email=user@example.com")
 		fmt.Fprintln(stdout, "token=ATATT3xFfGF0...")
+		fmt.Fprintln(stdout, "# the file may also hold oauth_* keys, managed by the `login` command")
 		return ExitOK, nil
 	}
 
@@ -661,6 +649,14 @@ func runSet(key, value string, stdout, stderr io.Writer) (int, error) {
 
 // runCheck validates existing credentials and returns the appropriate exit code.
 func runCheck(stdout, stderr io.Writer, client httpClient) (int, error) {
+	// A stored OAuth grant takes precedence unless auth_mode forces apitoken
+	// (mirrors auth.Resolve). OAuth calls go through the api.atlassian.com
+	// gateway, so no cloud subdomain is needed in that mode.
+	if creds, credsErr := auth.ReadCreds(); credsErr == nil &&
+		creds.HasOAuth() && creds.Mode != auth.ModeAPIToken {
+		return runCheckOAuth(creds, stdout, stderr, client)
+	}
+
 	email, token, err := ReadCredsFile(stderr)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -691,7 +687,7 @@ func runCheck(stdout, stderr io.Writer, client httpClient) (int, error) {
 		return ExitNoCreds, nil
 	}
 
-	res := fetchCurrentUser(client, email, token, cloud)
+	res := fetchCurrentUser(client, auth.Basic{Email: email, Token: token, Cloud: cloud})
 	if res.Err != nil {
 		fmt.Fprintf(stderr, "could not validate (network error): %v\n", res.Err)
 		return ExitNetworkErr, nil
@@ -713,6 +709,47 @@ func runCheck(stdout, stderr io.Writer, client httpClient) (int, error) {
 	return ExitOK, nil
 }
 
+// runCheckOAuth validates a stored OAuth grant against the Confluence API.
+// The cloud subdomain is irrelevant here — the gateway routes by cloudId —
+// but the active space is still required, same as the apitoken path.
+func runCheckOAuth(creds auth.Credentials, stdout, stderr io.Writer, client httpClient) (int, error) {
+	cfg := ReadConfigFile()
+	if cfg.SpaceID == "" || cfg.HomePageID == "" {
+		fmt.Fprintln(stderr, "no active space configured — run `confluence-docs setup` or `confluence-docs space use <key>`")
+		return ExitNoCreds, nil
+	}
+
+	a := auth.NewOAuth(creds)
+	// Route token refresh through the same injectable client so tests can
+	// mock the whole exchange.
+	a.HTTP = client
+
+	res := fetchCurrentUser(client, a)
+	if res.Err != nil {
+		if auth.IsReloginRequired(res.Err) {
+			fmt.Fprintln(stderr, "OAuth session invalid — run `login` again")
+			return ExitInvalidAuth, nil
+		}
+		fmt.Fprintf(stderr, "could not validate (network error): %v\n", res.Err)
+		return ExitNetworkErr, nil
+	}
+	if res.StatusCode == http.StatusUnauthorized || res.StatusCode == http.StatusForbidden {
+		fmt.Fprintln(stderr, "OAuth session invalid — run `login` again")
+		return ExitInvalidAuth, nil
+	}
+	if res.StatusCode < 200 || res.StatusCode >= 300 {
+		fmt.Fprintf(stderr, "could not validate (network error): unexpected status %d\n", res.StatusCode)
+		return ExitNetworkErr, nil
+	}
+
+	name := res.DisplayName
+	if name == "" {
+		name = creds.Site
+	}
+	fmt.Fprintf(stdout, "credentials valid (%s, oauth, space: %s)\n", name, cfg.SpaceKey)
+	return ExitOK, nil
+}
+
 // runNonInteractive saves credentials provided via flags without prompting.
 func runNonInteractive(email, token string, stdout, stderr io.Writer, client httpClient) (int, error) {
 	cloud := resolveCloud()
@@ -723,7 +760,7 @@ func runNonInteractive(email, token string, stdout, stderr io.Writer, client htt
 		return ExitNoCreds, fmt.Errorf("no cloud")
 	}
 	fmt.Fprint(stderr, "Validating connection... ")
-	res := fetchCurrentUser(client, email, token, cloud)
+	res := fetchCurrentUser(client, auth.Basic{Email: email, Token: token, Cloud: cloud})
 	if res.Err != nil {
 		fmt.Fprintf(stderr, "\nerror: could not validate (network error): %v\n", res.Err)
 		return ExitNetworkErr, res.Err
@@ -832,7 +869,8 @@ func runInteractive(prefillEmail, prefillToken string, stdinRaw io.Reader, stdou
 	fmt.Fprintf(stdout, "\nSaving credentials to: %s\n", path)
 
 	fmt.Fprint(stdout, "Validating connection... ")
-	res := fetchCurrentUser(client, email, token, cloud)
+	basic := auth.Basic{Email: email, Token: token, Cloud: cloud}
+	res := fetchCurrentUser(client, basic)
 	if res.Err != nil {
 		fmt.Fprintf(stdout, "\nerror: could not validate (network error): %v\n", res.Err)
 		return ExitNetworkErr, res.Err
@@ -849,7 +887,7 @@ func runInteractive(prefillEmail, prefillToken string, stdinRaw io.Reader, stdou
 
 	// Step 6: auto-detect spaces via API.
 	fmt.Fprint(stdout, "Fetching accessible spaces... ")
-	spaces, spaceErr := fetchSpaces(client, email, token, cloud)
+	spaces, spaceErr := fetchSpaces(client, basic)
 	if spaceErr != nil {
 		fmt.Fprintf(stdout, "\nwarning: could not fetch spaces (%v)\n", spaceErr)
 		fmt.Fprintln(stdout, "Space configuration skipped. Run `confluence-docs space use <key>` later.")

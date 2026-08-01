@@ -1,13 +1,16 @@
 // Package adf - Confluence Cloud REST API v2 HTTP client.
 //
-// Auth is resolved in order:
-//  1. Explicit token/email passed to NewClient
+// Requests are signed by an auth.Authorizer (pkg/atlassian/auth), which
+// supports Basic (email + API token) and OAuth 2.0 (3LO, via the `login`
+// command, with auto-refreshing tokens). Auth is resolved in order:
+//  1. Explicit token/email (flags / NewClient)
 //  2. $ATLASSIAN_API_TOKEN and $ATLASSIAN_EMAIL env vars
-//  3. Platform config dir / confluence-docs / credentials (key=value file)
-//     Linux:   $XDG_CONFIG_HOME/confluence-docs/credentials
-//     macOS:   ~/Library/Application Support/confluence-docs/credentials
-//     Windows: %AppData%\confluence-docs\credentials
-//     (legacy ~/.config/confluence-docs/credentials is read with a warning)
+//  3. Stored OAuth grant in the shared credentials file
+//  4. email/token in the shared credentials file
+//     (<UserConfigDir>/atlassian/credentials — see auth.CredsPath)
+//  5. Legacy per-skill files, read with a migration warning:
+//     <UserConfigDir>/confluence-docs/credentials, then
+//     ~/.config/confluence-docs/credentials
 //
 // Cloud subdomain is resolved in order:
 //  1. Explicit cloud passed to NewClient
@@ -15,11 +18,13 @@
 //  3. cloud= line in config file (~/.config/confluence-docs/config)
 //  4. cloud= line in old credentials file (v0.9.x backward compat)
 //  5. "" — caller must surface a clear error
+//
+// OAuth mode does not need a cloud subdomain (it routes through the
+// api.atlassian.com gateway using the stored cloudId).
 package adf
 
 import (
 	"bytes"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -30,6 +35,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/diegoclair/skills/pkg/atlassian/auth"
 )
 
 // configPath returns the platform-appropriate credentials file path via
@@ -156,8 +163,7 @@ func IsConflict(err error) bool {
 
 // ConfluenceClient is a minimal Confluence Cloud REST API v2 client.
 type ConfluenceClient struct {
-	baseURL    string // e.g. https://lybel.atlassian.net/wiki
-	creds      ConfluenceCreds
+	auth       auth.Authorizer
 	httpClient *http.Client
 }
 
@@ -279,7 +285,8 @@ func cloudFromOldCredsFile() string {
 }
 
 // ResolveCreds reads credentials from the first source that provides both
-// email and token: explicit args → env vars → config file.
+// email and token: explicit args → env vars → credentials file (canonical
+// shared path, then legacy per-skill paths).
 // Returns an error with actionable text if no credentials are found.
 func ResolveCreds(email, token string) (ConfluenceCreds, error) {
 	// 1. Explicit flags
@@ -294,15 +301,15 @@ func ResolveCreds(email, token string) (ConfluenceCreds, error) {
 		return ConfluenceCreds{Email: envEmail, Token: envToken}, nil
 	}
 
-	// 3. Config file
+	// 3. Credentials file
 	cfgCreds, err := readCredsFile()
 	if err == nil && cfgCreds.Email != "" && cfgCreds.Token != "" {
 		return cfgCreds, nil
 	}
 
-	// Build a helpful path hint using the actual platform config dir.
-	cfgPathHint := "~/.config/confluence-docs/credentials"
-	if p, err := configPath(); err == nil {
+	// Build a helpful path hint using the actual shared credentials path.
+	cfgPathHint := "~/.config/atlassian/credentials"
+	if p, err := auth.CredsPath(); err == nil {
 		cfgPathHint = p
 	}
 	return ConfluenceCreds{}, fmt.Errorf(
@@ -319,81 +326,70 @@ func ResolveCreds(email, token string) (ConfluenceCreds, error) {
 	)
 }
 
-// readCredsFile parses the platform credentials file (key=value format).
-// Falls back to the legacy ~/.config/confluence-docs/credentials with a warning
-// printed to stderr if the new path does not exist but the old one does.
-// On Linux the two paths are identical so no fallback is attempted.
+// readCredsFile reads email+token from the canonical shared credentials file
+// (<UserConfigDir>/atlassian/credentials). When it is absent or has no token,
+// the legacy per-skill paths — <UserConfigDir>/confluence-docs/credentials,
+// then ~/.config/confluence-docs/credentials — are tried with a migration
+// warning printed to stderr on a hit.
 func readCredsFile() (ConfluenceCreds, error) {
-	newPath, err := configPath()
-	if err != nil {
-		return ConfluenceCreds{}, err
-	}
-
-	data, readErr := os.ReadFile(newPath)
-	if readErr != nil && os.IsNotExist(readErr) {
-		legacyPath, legacyErr := legacyConfigPath()
-		if legacyErr == nil && legacyPath != newPath {
-			if legacyData, legacyReadErr := os.ReadFile(legacyPath); legacyReadErr == nil {
-				// Print warning to stderr. We use os.Stderr directly here because
-				// readCredsFile has no io.Writer param (keeping the existing API).
-				fmt.Fprintf(os.Stderr,
-					"warning: credentials found at legacy path %s — run `confluence-docs setup` to migrate to %s\n",
-					legacyPath, newPath)
-				data = legacyData
-				readErr = nil
+	canonical, err := auth.CredsPath()
+	if err == nil {
+		if data, rerr := os.ReadFile(canonical); rerr == nil {
+			if c := auth.ParseCreds(data); c.HasAPIToken() {
+				return ConfluenceCreds{Email: c.Email, Token: c.Token}, nil
 			}
 		}
 	}
-	if readErr != nil {
-		return ConfluenceCreds{}, readErr
-	}
 
-	var creds ConfluenceCreds
-	for _, line := range strings.Split(string(data), "\n") {
-		line = strings.TrimSpace(line)
-		if line == "" || strings.HasPrefix(line, "#") {
+	seen := map[string]bool{}
+	for _, pathFn := range []func() (string, error){configPath, legacyConfigPath} {
+		legacyPath, perr := pathFn()
+		if perr != nil || seen[legacyPath] {
 			continue
 		}
-		kv := strings.SplitN(line, "=", 2)
-		if len(kv) != 2 {
+		seen[legacyPath] = true
+		data, rerr := os.ReadFile(legacyPath)
+		if rerr != nil {
 			continue
 		}
-		key := strings.TrimSpace(kv[0])
-		val := strings.TrimSpace(kv[1])
-		switch key {
-		case "email":
-			creds.Email = val
-		case "token":
-			creds.Token = val
+		c := auth.ParseCreds(data)
+		if !c.HasAPIToken() {
+			continue
 		}
+		fmt.Fprintf(os.Stderr,
+			"warning: credentials found at legacy path %s — run `confluence-docs setup` to migrate to %s\n",
+			legacyPath, canonical)
+		return ConfluenceCreds{Email: c.Email, Token: c.Token}, nil
 	}
-	return creds, nil
+	return ConfluenceCreds{}, os.ErrNotExist
 }
 
-// NewClient creates a ConfluenceClient for the given cloud subdomain and creds.
+// NewClient creates a ConfluenceClient using Basic auth for the given cloud
+// subdomain and creds.
 func NewClient(cloud string, creds ConfluenceCreds) *ConfluenceClient {
+	return NewClientWithAuthorizer(auth.Basic{Email: creds.Email, Token: creds.Token, Cloud: cloud})
+}
+
+// NewClientWithAuthorizer creates a ConfluenceClient signing requests with the
+// given authorizer (Basic or OAuth).
+func NewClientWithAuthorizer(a auth.Authorizer) *ConfluenceClient {
 	return &ConfluenceClient{
-		baseURL:    fmt.Sprintf("https://%s.atlassian.net/wiki", cloud),
-		creds:      creds,
+		auth:       a,
 		httpClient: &http.Client{},
 	}
-}
-
-// basicAuth returns a base64-encoded Basic auth header value.
-func (c *ConfluenceClient) basicAuth() string {
-	raw := c.creds.Email + ":" + c.creds.Token
-	return "Basic " + base64.StdEncoding.EncodeToString([]byte(raw))
 }
 
 // doRequest executes an HTTP request, returning the response body bytes.
 // Non-2xx responses are returned as errors with the body included.
 func (c *ConfluenceClient) doRequest(method, path string, body io.Reader) ([]byte, int, error) {
-	url := c.baseURL + path
+	url := c.auth.ConfluenceBase() + path
 	req, err := http.NewRequest(method, url, body)
 	if err != nil {
 		return nil, 0, fmt.Errorf("build request: %w", err)
 	}
-	req.Header.Set("Authorization", c.basicAuth())
+	if err := c.auth.Apply(req); err != nil {
+		return nil, 0, err
+	}
 	req.Header.Set("Accept", "application/json")
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
@@ -770,7 +766,7 @@ func (c *ConfluenceClient) PageURL(webuiPath string) string {
 	if strings.HasPrefix(webuiPath, "http") {
 		return webuiPath
 	}
-	return strings.TrimRight(c.baseURL, "/") + "/" + strings.TrimLeft(webuiPath, "/")
+	return strings.TrimRight(c.auth.ConfluenceWebBase(), "/") + "/" + strings.TrimLeft(webuiPath, "/")
 }
 
 // SearchResult is one row from a CQL search.
@@ -875,9 +871,16 @@ func stripExcerptHTML(s string) string {
 	return strings.TrimSpace(s)
 }
 
-// BaseURL returns the base URL of this client.
+// BaseURL returns the Confluence API root this client talks to.
 func (c *ConfluenceClient) BaseURL() string {
-	return c.baseURL
+	return c.auth.ConfluenceBase()
+}
+
+// WebBaseURL returns the site root for browser links. Use this — not
+// BaseURL — for anything a human clicks: under OAuth the API root is the
+// api.atlassian.com gateway, which does not serve the web UI.
+func (c *ConfluenceClient) WebBaseURL() string {
+	return c.auth.ConfluenceWebBase()
 }
 
 // ---------- Spaces ----------

@@ -293,13 +293,7 @@ func TestSpaceUse_SwitchesActiveSpace(t *testing.T) {
 		{200, string(pageMetaBody)},  // get home page title
 	}
 	callIdx := 0
-	rt := &mockRoundTripper{}
-	http.DefaultTransport = &multiRoundTripper{responses: responses, idx: &callIdx}
-	t.Cleanup(func() { http.DefaultTransport = http.DefaultTransport })
-
-	// Override transport using env-based approach.
 	orig := http.DefaultTransport
-	callIdx = 0
 	http.DefaultTransport = &multiRoundTripper{responses: responses, idx: &callIdx}
 	defer func() { http.DefaultTransport = orig }()
 
@@ -310,7 +304,6 @@ func TestSpaceUse_SwitchesActiveSpace(t *testing.T) {
 	var outBuf, errBuf bytes.Buffer
 	code, _ := run([]string{"space", "use", "mkt"}, strings.NewReader(""), &outBuf, &errBuf)
 	out := outBuf.String()
-	_ = rt
 
 	if code != exitOK {
 		t.Fatalf("want exit 0, got %d\nout: %s\nerr: %s", code, out, errBuf.String())

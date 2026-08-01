@@ -96,8 +96,11 @@ func TestNewClient_Success(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if c.Cloud != "mycloud" {
-		t.Errorf("Cloud: want %q, got %q", "mycloud", c.Cloud)
+	if c.Auth == nil {
+		t.Fatal("Auth should not be nil")
+	}
+	if got := c.Auth.JiraBase(); got != "https://mycloud.atlassian.net" {
+		t.Errorf("JiraBase: want %q, got %q", "https://mycloud.atlassian.net", got)
 	}
 	if c.HTTPClient == nil {
 		t.Error("HTTPClient should not be nil")
@@ -1150,14 +1153,19 @@ func TestParseSprint_SingleObject(t *testing.T) {
 
 func TestBasicAuth_Format(t *testing.T) {
 	c, _ := NewClient("cloud", "user@example.com", "mytoken")
-	auth := c.basicAuth()
-	if !strings.HasPrefix(auth, "Basic ") {
-		t.Errorf("basicAuth: want 'Basic ...', got %q", auth)
+	req, err := http.NewRequest(http.MethodGet, c.BaseURL()+"/myself", nil)
+	if err != nil {
+		t.Fatalf("build request: %v", err)
 	}
-	// Verify the token encodes correctly.
-	import64 := strings.TrimPrefix(auth, "Basic ")
-	if import64 == "" {
-		t.Error("basicAuth: encoded part is empty")
+	if err := c.Auth.Apply(req); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	got := req.Header.Get("Authorization")
+	if !strings.HasPrefix(got, "Basic ") {
+		t.Errorf("Authorization: want 'Basic ...', got %q", got)
+	}
+	if strings.TrimPrefix(got, "Basic ") == "" {
+		t.Error("Authorization: encoded part is empty")
 	}
 }
 

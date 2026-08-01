@@ -802,3 +802,91 @@ func TestCheck_MissingSpaceConfig(t *testing.T) {
 		t.Errorf("expected 'no active space' message, got %q", errOut)
 	}
 }
+
+// ── --check with stored OAuth grant ───────────────────────────────────────────
+
+// captureHTTPClient records the last request before delegating to the mock.
+type captureHTTPClient struct {
+	mockHTTPClient
+	lastURL  string
+	lastAuth string
+}
+
+func (c *captureHTTPClient) Do(req *http.Request) (*http.Response, error) {
+	c.lastURL = req.URL.String()
+	c.lastAuth = req.Header.Get("Authorization")
+	return c.mockHTTPClient.Do(req)
+}
+
+// writeTempOAuthCreds writes a canonical atlassian/credentials file with a
+// stored OAuth grant whose access token is far from expiry (no refresh), plus
+// a per-skill config with an active space. No cloud subdomain is configured —
+// OAuth mode must not require one.
+func writeTempOAuthCreds(t *testing.T, dir string) {
+	t.Helper()
+	credsDir := filepath.Join(dir, "atlassian")
+	if err := os.MkdirAll(credsDir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	content := strings.Join([]string{
+		"auth_mode=oauth",
+		"oauth_client_id=cid",
+		"oauth_client_secret=csecret",
+		"oauth_access_token=at-valid",
+		"oauth_refresh_token=rt",
+		"oauth_expiry=4102444800", // 2100-01-01: still valid, no refresh
+		"oauth_cloud_id=cloud-123",
+		"oauth_site=testsite",
+	}, "\n") + "\n"
+	if err := os.WriteFile(filepath.Join(credsDir, "credentials"), []byte(content), 0600); err != nil {
+		t.Fatal(err)
+	}
+	writeTempConfig(t, dir, Config{
+		SpaceID:    "99999",
+		SpaceKey:   "testspace",
+		SpaceName:  "Test Space",
+		HomePageID: "11111",
+	})
+}
+
+func TestCheck_OAuthValid(t *testing.T) {
+	dir := t.TempDir()
+	overrideConfigDir(t, dir)
+	writeTempOAuthCreds(t, dir)
+
+	mock := &captureHTTPClient{
+		mockHTTPClient: mockHTTPClient{statusCode: 200, body: okUserBody("Alice", "acc-001")},
+	}
+	out, errOut, code := runSetup(t, mock, "", "--check")
+	if code != ExitOK {
+		t.Fatalf("want exit 0, got %d\nstdout: %s\nstderr: %s", code, out, errOut)
+	}
+	if !strings.Contains(out, "credentials valid") || !strings.Contains(out, "oauth") {
+		t.Errorf("expected 'credentials valid (..., oauth, ...)' in stdout, got %q", out)
+	}
+	if !strings.Contains(out, "testspace") {
+		t.Errorf("expected space key 'testspace' in output, got %q", out)
+	}
+	if mock.lastAuth != "Bearer at-valid" {
+		t.Errorf("Authorization: want %q, got %q", "Bearer at-valid", mock.lastAuth)
+	}
+	// OAuth calls must go through the API gateway using the cloudId.
+	if !strings.Contains(mock.lastURL, "/ex/confluence/cloud-123/wiki") {
+		t.Errorf("expected gateway URL with cloudId, got %q", mock.lastURL)
+	}
+}
+
+func TestCheck_OAuthInvalid(t *testing.T) {
+	dir := t.TempDir()
+	overrideConfigDir(t, dir)
+	writeTempOAuthCreds(t, dir)
+
+	mock := &mockHTTPClient{statusCode: http.StatusUnauthorized}
+	_, errOut, code := runSetup(t, mock, "", "--check")
+	if code != ExitInvalidAuth {
+		t.Fatalf("want exit %d (invalid auth), got %d\nstderr: %s", ExitInvalidAuth, code, errOut)
+	}
+	if !strings.Contains(errOut, "login") {
+		t.Errorf("expected 'run `login` again' hint in stderr, got %q", errOut)
+	}
+}

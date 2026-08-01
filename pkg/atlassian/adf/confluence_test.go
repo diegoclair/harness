@@ -31,8 +31,55 @@ func TestResolveCreds_EnvVars(t *testing.T) {
 	}
 }
 
+// isolateCredsEnv points HOME and the platform config dir at dir and clears
+// the credential env vars, so tests never see the developer's real files.
+func isolateCredsEnv(t *testing.T, dir string) {
+	t.Helper()
+	t.Setenv("HOME", dir)
+	switch runtime.GOOS {
+	case "windows":
+		t.Setenv("APPDATA", dir)
+	case "darwin":
+		// UserConfigDir derives from HOME on macOS.
+	default:
+		t.Setenv("XDG_CONFIG_HOME", filepath.Join(dir, ".config"))
+	}
+	t.Setenv("ATLASSIAN_API_TOKEN", "")
+	t.Setenv("ATLASSIAN_EMAIL", "")
+}
+
+func TestResolveCreds_SharedFile(t *testing.T) {
+	dir := t.TempDir()
+	isolateCredsEnv(t, dir)
+
+	cfgDir := filepath.Join(dir, ".config", "atlassian")
+	if runtime.GOOS == "windows" {
+		cfgDir = filepath.Join(dir, "atlassian")
+	} else if runtime.GOOS == "darwin" {
+		cfgDir = filepath.Join(dir, "Library", "Application Support", "atlassian")
+	}
+	if err := os.MkdirAll(cfgDir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	content := "email=shared@example.com\ntoken=sharedtok\n"
+	if err := os.WriteFile(filepath.Join(cfgDir, "credentials"), []byte(content), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	creds, err := ResolveCreds("", "")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if creds.Email != "shared@example.com" || creds.Token != "sharedtok" {
+		t.Errorf("unexpected creds from shared file: %+v", creds)
+	}
+}
+
 func TestResolveCreds_ConfigFile(t *testing.T) {
 	dir := t.TempDir()
+	isolateCredsEnv(t, dir)
+
+	// Legacy per-skill path: still honored (with a stderr warning).
 	cfgDir := filepath.Join(dir, ".config", "confluence-docs")
 	if err := os.MkdirAll(cfgDir, 0700); err != nil {
 		t.Fatal(err)
@@ -42,13 +89,6 @@ func TestResolveCreds_ConfigFile(t *testing.T) {
 	if err := os.WriteFile(cfgPath, []byte(content), 0600); err != nil {
 		t.Fatal(err)
 	}
-
-	oldHome := os.Getenv("HOME")
-	t.Setenv("HOME", dir)
-	defer os.Setenv("HOME", oldHome)
-
-	t.Setenv("ATLASSIAN_API_TOKEN", "")
-	t.Setenv("ATLASSIAN_EMAIL", "")
 
 	creds, err := ResolveCreds("", "")
 	if err != nil {
@@ -61,11 +101,7 @@ func TestResolveCreds_ConfigFile(t *testing.T) {
 
 func TestResolveCreds_NoneFound(t *testing.T) {
 	dir := t.TempDir()
-	oldHome := os.Getenv("HOME")
-	t.Setenv("HOME", dir)
-	defer os.Setenv("HOME", oldHome)
-	t.Setenv("ATLASSIAN_API_TOKEN", "")
-	t.Setenv("ATLASSIAN_EMAIL", "")
+	isolateCredsEnv(t, dir)
 
 	_, err := ResolveCreds("", "")
 	if err == nil {
