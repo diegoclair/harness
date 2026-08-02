@@ -1,24 +1,25 @@
 #!/bin/sh
-# install.sh — bootstrap stub for the social-carousel skill.
+# install.sh — installs the social-carousel skill.
 #
-# Real install logic lives in pkg/install/install.sh, shared by every skill
-# in this monorepo. This stub just exports the three required parameters
-# and delegates. See pkg/install/install.sh for the full pipeline.
+# Kept at this URL for the published one-liner and for `social-carousel update`,
+# which shells out to it. The work is done by the `skills` installer binary;
+# this only forwards the skill name to it.
+#
+#   curl -fsSL https://raw.githubusercontent.com/diegoclair/skills/main/social-carousel/install/install.sh | sh
+#
+# To install several skills at once, use the root install.sh instead.
 
 set -e
 
-SKILL_REPO="${SKILL_REPO:-diegoclair/skills}"
-SKILL_NAME="social-carousel"
-SKILL_TAG_PREFIX="carousel-v"
+REPO="${SKILL_REPO:-diegoclair/skills}"
+ROOT_URL="https://raw.githubusercontent.com/$REPO/main/install.sh"
 
-export SKILL_NAME SKILL_TAG_PREFIX SKILL_REPO
-
-SHARED_URL="https://raw.githubusercontent.com/$SKILL_REPO/main/pkg/install/install.sh"
-
+# Version pins used the SKILL_VERSION / <SKILL>_VERSION env vars; the
+# installer still honours both, so nothing extra is needed here.
 if command -v curl >/dev/null 2>&1; then
-  curl -fsSL "$SHARED_URL" | sh
+  curl -fsSL "$ROOT_URL" | sh -s -- install social-carousel
 elif command -v wget >/dev/null 2>&1; then
-  wget -qO- "$SHARED_URL" | sh
+  wget -qO- "$ROOT_URL" | sh -s -- install social-carousel
 else
   echo "error: neither curl nor wget found; install one and retry" >&2
   exit 1
