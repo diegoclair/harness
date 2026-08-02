@@ -1,0 +1,57 @@
+name: Release installer
+
+on:
+  push:
+    tags:
+      - 'installer-v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: installer/go.mod
+          # No go.sum: the only dependency is a local replace.
+          cache: false
+
+      - name: Run tests
+        working-directory: installer
+        run: make test
+
+      - name: Compute clean version (strip "installer-" prefix)
+        id: ver
+        run: |
+          set -euo pipefail
+          TAG="${{ github.ref_name }}"
+          CLEAN="${TAG#installer-}"
+          echo "tag=$TAG"     >> "$GITHUB_OUTPUT"
+          echo "clean=$CLEAN" >> "$GITHUB_OUTPUT"
+
+      - name: Cross-compile binaries
+        working-directory: installer
+        run: make build-all VERSION=${{ steps.ver.outputs.clean }}
+
+      # Raw binaries, not archives: the bootstrap scripts curl one file and
+      # exec it, so there is nothing to unpack.
+      - name: Collect release assets
+        run: |
+          set -euo pipefail
+          mkdir -p release-assets
+          cp installer/dist/* release-assets/
+          cd release-assets && sha256sum * > SHASUMS256.txt
+          ls -lh
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v3
+        with:
+          name: ${{ steps.ver.outputs.tag }}
+          files: release-assets/*
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          make_latest: false

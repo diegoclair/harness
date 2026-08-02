@@ -33,6 +33,7 @@ vendor/
 /build/
 */cli/bin/
 */cli/dist/
+installer/dist/
 # Skill-root bin/ (some skills install via `make install-local` and produce
 # the binary at <skill>/bin/<skill> instead of <skill>/cli/bin/<skill>).
 */bin/
@@ -119,6 +120,8 @@ yarn-error.log*
 # (Go names the binary after the package directory; we want it in bin/.)
 */cli/cli
 */cli/cli.exe
+installer/installer
+installer/installer.exe
 
 # ============================================================
 # Local secrets

@@ -42,21 +42,39 @@ Every write does a fresh GET before the PUT, so the cache never causes accidenta
 
 ## Installation
 
-Each skill has its own one-liner. The two installers share `pkg/install/install.{sh,ps1}` under the hood, so flags and layout are consistent.
+One command installs any number of skills (macOS / Linux):
 
-**`confluence-docs`** (macOS / Linux):
 ```bash
-curl -fsSL https://raw.githubusercontent.com/diegoclair/skills/main/confluence-docs/install/install.sh | bash
+# see what's available, then pick
+curl -fsSL https://raw.githubusercontent.com/diegoclair/skills/main/install.sh | sh -s -- list
+curl -fsSL https://raw.githubusercontent.com/diegoclair/skills/main/install.sh | sh -s -- install confluence-docs jira-tickets
+
+# or take everything
+curl -fsSL https://raw.githubusercontent.com/diegoclair/skills/main/install.sh | sh
 ```
 
-**`jira-tickets`** (macOS / Linux):
+**Windows (PowerShell):** `iwr -useb https://raw.githubusercontent.com/diegoclair/skills/main/install.ps1 | iex`. To choose skills, download the script first and pass arguments to it.
+
+The one-liner is a thin bootstrap: it fetches the `skills` installer binary and hands over. The installer resolves each skill's latest release by tag prefix (`confluence-v*`, `jira-v*`, `carousel-v*`), installs into `~/.claude/skills/<skill>/`, symlinks the binary into `~/.local/bin`, and reports whether credentials are already configured. It is idempotent — re-running upgrades in place and keeps credentials.
+
+**Open a new shell** afterwards (or `source ~/.zshrc`) for the PATH change to take effect.
+
+To pin a release: `install --version confluence-v0.15.0 confluence-docs` (one skill at a time, since tags are per skill).
+
+Already have the installer? Use it directly: `skills list`, `skills install jira-tickets`.
+
+<details>
+<summary>Per-skill installers (still supported)</summary>
+
+The original one-liners keep working; they run the shell pipeline in `pkg/install/`:
+
 ```bash
+curl -fsSL https://raw.githubusercontent.com/diegoclair/skills/main/confluence-docs/install/install.sh | bash
 curl -fsSL https://raw.githubusercontent.com/diegoclair/skills/main/jira-tickets/install/install.sh | bash
 ```
 
-**Windows (PowerShell):** swap `install.sh | bash` for `install.ps1 | iex` and prefix with `iwr -useb`.
-
-Each installer is idempotent: it resolves the latest release for its tag prefix (`confluence-v*` / `jira-v*`) via the GitHub API, places everything in `~/.claude/skills/<skill>/`, symlinks the binary into `~/.local/bin`, and reports whether credentials are already configured. **Open a new shell** afterwards (or `source ~/.zshrc`) for the PATH change to take effect. To pin a specific release: `SKILL_VERSION=confluence-v0.14.0 bash`.
+Pin a version with `SKILL_VERSION=confluence-v0.15.0 bash`.
+</details>
 
 Then create an Atlassian token at https://id.atlassian.com/manage-profile/security/api-tokens. Credentials are **shared** across both skills via `~/.config/atlassian/credentials` — configure once, both work:
 
