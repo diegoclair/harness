@@ -30,6 +30,7 @@ import (
 //   - Blank lines are skipped.
 //   - Lines without a colon are skipped.
 //   - Key and value are trimmed of leading/trailing whitespace.
+//   - A single pair of wrapping quotes around the value is removed.
 func ParsePropertiesBlock(body string) []PagePropertiesEntry {
 	var entries []PagePropertiesEntry
 	lines := strings.Split(body, "\n")
@@ -43,13 +44,31 @@ func ParsePropertiesBlock(body string) []PagePropertiesEntry {
 			continue
 		}
 		key := strings.TrimSpace(line[:idx])
-		val := strings.TrimSpace(line[idx+1:])
+		val := stripWrappingQuotes(strings.TrimSpace(line[idx+1:]))
 		if key == "" {
 			continue
 		}
 		entries = append(entries, PagePropertiesEntry{Key: key, Value: val})
 	}
 	return entries
+}
+
+// stripWrappingQuotes removes one pair of quotes around the whole value —
+// without it a value written as `related: "A, B"` renders the quotes literally
+// in the properties table. Values that quote their individual items
+// (`"A", "B"`) are left alone: there is more than one pair.
+func stripWrappingQuotes(s string) string {
+	if len(s) < 2 {
+		return s
+	}
+	q := s[0]
+	if q != '"' && q != '\'' {
+		return s
+	}
+	if s[len(s)-1] != q || strings.Count(s, string(q)) != 2 {
+		return s
+	}
+	return strings.TrimSpace(s[1 : len(s)-1])
 }
 
 // PropertiesBlockToStorageXML is a convenience wrapper that parses the block

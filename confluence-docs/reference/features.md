@@ -43,13 +43,18 @@ type: reference
 status: active
 owner: user@example.com
 tags: psp, billing, recurring
-related: [[Stripe Brazil Analysis]], [[id:12345]]
+related: Stripe Brazil Analysis (212992001), [[Editorial Standards]]
 created: 2026-01-01
 updated: 2026-01-01
 :::
 ```
 
-Links in values use `[[Page Title]]` or `[[id:N]]` syntax, which the converter turns into `<ac:link><ri:page ri:content-title="..."/></ac:link>` storage XML.
+Links in values use one of two forms:
+
+- `Page Title (pageId)` — the preferred form for `related`. Rendered as a direct link to that page. The page id must have at least 6 digits, so `(2026)` and other short parentheticals stay plain text.
+- `[[Page Title]]` / `[[id:N]]` — turned into `<ac:link><ri:page ri:content-title="..."/></ac:link>` storage XML.
+
+**Do not quote values.** A single pair of wrapping quotes is stripped (`related: "A (123456)"` works), but quotes are never needed and per-item quoting (`"A", "B"`) renders literally.
 
 The block is rendered as a `codeBlock` with language `confluence-storage` in ADF (so the storage XML passes through the pipeline). When creating pages via `page create --markdown`, Confluence accepts the storage XML inside the ADF body.
 

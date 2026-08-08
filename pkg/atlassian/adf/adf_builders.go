@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"sort"
 	"strings"
 )
 
@@ -34,6 +35,11 @@ var reAtHandle = regexp.MustCompile(`@([A-Za-z0-9._-]+)`)
 
 // reEmail matches a bare email address (no leading @).
 var reEmail = regexp.MustCompile(`\b([A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,})\b`)
+
+// rePageRef matches a `Title (pageId)` reference inside a properties value.
+// The 6-digit floor keeps years and other short numbers in parentheses from
+// being taken for page ids.
+var rePageRef = regexp.MustCompile(`([^,()\[\]]+?)\s*\((\d{6,})\)`)
 
 // ---------- Status (inline) ----------
 
@@ -178,6 +184,16 @@ type PagePropertiesEntry struct {
 	Value string // may contain [[links]] syntax
 }
 
+// PropertiesOptions configures how :::properties values are rendered.
+type PropertiesOptions struct {
+	// Resolver expands @handles and emails to user mentions. nil means none.
+	Resolver UserResolver
+	// PageBaseURL is the browser URL prefix for page links, without a trailing
+	// slash (e.g. https://site.atlassian.net/wiki/spaces/KEY/pages). Empty
+	// disables `Title (pageId)` link expansion.
+	PageBaseURL string
+}
+
 // PagePropertiesToStorage converts a slice of key-value pairs into the
 // Confluence storage XML for the page-properties macro. Link syntax:
 //
@@ -189,10 +205,16 @@ type PagePropertiesEntry struct {
 // Pass a non-nil resolver to enable @handle → user mention resolution.
 // Pass nil to use the no-op resolver (plain text, backward-compatible).
 func PagePropertiesToStorage(entries []PagePropertiesEntry, resolver ...UserResolver) string {
-	var res UserResolver = noopResolver{}
-	if len(resolver) > 0 && resolver[0] != nil {
-		res = resolver[0]
+	var opts PropertiesOptions
+	if len(resolver) > 0 {
+		opts.Resolver = resolver[0]
 	}
+	return PagePropertiesToStorageWithOptions(entries, opts)
+}
+
+// PagePropertiesToStorageWithOptions is PagePropertiesToStorage with full
+// control over mention resolution and `Title (pageId)` link expansion.
+func PagePropertiesToStorageWithOptions(entries []PagePropertiesEntry, opts PropertiesOptions) string {
 	var sb strings.Builder
 	// Confluence Cloud's Page Properties macro is stored with ac:name="details"
 	// — "page-properties" is the legacy Server name and renders as "Unknown
@@ -203,52 +225,67 @@ func PagePropertiesToStorage(entries []PagePropertiesEntry, resolver ...UserReso
 		sb.WriteString("<tr><th>")
 		sb.WriteString(xmlEscape(e.Key))
 		sb.WriteString("</th><td>")
-		sb.WriteString(renderPropertiesValueWithResolver(e.Value, res))
+		sb.WriteString(renderPropertiesValue(e.Value, opts))
 		sb.WriteString("</td></tr>")
 	}
 	sb.WriteString("</tbody></table></ac:rich-text-body></ac:structured-macro>")
 	return sb.String()
 }
 
-// renderPropertiesValue converts a properties value string, turning [[link]]
-// syntax into Confluence page-link storage XML and leaving plain text alone.
-// @handles and emails are NOT resolved (no-op resolver). For mention support,
-// use renderPropertiesValueWithResolver directly.
-func renderPropertiesValue(val string) string {
-	return renderPropertiesValueWithResolver(val, noopResolver{})
-}
-
-// renderPropertiesValueWithResolver converts a properties value string:
+// renderPropertiesValue converts a properties value string:
 //   - [[titulo]] / [[id:N]] → Confluence page-link storage XML
+//   - Title (pageId)        → <a href="..."> to the page (needs opts.PageBaseURL)
 //   - @handle → <ac:link><ri:user ri:account-id="..."/></ac:link> (if resolver finds it)
 //   - email   → same user mention link (if resolver finds it)
 //   - everything else → XML-escaped plain text
-func renderPropertiesValueWithResolver(val string, resolver UserResolver) string {
-	// First pass: handle [[...]] page links (existing behaviour).
-	// Second pass: handle @mentions and emails in the remaining text segments.
+func renderPropertiesValue(val string, opts PropertiesOptions) string {
+	if opts.Resolver == nil {
+		opts.Resolver = noopResolver{}
+	}
 	var out strings.Builder
 	remaining := val
 	for {
 		start := strings.Index(remaining, "[[")
 		if start == -1 {
-			// No more page links — process @handles/emails in remainder.
-			out.WriteString(resolveInlineMentions(remaining, resolver))
+			out.WriteString(renderPlainSegment(remaining, opts))
 			break
 		}
-		// Text before the [[ — process mentions inside it.
-		out.WriteString(resolveInlineMentions(remaining[:start], resolver))
+		out.WriteString(renderPlainSegment(remaining[:start], opts))
 		remaining = remaining[start+2:]
 		end := strings.Index(remaining, "]]")
 		if end == -1 {
 			// Unterminated — treat as literal text.
 			out.WriteString("[[")
-			out.WriteString(resolveInlineMentions(remaining, resolver))
+			out.WriteString(renderPlainSegment(remaining, opts))
 			break
 		}
 		inner := strings.TrimSpace(remaining[:end])
 		remaining = remaining[end+2:]
 		out.WriteString(confluencePageLink(inner))
 	}
+	return out.String()
+}
+
+// renderPlainSegment expands `Title (pageId)` references into page links and
+// hands whatever is left to mention resolution.
+func renderPlainSegment(text string, opts PropertiesOptions) string {
+	if opts.PageBaseURL == "" {
+		return resolveInlineMentions(text, opts.Resolver)
+	}
+	var out strings.Builder
+	pos := 0
+	for _, loc := range rePageRef.FindAllStringSubmatchIndex(text, -1) {
+		raw := text[loc[2]:loc[3]]
+		title := strings.Trim(raw, " \t\"'")
+		if title == "" {
+			continue
+		}
+		lead := len(raw) - len(strings.TrimLeft(raw, " \t"))
+		out.WriteString(resolveInlineMentions(text[pos:loc[2]+lead], opts.Resolver))
+		out.WriteString(confluencePageURLLink(opts.PageBaseURL, text[loc[4]:loc[5]], title))
+		pos = loc[1]
+	}
+	out.WriteString(resolveInlineMentions(text[pos:], opts.Resolver))
 	return out.String()
 }
 
@@ -259,52 +296,49 @@ func resolveInlineMentions(text string, resolver UserResolver) string {
 	if text == "" {
 		return ""
 	}
-	// Combine both patterns into one scan using index tracking.
-	// We iterate character by character using regex FindAllStringIndex so we
-	// can interleave @handle and email matches in document order.
-
 	type match struct {
 		start, end int
 		query      string // the string to pass to resolver
 		raw        string // the full matched text (including @)
 	}
 
+	// Emails are collected first: the @handle pattern also matches the domain
+	// part of an address, and letting both through duplicates it in the output.
 	var matches []match
-	for _, loc := range reAtHandle.FindAllStringIndex(text, -1) {
-		full := text[loc[0]:loc[1]]        // e.g. "@diegoclair"
-		query := full[1:]                  // strip leading @
-		matches = append(matches, match{loc[0], loc[1], query, full})
-	}
 	for _, loc := range reEmail.FindAllStringIndex(text, -1) {
 		full := text[loc[0]:loc[1]]
-		// Skip if this email was already captured as part of an @handle match
-		// (shouldn't overlap but guard anyway).
-		overlaps := false
+		matches = append(matches, match{loc[0], loc[1], full, full})
+	}
+	for _, loc := range reAtHandle.FindAllStringIndex(text, -1) {
+		if loc[0] > 0 && isEmailLocalPartChar(text[loc[0]-1]) {
+			continue
+		}
+		overlapping := false
 		for _, m := range matches {
-			if loc[0] >= m.start && loc[1] <= m.end {
-				overlaps = true
+			if loc[0] < m.end && m.start < loc[1] {
+				overlapping = true
 				break
 			}
 		}
-		if !overlaps {
-			matches = append(matches, match{loc[0], loc[1], full, full})
+		if overlapping {
+			continue
 		}
+		full := text[loc[0]:loc[1]] // e.g. "@diegoclair"
+		matches = append(matches, match{loc[0], loc[1], full[1:], full})
 	}
 
 	if len(matches) == 0 {
 		return xmlEscape(text)
 	}
 
-	// Sort matches by start position.
-	for i := 1; i < len(matches); i++ {
-		for j := i; j > 0 && matches[j].start < matches[j-1].start; j-- {
-			matches[j], matches[j-1] = matches[j-1], matches[j]
-		}
-	}
+	sort.Slice(matches, func(i, j int) bool { return matches[i].start < matches[j].start })
 
 	var out strings.Builder
 	pos := 0
 	for _, m := range matches {
+		if m.start < pos {
+			continue
+		}
 		if m.start > pos {
 			out.WriteString(xmlEscape(text[pos:m.start]))
 		}
@@ -320,6 +354,22 @@ func resolveInlineMentions(text string, resolver UserResolver) string {
 		out.WriteString(xmlEscape(text[pos:]))
 	}
 	return out.String()
+}
+
+// isEmailLocalPartChar reports whether b may appear in an email local part.
+// An '@' preceded by one of these belongs to an address, not to a mention.
+func isEmailLocalPartChar(b byte) bool {
+	switch {
+	case b >= 'A' && b <= 'Z', b >= 'a' && b <= 'z', b >= '0' && b <= '9':
+		return true
+	}
+	return strings.IndexByte("._%+-", b) >= 0
+}
+
+// confluencePageURLLink builds an anchor to a Confluence page by id.
+func confluencePageURLLink(baseURL, pageID, title string) string {
+	url := strings.TrimSuffix(baseURL, "/") + "/" + pageID
+	return fmt.Sprintf(`<a href="%s">%s</a>`, xmlEscapeAttr(url), xmlEscape(title))
 }
 
 // confluenceUserMention builds a Confluence user mention storage snippet.

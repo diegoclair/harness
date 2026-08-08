@@ -66,6 +66,39 @@ func TestParsePropertiesBlock_links(t *testing.T) {
 	}
 }
 
+func TestParsePropertiesBlock_stripsSurroundingQuotes(t *testing.T) {
+	body := `related: "Título A (123), Título B (456)"
+owner: 'diego'
+empty: ""`
+	entries := ParsePropertiesBlock(body)
+	if len(entries) != 3 {
+		t.Fatalf("expected 3 entries, got %d: %v", len(entries), entries)
+	}
+	if entries[0].Value != "Título A (123), Título B (456)" {
+		t.Errorf("double quotes not stripped: %q", entries[0].Value)
+	}
+	if entries[1].Value != "diego" {
+		t.Errorf("single quotes not stripped: %q", entries[1].Value)
+	}
+	if entries[2].Value != "" {
+		t.Errorf(`empty quoted value should be empty, got %q`, entries[2].Value)
+	}
+}
+
+func TestParsePropertiesBlock_keepsInnerQuotes(t *testing.T) {
+	// Only a single wrapping pair is stripped; quoted items inside the value
+	// are left for the caller to read as written.
+	body := `related: "A", "B"
+note: he said "hi"`
+	entries := ParsePropertiesBlock(body)
+	if entries[0].Value != `"A", "B"` {
+		t.Errorf("per-item quotes must be preserved: %q", entries[0].Value)
+	}
+	if entries[1].Value != `he said "hi"` {
+		t.Errorf("inner quotes must be preserved: %q", entries[1].Value)
+	}
+}
+
 func TestPropertiesBlockToStorageXML(t *testing.T) {
 	body := `tipo: reference
 status: ativo

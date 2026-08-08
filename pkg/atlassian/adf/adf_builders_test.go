@@ -177,6 +177,70 @@ func TestPagePropertiesToStorage_multipleLinks(t *testing.T) {
 	}
 }
 
+// ---------- related: "Title (pageId)" links ----------
+
+const testPageBase = "https://acme.atlassian.net/wiki/spaces/DOCS/pages"
+
+func TestRenderPropertiesValue_PageRefBecomesLink(t *testing.T) {
+	opts := PropertiesOptions{PageBaseURL: testPageBase}
+	out := renderPropertiesValue("Checkout Universal (212992001)", opts)
+	want := `<a href="` + testPageBase + `/212992001">Checkout Universal</a>`
+	if out != want {
+		t.Fatalf("got %q, want %q", out, want)
+	}
+}
+
+func TestRenderPropertiesValue_PageRefList(t *testing.T) {
+	opts := PropertiesOptions{PageBaseURL: testPageBase}
+	out := renderPropertiesValue("Título A (229376016), Título B (228098081)", opts)
+	if !strings.Contains(out, `/229376016">Título A</a>`) {
+		t.Errorf("first ref not linked: %s", out)
+	}
+	if !strings.Contains(out, `/228098081">Título B</a>`) {
+		t.Errorf("second ref not linked: %s", out)
+	}
+	if !strings.Contains(out, "</a>, <a") {
+		t.Errorf("separator between links lost: %s", out)
+	}
+}
+
+func TestRenderPropertiesValue_PageRefNoBaseURLStaysText(t *testing.T) {
+	out := renderPropertiesValue("Checkout Universal (212992001)", PropertiesOptions{})
+	if out != "Checkout Universal (212992001)" {
+		t.Fatalf("without base URL the value must stay plain; got %q", out)
+	}
+}
+
+func TestRenderPropertiesValue_ShortNumberIsNotPageRef(t *testing.T) {
+	// Years and short numbers in parentheses must not be mistaken for page ids.
+	opts := PropertiesOptions{PageBaseURL: testPageBase}
+	out := renderPropertiesValue("revisão anual (2026)", opts)
+	if strings.Contains(out, "<a href") {
+		t.Fatalf("short number linked as page id: %s", out)
+	}
+}
+
+func TestRenderPropertiesValue_PageRefTitleEscaped(t *testing.T) {
+	opts := PropertiesOptions{PageBaseURL: testPageBase}
+	out := renderPropertiesValue("A & B <x> (185565259)", opts)
+	if strings.Contains(out, "<x>") {
+		t.Fatalf("title not XML-escaped: %s", out)
+	}
+	if !strings.Contains(out, "&amp;") {
+		t.Fatalf("ampersand not escaped: %s", out)
+	}
+}
+
+func TestPagePropertiesToStorage_WithOptions_PageRef(t *testing.T) {
+	entries := []PagePropertiesEntry{
+		{Key: "related", Value: "Checkout Universal (212992001)"},
+	}
+	out := PagePropertiesToStorageWithOptions(entries, PropertiesOptions{PageBaseURL: testPageBase})
+	if !strings.Contains(out, `<a href="`+testPageBase+`/212992001">`) {
+		t.Fatalf("page ref not linked in macro output: %s", out)
+	}
+}
+
 // ---------- MarshalBodyValue ----------
 
 func TestMarshalBodyValue(t *testing.T) {

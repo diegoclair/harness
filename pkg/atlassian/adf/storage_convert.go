@@ -68,26 +68,16 @@ func renderInlineMD(body string) (string, error) {
 
 // macroBlockToStorage converts a parsed fenced block into Confluence storage XML.
 // `name` is lowercase; `title` is the optional title from the opening line;
-// `body` is the raw markdown inside the block.
-func macroBlockToStorage(name, title, body string) (string, error) {
-	return macroBlockToStorageWithResolver(name, title, body, nil)
-}
-
-// macroBlockToStorageWithResolver is like macroBlockToStorage but accepts a
-// UserResolver for @handle / email mention expansion in :::properties values.
-func macroBlockToStorageWithResolver(name, title, body string, resolver UserResolver) (string, error) {
+// `body` is the raw markdown inside the block; `opts` drives :::properties
+// value rendering.
+func macroBlockToStorage(name, title, body string, opts PropertiesOptions) (string, error) {
 	switch name {
 	case "properties":
 		entries := ParsePropertiesBlock(body)
 		if len(entries) == 0 {
 			return "", nil
 		}
-		var xml string
-		if resolver != nil {
-			xml = PagePropertiesToStorage(entries, resolver)
-		} else {
-			xml = PagePropertiesToStorage(entries)
-		}
+		xml := PagePropertiesToStorageWithOptions(entries, opts)
 		// If the opening line had a "collapsed" modifier (`:::properties collapsed`),
 		// wrap the details macro in an expand so it renders collapsed by default.
 		if strings.EqualFold(strings.TrimSpace(title), "collapsed") {
@@ -162,19 +152,23 @@ func escapeXMLText(s string) string {
 // MarkdownToStorage converts an extended markdown source (with :::properties,
 // :::info, :::expand, etc) to a Confluence storage-format XHTML fragment.
 func MarkdownToStorage(src []byte) (string, error) {
-	return markdownToStorageInternal(src, nil)
+	return markdownToStorageInternal(src, PropertiesOptions{})
 }
 
 // MarkdownToStorageWithClient is like MarkdownToStorage but uses the provided
 // ConfluenceClient to resolve @handle and email mentions in :::properties
-// values to Confluence user mention links. Pass nil to fall back to plain text
-// (same behaviour as MarkdownToStorage).
+// values to Confluence user mention links, and to turn `Title (pageId)`
+// references into page links. Pass nil to fall back to plain text (same
+// behaviour as MarkdownToStorage).
 func MarkdownToStorageWithClient(src []byte, client *ConfluenceClient) (string, error) {
 	if client == nil {
-		return markdownToStorageInternal(src, nil)
+		return markdownToStorageInternal(src, PropertiesOptions{})
 	}
 	resolver := NewClientUserResolver(client)
-	result, err := markdownToStorageInternal(src, resolver)
+	result, err := markdownToStorageInternal(src, PropertiesOptions{
+		Resolver:    resolver,
+		PageBaseURL: client.PageBaseURL(),
+	})
 	// Best-effort flush of the user cache after processing.
 	resolver.Flush()
 	return result, err
@@ -182,11 +176,11 @@ func MarkdownToStorageWithClient(src []byte, client *ConfluenceClient) (string, 
 
 // markdownToStorageInternal is the shared implementation for both MarkdownToStorage
 // and MarkdownToStorageWithClient.
-func markdownToStorageInternal(src []byte, resolver UserResolver) (string, error) {
+func markdownToStorageInternal(src []byte, opts PropertiesOptions) (string, error) {
 	text := string(src)
 
 	// Extract all supported :::name fenced blocks and replace with placeholders.
-	sanitised, replacements, err := extractMacroBlocksWithResolver(text, resolver)
+	sanitised, replacements, err := extractMacroBlocks(text, opts)
 	if err != nil {
 		return "", fmt.Errorf("extracting macro blocks: %w", err)
 	}
@@ -221,14 +215,7 @@ func markdownToStorageInternal(src []byte, resolver UserResolver) (string, error
 // fenced blocks (properties/info/note/warning/success/error/tip/expand),
 // replaces each with a sentinel placeholder, and returns the sanitised markdown
 // plus the ordered storage XML strings.
-func extractMacroBlocks(src string) (sanitised string, xmlBlocks []string, err error) {
-	return extractMacroBlocksWithResolver(src, nil)
-}
-
-// extractMacroBlocksWithResolver is like extractMacroBlocks but passes the
-// resolver to macroBlockToStorageWithResolver for @handle / email expansion
-// in :::properties blocks.
-func extractMacroBlocksWithResolver(src string, resolver UserResolver) (sanitised string, xmlBlocks []string, err error) {
+func extractMacroBlocks(src string, opts PropertiesOptions) (sanitised string, xmlBlocks []string, err error) {
 	lines := strings.Split(src, "\n")
 	var out []string
 
@@ -261,7 +248,7 @@ func extractMacroBlocksWithResolver(src string, resolver UserResolver) (sanitise
 			return "", nil, fmt.Errorf("unterminated :::%s block at line %d", name, i+1)
 		}
 
-		xml, err := macroBlockToStorageWithResolver(name, title, strings.Join(body, "\n"), resolver)
+		xml, err := macroBlockToStorage(name, title, strings.Join(body, "\n"), opts)
 		if err != nil {
 			return "", nil, err
 		}

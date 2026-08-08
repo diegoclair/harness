@@ -883,6 +883,16 @@ func (c *ConfluenceClient) WebBaseURL() string {
 	return c.auth.ConfluenceWebBase()
 }
 
+// PageBaseURL returns the browser URL prefix for page links, without a
+// trailing slash — append "/<pageId>". Falls back to a space-less path when no
+// active space is configured; Confluence redirects it to the canonical URL.
+func (c *ConfluenceClient) PageBaseURL() string {
+	if key := ReadActiveConfig().SpaceKey; key != "" {
+		return c.WebBaseURL() + "/spaces/" + key + "/pages"
+	}
+	return c.WebBaseURL() + "/pages"
+}
+
 // ---------- Spaces ----------
 
 // SpaceResult is a single space returned by the list-spaces API.

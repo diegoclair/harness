@@ -209,7 +209,7 @@ func generateTemplate(dt docType, title, owner, today, parentID, supersedes stri
 	if dt == docTypeDecision && supersedes != "" {
 		sb.WriteString(fmt.Sprintf("supersedes: [[id:%s]]\n", supersedes))
 	}
-	sb.WriteString("related: \"\"\n")
+	sb.WriteString("related: \n")
 	sb.WriteString(fmt.Sprintf("created: %s\n", today))
 	sb.WriteString(fmt.Sprintf("updated: %s\n", today))
 	if fullWidth {

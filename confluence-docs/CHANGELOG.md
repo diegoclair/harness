@@ -1,5 +1,19 @@
 # Changelog — confluence-docs
 
+## v0.16.0 (2026-08-08) — Properties macro fixes
+
+### Fix: emails in `:::properties` values were duplicated (`user@gmail.com@gmail.com`)
+
+The inline `@handle` mention regex also matched the domain inside a full email address, and the overlap guard only detected containment in one direction, so both the email and its re-matched domain were emitted. Email matches now take precedence over handle matches behind a real intersection guard; a plain email renders as text (or as a real mention when the resolver finds the account).
+
+### New: `related: Title (pageId)` renders as page links
+
+Page references in the `Title (pageId)` form inside properties values now render as clickable links to the page. The URL base comes from the active site config (`PageBaseURL()`), never hardcoded; without a client (plain `MarkdownToStorage`), values stay as text — previous behavior preserved. A 6-digit floor on the id avoids false positives on years like `(2026)`.
+
+### Fix: wrapping quotes in properties values rendered literally
+
+`related: "A, B"` kept the quotes as literal text. A single outer pair of wrapping quotes is now stripped (values containing multiple quoted segments are left intact). The `new` template no longer emits `related: ""`, which induced the quoted form.
+
 ## v0.15.0 (2026-08-01) — OAuth browser login
 
 ### New: `confluence-docs login` — OAuth 2.0 browser login

@@ -58,6 +58,20 @@ func TestMarkdownToStorage_basic(t *testing.T) {
 	}
 }
 
+func TestMarkdownToStorage_quotedValueAndEmailOwner(t *testing.T) {
+	src := ":::properties\nowner: maria93silva@gmail.com\nrelated: \"Checkout Universal (212992001)\"\n:::\n"
+	out, err := MarkdownToStorage([]byte(src))
+	if err != nil {
+		t.Fatalf("MarkdownToStorage error: %v", err)
+	}
+	if !strings.Contains(out, "<td>maria93silva@gmail.com</td>") {
+		t.Errorf("owner email mangled:\n%s", out)
+	}
+	if !strings.Contains(out, "<td>Checkout Universal (212992001)</td>") {
+		t.Errorf("wrapping quotes leaked into the properties table:\n%s", out)
+	}
+}
+
 func TestMarkdownToStorage_noProperties(t *testing.T) {
 	src := "## Heading\n\nParagraph text.\n"
 	out, err := MarkdownToStorage([]byte(src))

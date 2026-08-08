@@ -119,7 +119,7 @@ The `:::properties`, `:::expand`, `:::warning`, `:::info` blocks, smart-link aut
 type: reference
 status: active
 tags: psp, billing, recurring
-related: [[Page Title]], [[id:12345]]
+related: Page Title (212992001), [[Another Page]]
 :::
 
 # Title
