@@ -27,7 +27,7 @@ func init() {
 
 // version is injected at build time via -ldflags "-X main.version=..."
 // Falls back to the source-tree version when not set via ldflags (dev builds).
-var version = "v0.16.0"
+var version = "v0.17.0"
 
 const helpText = `confluence-docs — Confluence ADF toolkit: convert, edit, lint, and publish pages.
 
@@ -125,10 +125,12 @@ PAGE VERBS:
                as markdown locally, then upload — single GET (for version) +
                single PUT, no per-section diffing. For surgical edits, prefer
                'page apply --replace-section' etc.
-  page create  --space-id ID --parent-id ID --title TITLE
+  page create  --parent-id ID --title TITLE [--space-id ID-OR-KEY]
                [--markdown FILE | --adf FILE] [--cloud SUBDOMAIN]
                [--full-width | --fixed-width]
                [--email EMAIL] [--token TOKEN]
+               --space-id defaults to the active space from config; accepts
+               either a numeric ID or a space key.
   page digest  --page-id ID [--json]
                Print a slim summary of the page (title, version, headings,
                word counts, macros). Replaces a 10-40 KB ADF read with a
@@ -269,8 +271,8 @@ EXAMPLES:
   confluence-docs page upload --page-id 164232 --adf updated.json --dry-run
   confluence-docs page upload --page-id 164232 --adf updated.json --message "add row"
 
-  # Create a new page
-  confluence-docs page create --space-id 131352 --parent-id 164232 \
+  # Create a new page (--space-id defaults to the active space from config)
+  confluence-docs page create --parent-id 164232 \
     --title "New Page" --markdown content.md
 
   # Unwrap MCP response body

@@ -5,9 +5,46 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
+	"strings"
 
 	"github.com/diegoclair/skills/pkg/atlassian/adf"
 )
+
+// resolveSpaceID turns --space-id into the numeric ID the v2 API requires.
+// Empty falls back to the active space from config. A non-numeric value is
+// treated as a space key and resolved via config or the API — it is never
+// sent to Confluence as-is, which the API rejects (and which used to panic
+// here on the nil result).
+func resolveSpaceID(spaceID string, client *adf.ConfluenceClient) (string, error) {
+	cfg := adf.ReadActiveConfig()
+
+	if spaceID == "" {
+		if cfg.SpaceID == "" {
+			return "", fmt.Errorf("no --space-id given and no active space configured — run `confluence-docs space use <key>` or pass --space-id")
+		}
+		return cfg.SpaceID, nil
+	}
+
+	if _, numErr := strconv.Atoi(spaceID); numErr == nil {
+		return spaceID, nil
+	}
+
+	if cfg.SpaceID != "" && strings.EqualFold(spaceID, cfg.SpaceKey) {
+		return cfg.SpaceID, nil
+	}
+
+	spaces, _, err := getSpaces(client, false)
+	if err != nil {
+		return "", fmt.Errorf("--space-id %q is not numeric and could not be resolved as a space key: %w", spaceID, err)
+	}
+	for _, s := range spaces {
+		if strings.EqualFold(s.Key, spaceID) {
+			return s.ID, nil
+		}
+	}
+	return "", fmt.Errorf("--space-id %q is not a numeric ID and does not match any accessible space key — run `confluence-docs space list` to see valid keys", spaceID)
+}
 
 func runPageCreate(args []string, stdout, stderr io.Writer) (int, error) {
 	var spaceID, parentID, title, markdownFile, adfFile string
@@ -67,10 +104,6 @@ func runPageCreate(args []string, stdout, stderr io.Writer) (int, error) {
 		}
 	}
 
-	if spaceID == "" {
-		fmt.Fprintln(stderr, "page create: --space-id is required")
-		return exitInputErr, errInvalidUsage
-	}
 	if parentID == "" {
 		fmt.Fprintln(stderr, "page create: --parent-id is required")
 		return exitInputErr, errInvalidUsage
@@ -93,13 +126,20 @@ func runPageCreate(args []string, stdout, stderr io.Writer) (int, error) {
 		return exitUnknownErr, nil
 	}
 
+	resolvedSpaceID, spaceErr := resolveSpaceID(spaceID, client)
+	if spaceErr != nil {
+		fmt.Fprintln(stderr, "page create:", spaceErr)
+		return exitInputErr, spaceErr
+	}
+
 	var result *adf.PageCreateResult
+	var createErr error
 
 	if markdownFile != "" {
-		src, err := os.ReadFile(markdownFile)
-		if err != nil {
-			fmt.Fprintln(stderr, "reading markdown:", err)
-			return exitInputErr, err
+		src, rdErr := os.ReadFile(markdownFile)
+		if rdErr != nil {
+			fmt.Fprintln(stderr, "reading markdown:", rdErr)
+			return exitInputErr, rdErr
 		}
 		if adf.RequiresStorageFormat(string(src)) {
 			// Markdown contains :::properties or other storage-only macros.
@@ -111,33 +151,38 @@ func runPageCreate(args []string, stdout, stderr io.Writer) (int, error) {
 				fmt.Fprintln(stderr, "convert markdown to storage:", sErr)
 				return exitParseErr, sErr
 			}
-			result, err = client.CreatePageStorage(spaceID, parentID, title, storageBody)
+			result, createErr = client.CreatePageStorage(resolvedSpaceID, parentID, title, storageBody)
 		} else {
 			doc, cErr := adf.Convert(src)
 			if cErr != nil {
 				fmt.Fprintln(stderr, "parse markdown:", cErr)
 				return exitParseErr, cErr
 			}
-			result, err = client.CreatePage(spaceID, parentID, title, &doc)
+			result, createErr = client.CreatePage(resolvedSpaceID, parentID, title, &doc)
 		}
 	} else if adfFile != "" {
-		adfBytes, err := os.ReadFile(adfFile)
-		if err != nil {
-			fmt.Fprintln(stderr, "reading ADF:", err)
-			return exitInputErr, err
+		adfBytes, rdErr := os.ReadFile(adfFile)
+		if rdErr != nil {
+			fmt.Fprintln(stderr, "reading ADF:", rdErr)
+			return exitInputErr, rdErr
 		}
 		doc, uErr := adf.UnmarshalDoc(adfBytes)
 		if uErr != nil {
 			fmt.Fprintln(stderr, "invalid ADF:", uErr)
 			return exitParseErr, uErr
 		}
-		result, err = client.CreatePage(spaceID, parentID, title, &doc)
+		result, createErr = client.CreatePage(resolvedSpaceID, parentID, title, &doc)
 	} else {
-		result, err = client.CreatePage(spaceID, parentID, title, nil)
+		result, createErr = client.CreatePage(resolvedSpaceID, parentID, title, nil)
 	}
 
-	if err != nil {
-		fmt.Fprintln(stderr, "error:", err)
+	if createErr != nil {
+		fmt.Fprintln(stderr, "error:", createErr)
+		return exitUnknownErr, createErr
+	}
+	if result == nil {
+		err := fmt.Errorf("page create: API returned no error but no page result")
+		fmt.Fprintln(stderr, err)
 		return exitUnknownErr, err
 	}
 

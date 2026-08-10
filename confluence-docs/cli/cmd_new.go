@@ -168,7 +168,7 @@ func printNewHelp(w io.Writer) {
 	fmt.Fprintln(w, "  # 2. Generate template")
 	fmt.Fprintln(w, "  confluence-docs new reference --title \"My Title\" --output /tmp/page.md")
 	fmt.Fprintln(w, "  # 3. Edit the template, then create")
-	fmt.Fprintln(w, "  confluence-docs page create --space-id 131352 --parent-id PARENT --title \"My Title\" --markdown /tmp/page.md")
+	fmt.Fprintln(w, "  confluence-docs page create --parent-id PARENT --title \"My Title\" --markdown /tmp/page.md")
 }
 
 // resolveOwnerEmail reads git config user.email, falling back to $USER.

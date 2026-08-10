@@ -106,8 +106,9 @@ Never fetch the full ADF body just to read a single section.
 6. **Fill in the content.** Apply the standard rules: TL;DR ≤ 5 bullets if > 300 words, descriptive headers (`## Context: <qualifier>`, not bare `## Context`), parágrafos self-sufficient.
 7. **Create the page:**
    ```
-   confluence-docs page create --space-id <ID> --parent-id <PID> --title "..." --markdown FILE
+   confluence-docs page create --parent-id <PID> --title "..." --markdown FILE
    ```
+   `--space-id` defaults to the active space from config; pass it to override (accepts either a numeric ID or a space key).
 8. **If this is a `:::properties` page**, the storage path is auto-detected; tags from the frontmatter are also applied as real Confluence labels on the created page. Owner / reviewer `@mentions` are resolved to user mention chips.
 9. **Register in the KNOWLEDGE_MAP** (if your project uses one) in the same turn, under the section matching the type. Otherwise the page becomes orphaned.
 10. **If the parent has a summary table**, update it via `page apply --table-add-row "Heading" --row "col1|col2|..."` so the new entry shows up there too.

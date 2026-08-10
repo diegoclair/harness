@@ -1,5 +1,19 @@
 # Changelog — confluence-docs
 
+## v0.17.0 (2026-08-09) — `page create` space-id fixes
+
+### Fix: `page create` crashed (SIGSEGV) on an invalid `--space-id`
+
+A variable-shadowing bug meant the error from `CreatePage`/`CreatePageStorage` never reached the post-call check — `err` inside the `--markdown` branch was a block-scoped local (from `os.ReadFile`), not the function-level `err`. A failed create (e.g. Confluence rejecting a non-numeric space ID) left `result` nil while the stale outer `err` still read `nil`, so the code dereferenced `result.ID`/`result.Links.WebUI` on a nil pointer. The result is now checked directly, and the create calls assign to their own dedicated error variable.
+
+### Fix: `page create` required `--space-id`, contradicting the docs
+
+`reference/configuration.md` already documented the active space as a default for `page create`; the command just didn't do it. `--space-id` now falls back to the space configured via `space use`/`setup`, matching `search`/`check`/`index`.
+
+### New: `--space-id` accepts a space key, not just a numeric ID
+
+The v2 API needs a numeric space ID, but the active config's human-readable key (or any other key) is now resolved automatically — via config first, then `space list` — instead of being sent to Confluence as-is (which produced the crash above). An unresolvable key now returns a clear, actionable error.
+
 ## v0.16.0 (2026-08-08) — Properties macro fixes
 
 ### Fix: emails in `:::properties` values were duplicated (`user@gmail.com@gmail.com`)

@@ -118,7 +118,7 @@ All `page get` calls accept `--output FILE` and `--quiet`.
      --parent-id <parentId> --title "Final Title" \
      --markdown /tmp/page.md
    ```
-   (Active space is read from config; pass `--space-id <ID>` to override.)
+   (Active space is read from config; pass `--space-id` to override — accepts a numeric ID or a space key.)
 8. The CLI prints `{"pageId": "...", "title": "...", "url": "..."}`. Return the URL to the user.
 
 Fallback (CLI unavailable): `mcp__atlassian__createConfluencePage` with `contentFormat: "adf"` after running `confluence-docs adf` to convert the markdown.
