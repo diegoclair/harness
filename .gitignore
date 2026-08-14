@@ -1,0 +1,36 @@
+# Go binaries and build output
+*.exe
+*.exe~
+*.test
+*.out
+coverage.out
+coverage.html
+/bin/
+/dist/
+installer/bin/
+installer/dist/
+*/cli/bin/
+*/cli/dist/
+release-assets/
+vendor/
+
+# go.work is committed on purpose: this is a multi-module repo and
+# contributors need a shared workspace for the IDE to resolve pkg/ locally.
+
+# Environment / secrets
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*~
+
+# Stray binary from `go build ./...` (Go names it after the package directory)
+installer/installer

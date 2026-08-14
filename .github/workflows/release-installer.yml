@@ -1,0 +1,46 @@
+name: Release installer
+
+on:
+  push:
+    tags:
+      - 'harness-v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: installer/go.mod
+          cache: true
+          cache-dependency-path: installer/go.sum
+
+      - name: Run tests
+        working-directory: installer
+        run: make test
+
+      - name: Compute clean version (strip "harness-" prefix)
+        id: ver
+        run: |
+          set -euo pipefail
+          TAG="${{ github.ref_name }}"
+          CLEAN="${TAG#harness-}"
+          echo "tag=$TAG"     >> "$GITHUB_OUTPUT"
+          echo "clean=$CLEAN" >> "$GITHUB_OUTPUT"
+
+      - name: Cross-compile binaries
+        working-directory: installer
+        run: make build-all VERSION=${{ steps.ver.outputs.clean }}
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v3
+        with:
+          name: ${{ steps.ver.outputs.tag }}
+          files: installer/dist/*
+          generate_release_notes: true
+          fail_on_unmatched_files: true
