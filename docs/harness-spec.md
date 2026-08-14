@@ -122,14 +122,24 @@ Adopting it as the installer is a strict downgrade. **Keep and extend the Go ins
 
 ### D3 — Agents coverage + is a CLI right? **YES to both.** CLI is the proven shape (§0.1), a single dependency-free static binary. Extended, not replaced.
 
-**Central architectural decision: two payload kinds.**
+**Central architectural decision: ONE pipeline that discovers.**
 
-| Kind | Applies to | Source | Destination | PATH / verify |
-|---|---|---|---|---|
-| `source` | markdown-only skills, **all agents** | repo tree at a git ref (tarball), or a local path | `~/.claude/skills/<name>/` · `~/.claude/agents/<name>.md` | none |
-| `release` | skills shipping a Go CLI | GitHub release zip by tag prefix (current pipeline, unchanged) | `~/.claude/skills/<name>/` + `bin/` | symlink + profile + `--version` + `setup --check` |
+An earlier draft split installation into two kinds declared by a catalog field (`Source: source|release`). **Rejected by Diego, 2026-08-14:** there must be one installer that handles everything consistently — if an artifact has a binary, install it with the binary; if not, don't. Declaring the pipeline per artifact makes one tool feel like two and creates a flag matrix that only half-applies.
 
-Chosen consequences: the three new artifacts ship **day one, no CI, no release**; the binary pipeline is preserved bit-for-bit; `--ref` pins source artifacts without release ceremony; `--from <path>` installs from a local clone — what makes the repo genuinely "clone it into any project", replacing the old symlink workaround (old README:166-170).
+The pipeline, in order:
+
+1. Fetch the repo tree once per run — a git ref (`--ref`, default `main`) or a local clone (`--from`).
+2. **Agent** → copy `agents/<name>.md`. Agents are always plain files.
+3. **Skill** → does it ship a `cli/` directory?
+   - **No** → its payload is the tree subdirectory. Install the files. Done: no `bin/`, no PATH link, no binary verification, because there is no binary.
+   - **Yes** → a cross-compiled binary exists only in a release archive, so the payload is that release (one consistent snapshot of files + binary). Install the files, then the binary by atomic rename, symlink it onto PATH, and run the skill's own `--version`, `setup --check` and `postinstall`.
+
+`cli/` **is** the declaration — no catalog flag to forget, and the artifact carries its own truth. Enforced in both directions:
+- a skill with `cli/` whose release carries no binary fails **before any file is written** (a broken release must not leave a loadable skill whose commands are all missing);
+- a skill that stops shipping `cli/` has its stale `bin/` and PATH symlink removed;
+- `cli/` is a build input and is never copied into `~/.claude`.
+
+Consequences, deliberately chosen: the three new artifacts ship day one with no CI and no release; the binary pipeline is preserved bit-for-bit for the Atlassian/carousel skills; `--from <path>` installs from a local clone, which is what makes the repo genuinely "clone it into any project" and replaces the old symlink workaround (old README:166-170).
 
 **Design holes closed by review:**
 
@@ -154,7 +164,7 @@ Chosen consequences: the three new artifacts ship **day one, no CI, no release**
 8. **Commit messages, PR titles, branches, tags in English.**
 9. **Path-traversal guard on every archive extraction** — zip already guards (`install.go:145-149`); the tar path needs the equivalent, proven by a fixture containing `../evil`.
 10. **Catalog names globally unique across kinds** — a skill and an agent may not share a name, or `install <name>` is ambiguous. Enforced by test.
-11. **Source install preserves `bin/`** and refuses to wipe a directory the harness did not install.
+11. **`bin/` survives only while the payload still carries a binary**, and installing refuses to wipe a directory the harness did not install. A skill that stops shipping `cli/` loses its stale binary and PATH link.
 12. **Company-agnostic content rule survives** (§0.6) — it is what makes the repo publishable.
 
 ---
@@ -173,42 +183,41 @@ Every exit criterion below is producible **in this environment at M0** (verified
 
 **Exit:** a script `yaml.safe_load`s all three → 3/3 OK; asserts `name` lowercase-hyphen ≤64 **and matching the directory/file name**, `description` ≤1024; and `diff` of the post-frontmatter body against the installed originals is **empty**.
 
-### DL-3 — Installer: catalog with kinds
-`Artifact{Name, Kind(skill|agent), Source(repo|release), TagPrefix, Summary, VersionEnv, Requires []string}` replacing `Skill`. Catalog: 3 new as `source`, 3 legacy as `release`.
+### DL-3 — Installer: catalog
+`Artifact{Name, Kind(skill|agent), TagPrefix, Summary, VersionEnv, Requires []string}` replacing `Skill`. **No pipeline field** — the pipeline is discovered (D3). `TagPrefix` is consulted only for a skill that ships a `cli/`.
 
-**TagPrefix is required and `-v`-suffixed IFF the artifact is release-backed** — `main_test.go:117-131` (`TestCatalogIsWellFormed`) currently demands it for *every* entry and must be made **kind-aware**, with a case per kind. Neither faking a prefix for source entries nor dropping the check for release entries is acceptable.
+**Exit:** `go test ./installer/...` passes, including tests asserting (a) name uniqueness across kinds (rule 10), (b) every catalogued artifact exists in the tree, (c) a skill shipping `cli/` declares a `TagPrefix`, and (d) an agent never carries one.
 
-**Exit:** `go test ./installer/...` passes, including (a) the kind-aware well-formedness test and (b) a test asserting name uniqueness across kinds (rule 10).
-
-### DL-4 — Installer: `source` payload pipeline
-Fetch `https://codeload.github.com/<repo>/tar.gz/<ref>` **once per run** (cached in the run temp dir → installing 5 artifacts = 1 download), gunzip, untar with traversal guard, **strip the `<repo>-<ref>` root prefix**, then: skill → replace `~/.claude/skills/<name>/`; agent → write `~/.claude/agents/<name>.md`. No PATH, no binary verification. `--from <path>` bypasses the download and reads a local clone.
+### DL-4 — Installer: the single install pipeline
+Fetch `https://codeload.github.com/<repo>/tar.gz/<ref>` **once per run** (cached in the run temp dir → 5 artifacts = 1 download), gunzip, untar with a traversal guard, **strip the `<repo>-<ref>` root prefix**. `--from <path>` bypasses the download. Then per artifact: agent → `~/.claude/agents/<name>.md`; skill → tree payload, or release payload if it ships `cli/`, followed by the binary stage.
 
 > **Measured gotcha (do not guess):** codeload's root entry is `<repo>-<ref>` with GitHub's leading-`v` stripping quirk — `…/skills/tar.gz/main` → `skills-main/`; `…/skills/tar.gz/jira-v0.4.1` → `skills-jira-v0.4.1/`.
 
-**Exit — three criteria, because `--from` alone proves nothing about the new code:**
-1. **Tarball path (the risky one):** a real `.tar.gz` fixture with a `harness-<ref>/` root, served over `httptest`, swapping the package-level `httpClient` (`install.go:21`) — no production widening. Asserts correct prefix strip and placement.
-2. **Traversal:** a fixture tarball containing a `../evil` entry → non-zero exit, nothing written outside the destination.
-3. **Local path:** sandboxed `HOME`, `install --from <repo> dev-loop implementation-plan unbiased-reviewer` → 0, all three at the right paths, `diff -r` byte-identical.
-4. **`bin/` preservation (rule 11):** source-install over a directory containing `bin/` leaves `bin/` intact.
+**Exit — `--from` alone proves nothing about the download path, so:**
+1. **Tarball path:** a real `.tar.gz` fixture with a `harness-<ref>/` root served over `httptest`, swapping the package-level `httpClient` (`install.go:21`) — no production widening. Asserts prefix strip and placement.
+2. **Traversal:** fixtures containing `../evil` for **both** `untar` and `unzip` → non-zero exit, nothing written outside the destination.
+3. **Local path:** sandboxed `HOME`, `install --from <repo> dev-loop implementation-plan unbiased-reviewer` → 0, all three placed, `diff -r` byte-identical.
+4. **Discovery, both directions:** a skill without `cli/` gets no `bin/` and no PATH link; a skill with `cli/` gets both, its binary verified by running it. A release missing its binary fails **and leaves the filesystem untouched**. `cli/` is never installed. A skill that loses `cli/` loses its stale binary and PATH link.
+5. **Atomic replace:** reinstalling over an installed binary that cannot be opened for writing succeeds (the shape of the running-executable case).
 
-### DL-5 — Installer: CLI surface for both kinds
+### DL-5 — Installer: CLI surface
 ```
 harness list [--skills|--agents]      grouped, kind-labelled
 harness install <name>...             any mix of kinds; dependencies auto-resolved
-harness install --all | --all-skills | --all-agents
-harness install --version TAG <name>  release kind only, single artifact
-harness install --ref REF <name>...   source kind, git ref (default main)
-harness install --from PATH <name>... source kind, local clone
+harness install --all | --all-skills | --all-agents   (combinable, as a union)
+harness install --ref REF <name>...   git ref of the tree (default main)
+harness install --from PATH <name>... local clone
+harness install --version TAG <name>  pin a release tag; skills with a binary, one at a time
 harness validate | --version | --help
 ```
-Unknown names rejected atomically (preserve `selectSkills` semantics). `--version` on a source artifact, and `--ref`/`--from` on an **explicitly named** release artifact, are input errors with specific messages; with a wildcard they filter and report (D3/M1).
+Unknown names rejected atomically. An empty flag value (`--from=`) is a usage error, not a silent fallback. A bare `curl | sh` prints the catalog and exits 2 (M7).
 
-**Exit (all producible at M0 — the harness repo does not exist yet, so no criterion may depend on it):**
-- `harness list` prints all 6 with kind.
-- `install --all-agents` and `install --all-skills --from <local clone>` in a sandboxed `HOME` → exit 0.
-- **`install dev-loop` alone in a clean sandbox also lands `~/.claude/agents/unbiased-reviewer.md`** (H5 regression guard).
-- Error matrix, each exit 2 with a **specific** message: unknown name · `--version` with 2 artifacts · `--version` on a source artifact · `--ref` on a named release artifact · no name given.
-- Release-kind resolution against the not-yet-existing repo fails with a **clear, actionable** message (this error path is the one worth testing pre-M2.7) — not a stack trace, not a bare 404.
+**Exit (all producible at M0 — no criterion may depend on the unpublished repo):**
+- `harness list` prints every artifact with its kind.
+- `install --all --from <clone>` in a sandboxed `HOME` → exit 0.
+- **`install dev-loop` alone also lands `~/.claude/agents/unbiased-reviewer.md`**, and the chain is transitive.
+- Error matrix, each exit 2 with a **specific** message: unknown name · no name · `--version` on an artifact with no binary · `--version` with two pinnable artifacts · every flag with a missing or empty value. On rejection the filesystem is asserted untouched.
+- One failed artifact yields exit 1, a `N of M` summary, and does not abort the others.
 
 ### DL-6 — Bootstrap `install.sh` / `install.ps1` + installer release workflow
 Same thin-bootstrap shape retargeted at `diegoclair/harness`, tag prefix `harness-v`, plus `release-installer.yml` adapted. Bare invocation prints the catalog and exits 2 (M7).

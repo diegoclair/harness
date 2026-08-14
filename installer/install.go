@@ -26,67 +26,150 @@ type installOptions struct {
 	Repo string
 	// Version pins a release tag. Empty resolves the newest for the prefix.
 	Version string
-	Out     io.Writer
+	// Ref labels a tree payload, which has no release tag.
+	Ref string
+	Out io.Writer
 }
 
-// install runs the full pipeline for one skill: resolve version → download →
-// extract → atomic binary install → skill payload → PATH → verify → hooks.
-func installFromRelease(s Artifact, opts installOptions) error {
+// installSkill is the one install pipeline. Nothing about it is declared per
+// artifact: the payload is discovered. A skill that ships a `cli/` needs a
+// compiled binary, which only exists in a release archive, so its payload is
+// that archive; every other skill is plain files and comes from the repo tree.
+// The last stage runs only if the payload actually carries a binary.
+func installSkill(a Artifact, root string, opts installOptions) error {
+	out := opts.Out
+
+	payload, version, err := resolvePayload(a, root, opts)
+	if err != nil {
+		return err
+	}
+	if payload.cleanup != nil {
+		defer payload.cleanup()
+	}
+
+	binSrc := filepath.Join(payload.dir, "bin", binaryName(a.Name))
+	if payload.needsBinary {
+		if _, statErr := os.Stat(binSrc); statErr != nil {
+			return fmt.Errorf("%s drives a CLI but release %s carries no usable %s binary: %w",
+				a.Name, version, binaryName(a.Name), statErr)
+		}
+	}
+
+	dir, err := skillDir(a.Name)
+	if err != nil {
+		return err
+	}
+	if payload.needsBinary {
+		fmt.Fprintf(out, "Installing %s (skill) %s\n", a.Name, version)
+	} else {
+		fmt.Fprintf(out, "Installing %s (skill) from %s\n", a.Name, version)
+	}
+
+	if err := clearSkillDir(dir, payload.needsBinary, a.Name, out); err != nil {
+		return err
+	}
+	// bin/ is handled separately (replacing a running executable needs an
+	// atomic rename); cli/ is a build input and never belongs in ~/.claude.
+	n, err := copyTreeExcept(payload.dir, dir, "bin", "cli")
+	if err != nil {
+		return err
+	}
+	if err := os.WriteFile(filepath.Join(dir, markerFile), []byte(a.Name+"\n"), 0o644); err != nil {
+		return fmt.Errorf("write marker: %w", err)
+	}
+	fmt.Fprintf(out, "  Installed %d file(s) to %s\n", n, dir)
+
+	if !payload.needsBinary {
+		return nil
+	}
+	return installBinaryStage(a, binSrc, dir, version, opts)
+}
+
+// payload is a staged directory holding everything to install for one skill.
+type payload struct {
+	dir string
+	// needsBinary is set when the skill drives a CLI. The binary is then
+	// required, not optional: an archive without it is a broken release, and
+	// installing the files alone would leave a skill whose commands are all
+	// missing.
+	needsBinary bool
+	cleanup     func()
+}
+
+// resolvePayload finds the bytes to install and the version label for them.
+func resolvePayload(a Artifact, root string, opts installOptions) (payload, string, error) {
+	src := filepath.Join(root, "skills", a.Name)
+	if _, err := os.Stat(filepath.Join(src, "SKILL.md")); err != nil {
+		return payload{}, "", fmt.Errorf("skill %s not found in the repo tree (no SKILL.md)", a.Name)
+	}
+	if !shipsCLI(src) {
+		return payload{dir: src}, opts.Ref, nil
+	}
+	return downloadRelease(a, opts)
+}
+
+// shipsCLI reports whether a skill drives a compiled binary. The cli/
+// directory is the artifact's own declaration — no catalog flag to forget.
+func shipsCLI(skillSrc string) bool {
+	info, err := os.Stat(filepath.Join(skillSrc, "cli"))
+	return err == nil && info.IsDir()
+}
+
+// downloadRelease stages a skill's release archive, which bundles its files
+// and the binary for this platform as one consistent snapshot.
+func downloadRelease(a Artifact, opts installOptions) (payload, string, error) {
 	out := opts.Out
 	plat, err := platform()
 	if err != nil {
-		return err
+		return payload{}, "", err
+	}
+	version, err := resolveVersion(a, opts)
+	if err != nil {
+		return payload{}, "", err
 	}
 
-	version, err := resolveVersion(s, opts)
+	tmp, err := os.MkdirTemp("", "harness-release-")
 	if err != nil {
-		return err
+		return payload{}, "", fmt.Errorf("create temp dir: %w", err)
 	}
-	fmt.Fprintf(out, "Installing %s %s for %s\n", s.Name, version, plat)
+	cleanup := func() { os.RemoveAll(tmp) }
 
-	dir, err := skillDir(s.Name)
-	if err != nil {
-		return err
+	archive := fmt.Sprintf("%s-%s.zip", a.Name, plat)
+	url := fmt.Sprintf("https://github.com/%s/releases/download/%s/%s", opts.Repo, version, archive)
+	fmt.Fprintf(out, "  Downloading %s\n", url)
+
+	archivePath := filepath.Join(tmp, archive)
+	if err := download(url, archivePath); err != nil {
+		cleanup()
+		return payload{}, "", err
 	}
+	extractDir := filepath.Join(tmp, "extracted")
+	if err := unzip(archivePath, extractDir); err != nil {
+		cleanup()
+		return payload{}, "", err
+	}
+	return payload{dir: extractDir, needsBinary: true, cleanup: cleanup}, version, nil
+}
+
+// installBinaryStage runs only for a payload carrying a binary: atomic
+// install, PATH wiring, then the skill's own verification and hooks.
+func installBinaryStage(a Artifact, binSrc, dir, version string, opts installOptions) error {
+	out := opts.Out
 	binDir := filepath.Join(dir, "bin")
 	if err := os.MkdirAll(binDir, 0o755); err != nil {
 		return fmt.Errorf("create %s: %w", binDir, err)
 	}
-
-	archive := fmt.Sprintf("%s-%s.zip", s.Name, plat)
-	url := fmt.Sprintf("https://github.com/%s/releases/download/%s/%s", opts.Repo, version, archive)
-
-	tmp, err := os.MkdirTemp("", "skills-install-")
-	if err != nil {
-		return fmt.Errorf("create temp dir: %w", err)
-	}
-	defer os.RemoveAll(tmp)
-
-	fmt.Fprintf(out, "  Downloading %s\n", url)
-	archivePath := filepath.Join(tmp, archive)
-	if err := download(url, archivePath); err != nil {
+	binPath := filepath.Join(binDir, binaryName(a.Name))
+	if err := installBinary(binSrc, binPath); err != nil {
 		return err
 	}
+	fmt.Fprintf(out, "  Installed binary: %s\n", binPath)
 
-	fmt.Fprintln(out, "  Extracting...")
-	extractDir := filepath.Join(tmp, "extracted")
-	if err := unzip(archivePath, extractDir); err != nil {
-		return err
-	}
-
-	installed, err := installPayload(s, extractDir, dir, binDir)
-	if err != nil {
-		return err
-	}
-	fmt.Fprintf(out, "  Installed binary + %d skill file(s) from archive.\n", installed)
-
-	binPath := filepath.Join(binDir, binaryName(s.Name))
-	if err := linkOnPath(binPath, s.Name, opts.Repo, out); err != nil {
+	if err := linkOnPath(binPath, a.Name, opts.Repo, out); err != nil {
 		// Never fatal: the binary is installed and usable by absolute path.
 		fmt.Fprintf(out, "  warning: %v\n", err)
 	}
-
-	return verify(s, binPath, version, dir, out)
+	return verify(a, binPath, version, dir, out)
 }
 
 // resolveVersion honours an explicit pin, then the skill's legacy env var,
@@ -179,48 +262,6 @@ func writeZipEntry(f *zip.File, target string) error {
 		return fmt.Errorf("write %s: %w", target, err)
 	}
 	return nil
-}
-
-// installPayload places the binary and the skill files, returning how many
-// files were written.
-func installPayload(s Artifact, extractDir, dir, binDir string) (int, error) {
-	bin := binaryName(s.Name)
-	src := filepath.Join(extractDir, "bin", bin)
-	if _, err := os.Stat(src); err != nil {
-		return 0, fmt.Errorf("binary %s not found in archive", bin)
-	}
-	if err := installBinary(src, filepath.Join(binDir, bin)); err != nil {
-		return 0, err
-	}
-
-	count := 0
-	if err := copyFile(filepath.Join(extractDir, "SKILL.md"), filepath.Join(dir, "SKILL.md")); err == nil {
-		count++
-	}
-
-	// Clean slate: a renamed reference file would otherwise linger forever.
-	refSrc := filepath.Join(extractDir, "reference")
-	refDst := filepath.Join(dir, "reference")
-	entries, err := os.ReadDir(refSrc)
-	if err != nil {
-		return count, nil
-	}
-	if err := os.RemoveAll(refDst); err != nil {
-		return count, fmt.Errorf("clear %s: %w", refDst, err)
-	}
-	if err := os.MkdirAll(refDst, 0o755); err != nil {
-		return count, err
-	}
-	for _, e := range entries {
-		if e.IsDir() || !strings.HasSuffix(e.Name(), ".md") {
-			continue
-		}
-		if err := copyFile(filepath.Join(refSrc, e.Name()), filepath.Join(refDst, e.Name())); err != nil {
-			return count, err
-		}
-		count++
-	}
-	return count, nil
 }
 
 // installBinary writes through a sibling temp file and renames. Copying onto a

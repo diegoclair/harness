@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -21,7 +20,7 @@ func TestListShowsBothKinds(t *testing.T) {
 	if code != exitOK {
 		t.Fatalf("exit = %d", code)
 	}
-	for _, want := range []string{"Skills:", "Agents:", "dev-loop", "implementation-plan", "unbiased-reviewer", "confluence-docs"} {
+	for _, want := range []string{"Skills:", "Agents:", "dev-loop", "implementation-plan", "unbiased-reviewer"} {
 		if !strings.Contains(stdout, want) {
 			t.Errorf("list output is missing %q\n%s", want, stdout)
 		}
@@ -51,10 +50,6 @@ func TestInputErrorsAreRejectedWithASpecificMessage(t *testing.T) {
 	}{
 		{"unknown artifact", []string{"install", "dev-loop", "bogus"}, "unknown artifact"},
 		{"no name", []string{"install"}, "no artifact given"},
-		{"version with two release skills", []string{"install", "--version", "jira-v0.4.1", "jira-tickets", "confluence-docs"}, "single artifact"},
-		{"version on a markdown artifact", []string{"install", "--version", "v1", "dev-loop"}, "no release tags"},
-		{"ref on a release skill", []string{"install", "--ref", "main2", "confluence-docs"}, "does not apply"},
-		{"from on a release skill", []string{"install", "--from", ".", "confluence-docs"}, "cannot be installed from a local tree"},
 		{"names with --all", []string{"install", "--all", "dev-loop"}, "take no artifact names"},
 		{"unknown flag", []string{"install", "--nope"}, "unknown flag"},
 		{"unknown command", []string{"frobnicate"}, "unknown command"},
@@ -91,29 +86,6 @@ func TestInstallingASkillPullsInItsRequiredAgent(t *testing.T) {
 	}
 }
 
-// A wildcard narrows to what a repo tree can provide instead of failing, and
-// says what it skipped.
-func TestAllSkillsFromALocalTreeSkipsReleaseBackedOnes(t *testing.T) {
-	home := sandboxHome(t)
-	tree := fixtureTree(t)
-
-	code, stdout, stderr := runCLI(t, "install", "--from", tree, "--all-skills")
-	if code != exitOK {
-		t.Fatalf("exit = %d\nstderr:%s", code, stderr)
-	}
-	if !strings.Contains(stdout, "Skipping release-backed") {
-		t.Errorf("skipped artifacts must be reported, not silently dropped\n%s", stdout)
-	}
-	for _, name := range []string{"confluence-docs", "jira-tickets", "social-carousel"} {
-		if _, err := os.Stat(filepath.Join(home, ".claude", "skills", name)); err == nil {
-			t.Errorf("%s is release-backed and should not have been installed from a tree", name)
-		}
-	}
-	if _, err := os.Stat(filepath.Join(home, ".claude", "skills", "dev-loop", "SKILL.md")); err != nil {
-		t.Errorf("dev-loop should have been installed: %v", err)
-	}
-}
-
 func TestAllAgentsInstallsOnlyAgents(t *testing.T) {
 	home := sandboxHome(t)
 	tree := fixtureTree(t)
@@ -127,20 +99,6 @@ func TestAllAgentsInstallsOnlyAgents(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(home, ".claude", "skills")); err == nil {
 		t.Error("--all-agents must not create skills/")
-	}
-}
-
-// Until the repo is published, release-kind resolution has to fail with
-// something a user can act on.
-func TestReleaseResolutionFailureIsActionable(t *testing.T) {
-	sandboxHome(t)
-	a, _ := findArtifact("confluence-docs")
-	err := installFromRelease(a, installOptions{Repo: "diegoclair/definitely-not-a-real-repo", Out: io.Discard})
-	if err == nil {
-		t.Fatal("want an error when the repo has no releases")
-	}
-	if !strings.Contains(err.Error(), "--version") {
-		t.Errorf("error should tell the user how to proceed, got: %v", err)
 	}
 }
 
@@ -197,7 +155,8 @@ func TestValidateCatchesANameLocationMismatch(t *testing.T) {
 func TestFlagWithoutAValueIsAUsageError(t *testing.T) {
 	for _, args := range [][]string{
 		{"install", "--ref"}, {"install", "--from"}, {"install", "--version"}, {"install", "--repo"},
-		{"install", "--ref=", "dev-loop"}, {"install", "--from=", "dev-loop"}, {"install", "--repo=", "dev-loop"},
+		{"install", "--ref=", "dev-loop"}, {"install", "--from=", "dev-loop"},
+		{"install", "--repo=", "dev-loop"}, {"install", "--version=", "dev-loop"},
 	} {
 		t.Run(strings.Join(args, " "), func(t *testing.T) {
 			sandboxHome(t)
@@ -229,19 +188,6 @@ func TestWildcardsCombineAsAUnion(t *testing.T) {
 		if _, err := os.Stat(p); err != nil {
 			t.Errorf("missing %s: %v", p, err)
 		}
-	}
-}
-
-// A catalogued artifact that has not been published yet must say so, not fail
-// with a bare 404.
-func TestPendingArtifactFailsWithAnExplanation(t *testing.T) {
-	sandboxHome(t)
-	code, _, stderr := runCLI(t, "install", "confluence-docs")
-	if code != exitErr {
-		t.Errorf("exit = %d, want %d", code, exitErr)
-	}
-	if !strings.Contains(stderr, "migration-from-skills") {
-		t.Errorf("stderr should point at the migration doc, got %q", stderr)
 	}
 }
 
@@ -282,5 +228,47 @@ func TestDescriptionLimitCountsCharactersNotBytes(t *testing.T) {
 	code, _, stderr := runCLI(t, "validate", dir)
 	if code != exitOK {
 		t.Errorf("exit = %d, want 0; stderr = %q", code, stderr)
+	}
+}
+
+// A failed artifact must be visible in the exit code and the summary, not just
+// in a line of output.
+func TestAFailedArtifactIsReportedAndChangesTheExitCode(t *testing.T) {
+	home := sandboxHome(t)
+	tree := fixtureTree(t)
+	// A directory harness did not install makes exactly one artifact fail.
+	mustWrite(t, filepath.Join(home, ".claude", "skills", "dev-loop", "SKILL.md"), "hand-written")
+
+	code, _, stderr := runCLI(t, "install", "--from", tree, "--all")
+	if code != exitErr {
+		t.Errorf("exit = %d, want %d", code, exitErr)
+	}
+	if !strings.Contains(stderr, "of 3 artifact(s) failed") {
+		t.Errorf("stderr should summarise the failures, got %q", stderr)
+	}
+	// The others still install: one bad artifact does not abort the batch.
+	if _, err := os.Stat(filepath.Join(home, ".claude", "agents", "unbiased-reviewer.md")); err != nil {
+		t.Errorf("unrelated artifacts should still install: %v", err)
+	}
+}
+
+// A missing SKILL.md must be named, not surfaced as a raw lstat error, and
+// must not leave a stray directory behind.
+func TestMissingSkillFileIsReportedClearly(t *testing.T) {
+	home := sandboxHome(t)
+	root := fixtureTree(t)
+	if err := os.Remove(filepath.Join(root, "skills", "dev-loop", "SKILL.md")); err != nil {
+		t.Fatal(err)
+	}
+
+	code, _, stderr := runCLI(t, "install", "--from", root, "dev-loop")
+	if code != exitErr {
+		t.Errorf("exit = %d, want %d", code, exitErr)
+	}
+	if !strings.Contains(stderr, "SKILL.md") {
+		t.Errorf("stderr = %q, want it to name the missing file", stderr)
+	}
+	if _, err := os.Stat(filepath.Join(home, ".claude", "skills", "dev-loop")); err == nil {
+		t.Error("a failed install must not leave a stray skill directory")
 	}
 }

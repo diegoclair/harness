@@ -18,33 +18,14 @@ func (k Kind) String() string {
 	return "skill"
 }
 
-// Source is how an artifact's payload is obtained.
-type Source int
-
-const (
-	// SourceRepo copies markdown straight out of the repo tree. No build step,
-	// so these artifacts need neither CI nor a GitHub release.
-	SourceRepo Source = iota
-	// SourceRelease downloads a per-platform zip carrying a compiled binary.
-	SourceRelease
-)
-
-func (s Source) String() string {
-	if s == SourceRelease {
-		return "release"
-	}
-	return "source"
-}
-
 // Artifact is one installable unit — a skill or an agent.
 type Artifact struct {
-	Name   string
-	Kind   Kind
-	Source Source
-	// TagPrefix selects this artifact's releases; the repo tags every
-	// release-backed skill separately (confluence-v*, jira-v*, …) because
-	// GitHub's "latest" pointer is a single value per repository.
-	// Required for SourceRelease, empty for SourceRepo.
+	Name string
+	Kind Kind
+	// TagPrefix selects the releases of a skill that ships a binary; the repo
+	// tags every such skill separately (confluence-v*, jira-v*, …) because
+	// GitHub's "latest" pointer is a single value per repository. Ignored for
+	// artifacts that are plain files.
 	TagPrefix string
 	Summary   string
 	// VersionEnv is the pre-monorepo env var some skills still honour.
@@ -52,9 +33,6 @@ type Artifact struct {
 	// Requires names artifacts this one cannot work without. A skill that
 	// dispatches an agent is broken without it, so selection pulls it in.
 	Requires []string
-	// Pending marks an artifact that is catalogued but not yet published from
-	// this repo. See docs/migration-from-skills.md.
-	Pending bool
 }
 
 // catalog is the source of truth for what can be installed: a name absent
@@ -64,48 +42,19 @@ var catalog = []Artifact{
 	{
 		Name:    "unbiased-reviewer",
 		Kind:    KindAgent,
-		Source:  SourceRepo,
 		Summary: "Adversarial reviewer: mutation testing, own fixtures, APPROVE/REJECT with evidence",
 	},
 	{
 		Name:     "dev-loop",
 		Kind:     KindSkill,
-		Source:   SourceRepo,
 		Summary:  "Build a non-trivial feature through implement -> unbiased review -> decide",
 		Requires: []string{"unbiased-reviewer"},
 	},
 	{
 		Name:     "implementation-plan",
 		Kind:     KindSkill,
-		Source:   SourceRepo,
 		Summary:  "Turn a fuzzy objective into a bulletproof spec, adversarially reviewed",
 		Requires: []string{"unbiased-reviewer"},
-	},
-	{
-		Name:       "confluence-docs",
-		Pending:    true,
-		Kind:       KindSkill,
-		Source:     SourceRelease,
-		TagPrefix:  "confluence-v",
-		Summary:    "Search, create and update Confluence pages from natural language",
-		VersionEnv: "CONFLUENCE_DOCS_VERSION",
-	},
-	{
-		Name:       "jira-tickets",
-		Pending:    true,
-		Kind:       KindSkill,
-		Source:     SourceRelease,
-		TagPrefix:  "jira-v",
-		Summary:    "Read, create and transition Jira issues without burning context",
-		VersionEnv: "JIRA_TICKETS_VERSION",
-	},
-	{
-		Name:      "social-carousel",
-		Pending:   true,
-		Kind:      KindSkill,
-		Source:    SourceRelease,
-		TagPrefix: "carousel-v",
-		Summary:   "Generate Instagram and LinkedIn carousels from a YAML brief",
 	},
 }
 

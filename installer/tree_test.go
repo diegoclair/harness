@@ -216,14 +216,14 @@ func mustWrite(t *testing.T, path, body string) {
 	}
 }
 
-func TestInstallFromSourcePlacesSkillAndAgent(t *testing.T) {
+func TestInstallPlacesSkillAndAgent(t *testing.T) {
 	home := sandboxHome(t)
 	tree := localTree{path: fixtureTree(t)}
 
 	skill, _ := findArtifact("dev-loop")
 	agent, _ := findArtifact("unbiased-reviewer")
 	for _, a := range []Artifact{skill, agent} {
-		if err := installFromSource(a, tree, io.Discard); err != nil {
+		if err := installOne(t, a, tree, io.Discard); err != nil {
 			t.Fatalf("install %s: %v", a.Name, err)
 		}
 	}
@@ -233,21 +233,21 @@ func TestInstallFromSourcePlacesSkillAndAgent(t *testing.T) {
 	assertFile(t, filepath.Join(home, ".claude", "agents", "unbiased-reviewer.md"), "reviewer body")
 }
 
-// A markdown update must not delete a binary a release install put there.
-func TestSourceInstallPreservesBinDirectory(t *testing.T) {
+// A skill with no binary in its payload must not keep one from a previous
+// install — see TestBinaryIsDroppedWhenASkillStopsShippingOne.
+func TestPlainSkillInstallClearsStaleFiles(t *testing.T) {
 	home := sandboxHome(t)
 	tree := localTree{path: fixtureTree(t)}
 	skill, _ := findArtifact("dev-loop")
 
 	dst := filepath.Join(home, ".claude", "skills", "dev-loop")
-	mustWrite(t, filepath.Join(dst, "bin", "dev-loop"), "ELF")
 	mustWrite(t, filepath.Join(dst, markerFile), "dev-loop\n")
 	mustWrite(t, filepath.Join(dst, "stale-reference.md"), "old")
 
-	if err := installFromSource(skill, tree, io.Discard); err != nil {
+	if err := installOne(t, skill, tree, io.Discard); err != nil {
 		t.Fatalf("install: %v", err)
 	}
-	assertFile(t, filepath.Join(dst, "bin", "dev-loop"), "ELF")
+	assertFile(t, filepath.Join(dst, "SKILL.md"), "loop body")
 	if _, err := os.Stat(filepath.Join(dst, "stale-reference.md")); err == nil {
 		t.Error("a renamed/removed file lingered; the skill directory must be clean-slated")
 	}
@@ -255,7 +255,7 @@ func TestSourceInstallPreservesBinDirectory(t *testing.T) {
 
 // Wiping a directory the harness did not create would destroy a user's own
 // skill of the same name.
-func TestSourceInstallRefusesToWipeAForeignDirectory(t *testing.T) {
+func TestInstallRefusesToWipeAForeignDirectory(t *testing.T) {
 	home := sandboxHome(t)
 	tree := localTree{path: fixtureTree(t)}
 	skill, _ := findArtifact("dev-loop")
@@ -263,7 +263,7 @@ func TestSourceInstallRefusesToWipeAForeignDirectory(t *testing.T) {
 	dst := filepath.Join(home, ".claude", "skills", "dev-loop")
 	mustWrite(t, filepath.Join(dst, "SKILL.md"), "hand-written, not ours")
 
-	err := installFromSource(skill, tree, io.Discard)
+	err := installOne(t, skill, tree, io.Discard)
 	if err == nil {
 		t.Fatal("want a refusal when the target was not installed by harness")
 	}
@@ -276,12 +276,12 @@ func TestLocalTreeRejectsANonHarnessDirectory(t *testing.T) {
 	}
 }
 
-func TestInstallFromSourceReportsAMissingArtifact(t *testing.T) {
+func TestInstallReportsAMissingArtifact(t *testing.T) {
 	sandboxHome(t)
 	tree := localTree{path: fixtureTree(t)}
-	missing := Artifact{Name: "not-there", Kind: KindSkill, Source: SourceRepo}
+	missing := Artifact{Name: "not-there", Kind: KindSkill}
 
-	if err := installFromSource(missing, tree, io.Discard); err == nil {
+	if err := installOne(t, missing, tree, io.Discard); err == nil {
 		t.Fatal("want an error when the artifact is absent from the tree")
 	}
 }
@@ -300,13 +300,13 @@ func assertFile(t *testing.T, path, wantSubstring string) {
 // Installing twice must work: the first install has to leave the marker the
 // second one checks for. Without this the marker write can regress unnoticed
 // and every upgrade fails.
-func TestSourceInstallIsIdempotent(t *testing.T) {
+func TestInstallIsIdempotent(t *testing.T) {
 	home := sandboxHome(t)
 	tree := localTree{path: fixtureTree(t)}
 	skill, _ := findArtifact("dev-loop")
 
 	for i := range 2 {
-		if err := installFromSource(skill, tree, io.Discard); err != nil {
+		if err := installOne(t, skill, tree, io.Discard); err != nil {
 			t.Fatalf("install #%d: %v", i+1, err)
 		}
 	}
@@ -325,7 +325,7 @@ func TestAgentInstallBacksUpDifferingContent(t *testing.T) {
 	mustWrite(t, dst, "MY OWN HAND-WRITTEN REVIEWER")
 
 	var out strings.Builder
-	if err := installFromSource(agent, tree, &out); err != nil {
+	if err := installOne(t, agent, tree, &out); err != nil {
 		t.Fatalf("install: %v", err)
 	}
 	assertFile(t, dst, "reviewer body")
@@ -342,7 +342,7 @@ func TestAgentInstallDoesNotBackUpIdenticalContent(t *testing.T) {
 	agent, _ := findArtifact("unbiased-reviewer")
 
 	for range 2 {
-		if err := installFromSource(agent, tree, io.Discard); err != nil {
+		if err := installOne(t, agent, tree, io.Discard); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -408,4 +408,18 @@ func TestUntarRejectsAnUnexpectedArchiveLayout(t *testing.T) {
 			}
 		})
 	}
+}
+
+// installOne drives the real entry points the CLI uses, so the tests exercise
+// the same routing rather than a parallel one.
+func installOne(t *testing.T, a Artifact, tree treeProvider, out io.Writer) error {
+	t.Helper()
+	root, err := tree.root()
+	if err != nil {
+		return err
+	}
+	if a.Kind == KindAgent {
+		return installAgent(a, root, "test", out)
+	}
+	return installSkill(a, root, installOptions{Repo: defaultRepo, Ref: "test", Out: out})
 }

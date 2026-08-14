@@ -10,12 +10,12 @@ import (
 	"strings"
 )
 
-// markerFile records that the harness owns a skill directory. Source install
+// markerFile records that the harness owns a skill directory. Installing
 // replaces the directory wholesale, so it refuses to wipe anything it did not
 // put there.
 const markerFile = ".harness-installed"
 
-// treeProvider yields the repo tree a source install copies from.
+// treeProvider yields the repo tree an install copies from.
 type treeProvider interface {
 	// root returns a local directory holding the repo tree (skills/, agents/).
 	root() (string, error)
@@ -155,23 +155,9 @@ func writeTarEntry(tr *tar.Reader, target string, mode os.FileMode) error {
 	return nil
 }
 
-// installFromSource places one markdown artifact. Agents are a single file;
-// skills are a directory replaced wholesale so a renamed reference file cannot
-// linger.
-func installFromSource(a Artifact, tree treeProvider, out io.Writer) error {
-	root, err := tree.root()
-	if err != nil {
-		return err
-	}
-	fmt.Fprintf(out, "Installing %s (%s) from %s\n", a.Name, a.Kind, tree.describe())
+func installAgent(a Artifact, root, ref string, out io.Writer) error {
+	fmt.Fprintf(out, "Installing %s (agent) from %s\n", a.Name, ref)
 
-	if a.Kind == KindAgent {
-		return installAgent(a, root, out)
-	}
-	return installSourceSkill(a, root, out)
-}
-
-func installAgent(a Artifact, root string, out io.Writer) error {
 	src := filepath.Join(root, "agents", a.Name+".md")
 	if _, err := os.Stat(src); err != nil {
 		return fmt.Errorf("agent %s not found in the repo tree", a.Name)
@@ -221,34 +207,11 @@ func backupIfForeign(src, dst string, out io.Writer) error {
 	return nil
 }
 
-func installSourceSkill(a Artifact, root string, out io.Writer) error {
-	src := filepath.Join(root, "skills", a.Name)
-	if _, err := os.Stat(filepath.Join(src, "SKILL.md")); err != nil {
-		return fmt.Errorf("skill %s not found in the repo tree (no SKILL.md)", a.Name)
-	}
-	dst, err := skillDir(a.Name)
-	if err != nil {
-		return err
-	}
-
-	if err := clearSkillDir(dst); err != nil {
-		return err
-	}
-	n, err := copyTree(src, dst)
-	if err != nil {
-		return err
-	}
-	if err := os.WriteFile(filepath.Join(dst, markerFile), []byte(a.Name+"\n"), 0o644); err != nil {
-		return fmt.Errorf("write marker: %w", err)
-	}
-	fmt.Fprintf(out, "  Installed %d file(s) to %s\n", n, dst)
-	return nil
-}
-
-// clearSkillDir empties a skill directory before a fresh copy, keeping bin/ —
-// a skill that also ships a binary must not lose it to a markdown update — and
-// refusing to touch a directory the harness did not install.
-func clearSkillDir(dir string) error {
+// clearSkillDir empties a skill directory before a fresh copy, refusing to
+// touch one the harness did not install. bin/ survives only while the incoming
+// payload still carries a binary; a skill that stopped shipping one would
+// otherwise leave a stale executable on PATH forever.
+func clearSkillDir(dir string, keepBin bool, name string, out io.Writer) error {
 	entries, err := os.ReadDir(dir)
 	if os.IsNotExist(err) {
 		return os.MkdirAll(dir, 0o755)
@@ -266,6 +229,12 @@ func clearSkillDir(dir string) error {
 	}
 	for _, e := range entries {
 		if e.Name() == "bin" {
+			if keepBin {
+				continue
+			}
+			if err := removeStaleBinary(dir, name, out); err != nil {
+				return err
+			}
 			continue
 		}
 		if err := os.RemoveAll(filepath.Join(dir, e.Name())); err != nil {
@@ -275,7 +244,45 @@ func clearSkillDir(dir string) error {
 	return nil
 }
 
+// removeStaleBinary drops a binary the skill no longer ships, along with the
+// PATH symlink pointing at it — leaving either behind keeps the old executable
+// runnable indefinitely.
+func removeStaleBinary(dir, name string, out io.Writer) error {
+	if err := os.RemoveAll(filepath.Join(dir, "bin")); err != nil {
+		return fmt.Errorf("remove stale bin/: %w", err)
+	}
+	fmt.Fprintf(out, "  %s no longer ships a binary; removed its bin/\n", name)
+
+	userBin, err := userBinDir()
+	if err != nil {
+		return nil
+	}
+	link := filepath.Join(userBin, name)
+	target, err := os.Readlink(link)
+	if err != nil {
+		return nil
+	}
+	if !strings.HasPrefix(target, dir+string(os.PathSeparator)) {
+		return nil
+	}
+	if err := os.Remove(link); err != nil {
+		return nil
+	}
+	fmt.Fprintf(out, "  Removed the stale PATH link %s\n", link)
+	return nil
+}
+
 func copyTree(src, dst string) (int, error) {
+	return copyTreeExcept(src, dst)
+}
+
+// copyTreeExcept copies a directory, skipping the named top-level entries.
+func copyTreeExcept(src, dst string, skip ...string) (int, error) {
+	skipped := map[string]bool{}
+	for _, s := range skip {
+		skipped[s] = true
+	}
+
 	count := 0
 	err := filepath.WalkDir(src, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
@@ -284,6 +291,12 @@ func copyTree(src, dst string) (int, error) {
 		rel, err := filepath.Rel(src, path)
 		if err != nil {
 			return err
+		}
+		if top, _, _ := strings.Cut(rel, string(os.PathSeparator)); skipped[top] {
+			if d.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
 		}
 		target := filepath.Join(dst, rel)
 		if d.IsDir() {

@@ -16,26 +16,50 @@ func TestCatalogIsWellFormed(t *testing.T) {
 		if a.Name == "" || a.Summary == "" {
 			t.Errorf("incomplete catalog entry: %+v", a)
 		}
-		switch a.Source {
-		case SourceRelease:
-			if a.TagPrefix == "" {
-				t.Errorf("%s: release-backed artifact needs a tag prefix", a.Name)
-				continue
-			}
-			if !strings.HasSuffix(a.TagPrefix, "-v") {
-				t.Errorf("%s: tag prefix %q should end in -v", a.Name, a.TagPrefix)
-			}
-			if seenPrefix[a.TagPrefix] {
-				t.Errorf("%s: tag prefix %q is used by another artifact", a.Name, a.TagPrefix)
-			}
-			seenPrefix[a.TagPrefix] = true
-		case SourceRepo:
-			if a.TagPrefix != "" {
-				t.Errorf("%s: source-backed artifact must not carry a tag prefix", a.Name)
-			}
-			if a.VersionEnv != "" {
-				t.Errorf("%s: source-backed artifact must not carry a version env var", a.Name)
-			}
+		if a.TagPrefix == "" {
+			continue
+		}
+		// A tag prefix only means anything for a skill that ships a binary,
+		// and a wrong one silently resolves to another skill's release series.
+		if !strings.HasSuffix(a.TagPrefix, "-v") {
+			t.Errorf("%s: tag prefix %q should end in -v", a.Name, a.TagPrefix)
+		}
+		if seenPrefix[a.TagPrefix] {
+			t.Errorf("%s: tag prefix %q is used by another artifact", a.Name, a.TagPrefix)
+		}
+		seenPrefix[a.TagPrefix] = true
+		if a.Kind == KindAgent {
+			t.Errorf("%s: an agent is plain files and cannot carry a tag prefix", a.Name)
+		}
+	}
+}
+
+// A skill that ships cli/ resolves its binary by tag prefix; without one the
+// install fails at run time with a confusing message from deep in the resolver.
+func TestSkillsWithACLIDeclareATagPrefix(t *testing.T) {
+	for _, a := range catalog {
+		if a.Kind != KindSkill {
+			continue
+		}
+		if !shipsCLI(filepath.Join("..", "skills", a.Name)) {
+			continue
+		}
+		if a.TagPrefix == "" {
+			t.Errorf("%s ships a cli/ and needs a TagPrefix to resolve its releases", a.Name)
+		}
+	}
+}
+
+// Every catalogued artifact must exist in the tree, or `install` offers a
+// name it cannot deliver.
+func TestEveryCatalogEntryExistsInTheTree(t *testing.T) {
+	for _, a := range catalog {
+		path := filepath.Join("..", "agents", a.Name+".md")
+		if a.Kind == KindSkill {
+			path = filepath.Join("..", "skills", a.Name, "SKILL.md")
+		}
+		if _, err := os.Stat(path); err != nil {
+			t.Errorf("%s is catalogued but missing from the repo: %v", a.Name, err)
 		}
 	}
 }
@@ -133,7 +157,7 @@ func TestSkillsDeclareTheAgentsTheyDispatch(t *testing.T) {
 	}
 
 	for _, a := range catalog {
-		if a.Kind != KindSkill || a.Source != SourceRepo {
+		if a.Kind != KindSkill {
 			continue
 		}
 		body, err := os.ReadFile(filepath.Join("..", "skills", a.Name, "SKILL.md"))
@@ -149,5 +173,26 @@ func TestSkillsDeclareTheAgentsTheyDispatch(t *testing.T) {
 				t.Errorf("%s dispatches the %q agent but does not list it in Requires", a.Name, agent)
 			}
 		}
+	}
+}
+
+// A dependency can itself have dependencies; expanding only the original
+// selection would leave the chain half-installed.
+func TestResolveRequiresIsTransitive(t *testing.T) {
+	// dev-loop already requires unbiased-reviewer, so requiring dev-loop makes
+	// a real two-hop chain.
+	meta := Artifact{Name: "meta-skill", Kind: KindSkill, Requires: []string{"dev-loop"}}
+
+	got, added, err := resolveRequires([]Artifact{meta})
+	if err != nil {
+		t.Fatalf("resolveRequires: %v", err)
+	}
+	for _, want := range []string{"dev-loop", "unbiased-reviewer"} {
+		if !containsName(got, want) {
+			t.Errorf("selection %v is missing %q from the dependency chain", names(got), want)
+		}
+	}
+	if len(added) != 2 {
+		t.Errorf("added = %v, want both hops reported", added)
 	}
 }

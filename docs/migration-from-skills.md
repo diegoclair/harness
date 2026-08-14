@@ -24,25 +24,23 @@ Two hazards below are silent — they leave CI green while shipping broken binar
 
 ---
 
-## Blocked on decisions
+## Decisions
 
-| | Decision | Blocks |
+| | Decision | Status |
 |---|---|---|
-| **OD-1** | Is this repo public or private? The installer has **zero auth** — no `Authorization` header anywhere in `installer/` or `pkg/release/`. Private means all three network paths 404 (codeload tarball, releases API, asset download) and an extra deliverable: token plumbing through the bootstraps. | Phase 1 |
-| **OD-2** | Licence and copyright holder. The old repo is MIT © **Lybel**; this one is MIT © Diego Clair. Moving Lybel-copyrighted code (`pkg/atlassian`, the three CLIs) into a personal repo is an ownership call. | Phase 2 |
-| **OD-3** | Preserve git history (`git subtree` / `git filter-repo`) or flat copy plus a pointer to the old repo? | Phase 2.1 |
-| **OD-5** | Does this repo's README keep "Lybel Skills" branding for the migrated skills, or rebrand? Interacts with OD-2. | Phase 2.8 |
-
----
+| **OD-1** | Repository visibility | **Settled: public.** Nothing here is private, and the point is that anyone can use it. The installer needs no auth. |
+| **OD-2** | Licence and copyright | **Settled: MIT © Diego Clair.** The old repo's Lybel attribution was stale — that code is no longer Lybel's. |
+| **OD-3** | Preserve git history (`git subtree` / `git filter-repo`) or flat copy plus a pointer? | Open — cost vs. provenance. |
+| **OD-5** | Branding of the migrated skills in the README | Resolved by OD-2: personal, no company branding. |
 
 ## Phase 0 — done
 
 Repo built locally: structure, the three new artifacts, the installer covering both payload kinds, README, migration plan. Unpushed. Old repo untouched.
 
-## Phase 1 — publish the harness *(needs OD-1)*
+## Phase 1 — publish the harness
 
 ```bash
-gh repo create diegoclair/harness --<public|private> --source=. --remote=origin
+gh repo create diegoclair/harness --public --source=. --remote=origin
 git push -u origin main
 git tag harness-v0.1.0 && git push origin harness-v0.1.0   # triggers release-installer.yml
 ```
@@ -65,7 +63,7 @@ find "$SB/.claude" -type f       # expect the skill AND unbiased-reviewer.md
 
 **At the end of Phase 1 the three new artifacts are publicly installable and the Atlassian skills have not moved.** Nothing is broken; the old repo still serves them.
 
-## Phase 2 — move the legacy skills *(needs OD-2, OD-3)*
+## Phase 2 — move the legacy skills *(needs OD-3)*
 
 Each step is independently verifiable. Do them in order.
 
@@ -78,6 +76,8 @@ git read-tree --prefix=skills/ -u old/main
 Rollback: this is a local commit until pushed — `git reset --hard` is forbidden by the governing rule, so branch first and abandon the branch instead.
 
 **2.2 Files** — `<skill>/` → `skills/<skill>/`; `pkg/atlassian` joins `pkg/` at the root; drop the old `installer/` (this repo's supersedes it).
+
+**2.2b Catalog entries** — add the three skills to `catalog` in `installer/manifest.go` with their `TagPrefix` (`confluence-v`, `jira-v`, `carousel-v`) and `VersionEnv`. Nothing else in the installer changes: each arrives carrying `cli/`, which is how it declares it drives a binary. `TestEveryCatalogEntryExistsInTheTree` fails until their files are in place, so the entry cannot be added early by mistake.
 
 **2.3 Module paths — ⚠ silent-failure hazard**
 
@@ -142,3 +142,4 @@ Only then continue.
 - [ ] `harness validate .` reports six artifacts, no problems
 - [ ] Old repo's `install.sh` points here, bridge releases cut, only then archived
 - [ ] No reference to `diegoclair/skills` remains outside `docs/` and CHANGELOGs
+- [ ] `installer/manifest.go` lists all six artifacts and `go test ./installer/...` is green

@@ -28,7 +28,7 @@ Skills compose agents. Installing a skill pulls in the agents it needs.
 
 Both skills dispatch `unbiased-reviewer`, so it comes along automatically.
 
-Three more skills (`confluence-docs`, `jira-tickets`, `social-carousel`) are catalogued as **pending**: they still live in [`diegoclair/skills`](https://github.com/diegoclair/skills) and move here per [the migration plan](./docs/migration-from-skills.md). `harness list` marks them, and installing one tells you where it is.
+Three more skills — `confluence-docs`, `jira-tickets`, `social-carousel` — still live in [`diegoclair/skills`](https://github.com/diegoclair/skills) and move here per [the migration plan](./docs/migration-from-skills.md).
 
 ## Install
 
@@ -58,7 +58,7 @@ go run ./installer list
 go run ./installer install --from . dev-loop
 ```
 
-`--from .` reads the working tree directly, so editing a skill and reinstalling is instant — no release, no symlink workaround.
+`--from .` reads the working tree directly, so editing a skill and reinstalling is instant — no release, no symlink workaround. A skill that ships a `cli/` is the exception: its binary only exists in a release, so `--from` still fetches that release for it.
 
 ### Commands
 
@@ -71,12 +71,12 @@ harness install --all-agents          Every agent
 harness validate [PATH]               Check the artifacts in a repo tree
 ```
 
-| Flag | Applies to | Meaning |
-|---|---|---|
-| `--repo OWNER/REPO` | both | Install from a fork |
-| `--ref REF` | markdown artifacts | Branch, tag or SHA (default `main`) |
-| `--from PATH` | markdown artifacts | Install from a local clone |
-| `--version TAG` | release-backed skills | Pin a release tag, one skill at a time |
+| Flag | Meaning |
+|---|---|
+| `--repo OWNER/REPO` | Install from a fork |
+| `--ref REF` | Branch, tag or SHA of the repo tree (default `main`) |
+| `--from PATH` | Install from a local clone instead of downloading |
+| `--version TAG` | Pin a release tag — only for a skill that ships a binary, one at a time |
 
 Unknown names are rejected before anything is installed, so a typo never leaves a half-applied selection. Re-running upgrades in place.
 
@@ -84,18 +84,27 @@ Unknown names are rejected before anything is installed, so a typo never leaves 
 
 ## How it works
 
-Artifacts come in two flavours, and only the installer needs to care:
+**One installer, one pipeline.** Nothing about an artifact's installation is declared in a config: it is discovered from the artifact itself.
 
-| | `source` | `release` |
-|---|---|---|
-| Payload | markdown, straight from the repo tree | per-platform zip with a compiled binary |
-| Needs CI | no | yes |
-| Pinning | `--ref <branch\|tag\|sha>` | `--version <tag>` |
-| PATH wiring | none | symlink into `~/.local/bin` |
+```
+fetch the repo tree (a git ref, or your local clone)
+   │
+   ├─ agent ..................... copy agents/<name>.md
+   │
+   └─ skill
+        ├─ ships a cli/ ? ── no ─→ install its files from the tree.  Done.
+        │
+        └─ yes ─→ a compiled binary only exists in a release archive,
+                  so the payload is that release: install its files,
+                  then the binary, symlink it onto PATH, run the
+                  skill's own verification and post-install hooks.
+```
 
-Markdown artifacts need no build step, so they ship the moment they're merged. Skills that drive a Go CLI resolve their release by tag prefix — GitHub's "latest" pointer is a single value per repository, which a multi-artifact repo can't use.
+A skill declares that it drives a binary by **shipping a `cli/` directory**. The expectation is then enforced in both directions: a skill with `cli/` whose release carries no binary fails **before anything is written**, rather than leaving a skill Claude Code would load with every command missing; and a skill that stops shipping `cli/` has its stale binary and PATH link removed instead of leaving an old executable runnable forever.
 
-A source install replaces the skill directory so a renamed file can't linger, but it keeps `bin/` and refuses to overwrite a directory it didn't create.
+Release versions resolve by tag prefix, because GitHub's "latest" pointer is a single value per repository and this repo ships several independently versioned skills.
+
+Installing replaces the skill directory so a renamed file can't linger, refuses to overwrite a directory it didn't create, and backs up a hand-written agent before replacing it. `cli/` is a build input and is never installed.
 
 ## Layout
 
@@ -136,9 +145,10 @@ Run `go run ./installer validate .` before opening a PR.
 
 1. Create `skills/<name>/SKILL.md` or `agents/<name>.md`.
 2. Add it to `catalog` in `installer/manifest.go`, with `Requires` if it dispatches an agent.
-3. `cd installer && make test`.
+3. If it drives a CLI, add `skills/<name>/cli/`, set `TagPrefix` on its catalog entry, and add a `release-<name>.yml` workflow. The installer needs no code change — `cli/` is what it looks for.
+4. `cd installer && make test`.
 
-A markdown artifact needs no *skill* release — it ships from `main` the moment it is merged. The catalog entry does travel in the installer binary, so an installed `harness` picks up a brand-new artifact only after the next `harness-v*` release; running `go run ./installer` from a clone sees it immediately.
+A skill without a `cli/` needs no release: it ships from `main` the moment it is merged. The catalog entry travels in the installer binary, so an already-installed `harness` sees a brand-new artifact after the next `harness-v*` release; `go run ./installer` from a clone sees it immediately.
 
 ## License
 

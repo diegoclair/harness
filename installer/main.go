@@ -36,9 +36,9 @@ USAGE:
 
 FLAGS:
   --repo OWNER/REPO   Install from a fork (default: diegoclair/harness)
-  --ref REF           Branch, tag or SHA for markdown artifacts (default: main)
-  --from PATH         Install markdown artifacts from a local clone
-  --version TAG       Pin a release tag; release-backed skills only, one at a time
+  --ref REF           Branch, tag or SHA of the repo tree (default: main)
+  --from PATH         Install from a local clone instead of downloading
+  --version TAG       Pin a release tag; only for a skill that ships a binary
 
 Skills are installed to ~/.claude/skills/<name>/ and agents to
 ~/.claude/agents/<name>.md. Dependencies are pulled in automatically.
@@ -96,12 +96,6 @@ func runList(args []string, stdout, stderr io.Writer) int {
 			width = len(a.Name)
 		}
 	}
-	pending := false
-	for _, a := range catalog {
-		if a.Pending {
-			pending = true
-		}
-	}
 	for _, kind := range []Kind{KindSkill, KindAgent} {
 		if onlyKind != nil && *onlyKind != kind {
 			continue
@@ -111,16 +105,8 @@ func runList(args []string, stdout, stderr io.Writer) int {
 			if a.Kind != kind {
 				continue
 			}
-			status := a.Source.String()
-			if a.Pending {
-				status = "pending"
-			}
-			fmt.Fprintf(stdout, "  %-*s  %-8s %s\n", width, a.Name, status, a.Summary)
+			fmt.Fprintf(stdout, "  %-*s  %s\n", width, a.Name, a.Summary)
 		}
-	}
-	if pending {
-		fmt.Fprintln(stdout, "\npending = catalogued but not yet published from this repo "+
-			"(see docs/migration-from-skills.md)")
 	}
 	return exitOK
 }
@@ -241,14 +227,6 @@ func selectArtifacts(f installFlags, stdout, stderr io.Writer) ([]Artifact, int)
 				selected = append(selected, a)
 			}
 		}
-		// A source-only flag narrows a wildcard instead of failing it: asking
-		// for everything from a local clone should install what a clone has.
-		if f.fromSet || f.refSet {
-			selected = filterSourceOnly(selected, stdout)
-		}
-		if f.versionSet {
-			selected = filterReleaseOnly(selected, stdout)
-		}
 	} else {
 		seen := map[string]bool{}
 		for _, n := range f.names {
@@ -262,11 +240,6 @@ func selectArtifacts(f installFlags, stdout, stderr io.Writer) ([]Artifact, int)
 			}
 			seen[a.Name] = true
 			selected = append(selected, a)
-		}
-		// Named artifacts are explicit intent: a flag that cannot apply to one
-		// of them is an error, never a silent skip.
-		if code := rejectFlagKindMismatch(selected, f, stderr); code != exitOK {
-			return nil, code
 		}
 	}
 
@@ -284,75 +257,32 @@ func selectArtifacts(f installFlags, stdout, stderr io.Writer) ([]Artifact, int)
 		fmt.Fprintf(stdout, "Also installing required: %s\n\n", strings.Join(added, ", "))
 	}
 
-	if f.versionSet && countReleaseKind(selected) > 1 {
-		fmt.Fprintln(stderr, "--version applies to a single artifact; install them one at a time")
-		return nil, exitInputErr
-	}
 	return selected, exitOK
 }
 
-func filterSourceOnly(in []Artifact, out io.Writer) []Artifact {
-	var kept []Artifact
-	var skipped []string
-	for _, a := range in {
-		if a.Source == SourceRepo {
-			kept = append(kept, a)
-			continue
-		}
-		skipped = append(skipped, a.Name)
+// rejectFlagMismatch refuses a flag that cannot apply to a named artifact.
+// A version pin only means something for a skill that ships a binary, and an
+// agent is always plain files.
+func rejectFlagMismatch(selected []Artifact, root string, f installFlags, stderr io.Writer) int {
+	if !f.versionSet {
+		return exitOK
 	}
-	if len(skipped) > 0 {
-		fmt.Fprintf(out, "Skipping release-backed artifact(s), not available from a repo tree: %s\n\n",
-			strings.Join(skipped, ", "))
-	}
-	return kept
-}
-
-func filterReleaseOnly(in []Artifact, out io.Writer) []Artifact {
-	var kept []Artifact
-	var skipped []string
-	for _, a := range in {
-		if a.Source == SourceRelease {
-			kept = append(kept, a)
-			continue
-		}
-		skipped = append(skipped, a.Name)
-	}
-	if len(skipped) > 0 {
-		fmt.Fprintf(out, "Skipping markdown artifact(s), which have no release tags to pin: %s\n\n",
-			strings.Join(skipped, ", "))
-	}
-	return kept
-}
-
-func rejectFlagKindMismatch(selected []Artifact, f installFlags, stderr io.Writer) int {
+	var pinnable []Artifact
 	for _, a := range selected {
-		if a.Source == SourceRepo && f.versionSet {
-			fmt.Fprintf(stderr, "%s ships as markdown and has no release tags; use --ref to pin a git ref\n", a.Name)
-			return exitInputErr
+		if a.Kind == KindSkill && shipsCLI(filepath.Join(root, "skills", a.Name)) {
+			pinnable = append(pinnable, a)
 		}
-		if a.Source == SourceRelease && f.fromSet {
-			fmt.Fprintf(stderr, "%s ships a compiled binary and cannot be installed from a local tree; "+
-				"drop --from, or pin a release with --version\n", a.Name)
-			return exitInputErr
-		}
-		if a.Source == SourceRelease && f.refSet {
-			fmt.Fprintf(stderr, "%s ships a compiled binary; --ref selects a git ref and does not apply. "+
-				"Use --version <tag> instead\n", a.Name)
-			return exitInputErr
-		}
+	}
+	if len(pinnable) == 0 {
+		fmt.Fprintln(stderr, "--version pins a release tag, and none of the selected artifacts "+
+			"ship a binary; use --ref to pick a different version of their files")
+		return exitInputErr
+	}
+	if len(pinnable) > 1 {
+		fmt.Fprintln(stderr, "--version applies to a single artifact; install them one at a time")
+		return exitInputErr
 	}
 	return exitOK
-}
-
-func countReleaseKind(in []Artifact) int {
-	n := 0
-	for _, a := range in {
-		if a.Source == SourceRelease {
-			n++
-		}
-	}
-	return n
 }
 
 func installAll(selected []Artifact, f installFlags, stdout, stderr io.Writer) int {
@@ -377,7 +307,18 @@ func installAll(selected []Artifact, f installFlags, stdout, stderr io.Writer) i
 		tree = &remoteTree{repo: f.repo, ref: f.ref, tmp: tmp}
 	}
 
-	relOpts := installOptions{Repo: f.repo, Version: f.version, Out: stdout}
+	root, err := tree.root()
+	if err != nil {
+		fmt.Fprintln(stderr, err)
+		return exitErr
+	}
+	// Flag applicability depends on what an artifact actually ships, which is
+	// only knowable once the tree is in hand. Nothing has been written yet.
+	if code := rejectFlagMismatch(selected, root, f, stderr); code != exitOK {
+		return code
+	}
+
+	opts := installOptions{Repo: f.repo, Version: f.version, Ref: tree.describe(), Out: stdout}
 
 	failed := 0
 	for i, a := range selected {
@@ -385,13 +326,10 @@ func installAll(selected []Artifact, f installFlags, stdout, stderr io.Writer) i
 			fmt.Fprintln(stdout)
 		}
 		var err error
-		if a.Pending {
-			err = fmt.Errorf("not published from this repo yet; it still lives in " +
-				"github.com/diegoclair/skills (see docs/migration-from-skills.md)")
-		} else if a.Source == SourceRepo {
-			err = installFromSource(a, tree, stdout)
+		if a.Kind == KindAgent {
+			err = installAgent(a, root, opts.Ref, stdout)
 		} else {
-			err = installFromRelease(a, relOpts)
+			err = installSkill(a, root, opts)
 		}
 		if err != nil {
 			fmt.Fprintf(stderr, "error installing %s: %v\n", a.Name, err)
