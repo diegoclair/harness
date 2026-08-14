@@ -30,7 +30,7 @@ Two hazards below are silent — they leave CI green while shipping broken binar
 |---|---|---|
 | **OD-1** | Repository visibility | **Settled: public.** Nothing here is private, and the point is that anyone can use it. The installer needs no auth. |
 | **OD-2** | Licence and copyright | **Settled: MIT © Diego Clair.** The old repo's Lybel attribution was stale — that code is no longer Lybel's. |
-| **OD-3** | Preserve git history (`git subtree` / `git filter-repo`) or flat copy plus a pointer? | Open — cost vs. provenance. |
+| **OD-3** | Preserve git history on migration | **Settled: preserve it.** The three skills keep their commit history via `git subtree` (Phase 2.1). |
 | **OD-5** | Branding of the migrated skills in the README | Resolved by OD-2: personal, no company branding. |
 
 ## Phase 0 — done
@@ -67,7 +67,7 @@ find "$SB/.claude" -type f       # expect the skill AND unbiased-reviewer.md
 
 Each step is independently verifiable. Do them in order.
 
-**2.1 History** — settle OD-3. To preserve:
+**2.1 History** — preserve it (OD-3):
 ```bash
 git remote add old git@github.com:diegoclair/skills.git && git fetch old
 git merge -s ours --no-commit --allow-unrelated-histories old/main
@@ -126,9 +126,23 @@ Only then continue.
 
 ## Phase 3 — retire the old repo
 
-- README banner pointing here, with the new one-liner.
-- GitHub **Archive** (read-only). Releases stay downloadable, so old installs and old one-liners keep working.
-- **Never** delete tags or releases, never force-push, never flip it to private.
+Only after Phase 2.5's bridge releases are cut and verified.
+
+1. README banner pointing here, with the new one-liner.
+2. Retire it — **archive or delete**:
+
+| | Archive (recommended) | Delete |
+|---|---|---|
+| Repo state | Read-only, visibly retired | Gone |
+| Existing installs' `update` | Keeps working (releases stay downloadable) | Breaks — 404 on every asset |
+| Old one-liners in the wild | Keep working | Break |
+| The name `diegoclair/skills` | Stays yours | **Freed for anyone to register** |
+
+The last row is the one that matters. `cmd_update.go:15-17` hardcodes the old repo and `runUpdate` fetches `install.sh` from its `main` at runtime and pipes it to `bash`. If the name is re-registered by someone else, every already-installed CLI downloads and executes a script from a repository you do not control. Archiving keeps the name and costs nothing.
+
+If deleting anyway, do it only once telemetry or time says nobody is left on an old binary, and accept that the break is not reversible.
+
+3. **Never** force-push or rewrite history on the way out.
 
 ---
 
@@ -140,6 +154,6 @@ Only then continue.
 - [ ] Exactly one release workflow carries `make_latest: true`
 - [ ] `harness install --all` in a sandboxed `HOME` installs all six artifacts
 - [ ] `harness validate .` reports six artifacts, no problems
-- [ ] Old repo's `install.sh` points here, bridge releases cut, only then archived
+- [ ] Old repo's `install.sh` points here, bridge releases cut, only then retired (archive keeps the name; deleting frees it)
 - [ ] No reference to `diegoclair/skills` remains outside `docs/` and CHANGELOGs
 - [ ] `installer/manifest.go` lists all six artifacts and `go test ./installer/...` is green
