@@ -89,11 +89,11 @@ var defaultHTTPClient httpClient = http.DefaultClient
 
 // Config holds the non-sensitive workspace configuration.
 type Config struct {
-	Cloud         string
-	SpaceID       string
-	SpaceKey      string
-	SpaceName     string
-	HomePageID    string
+	Cloud      string
+	SpaceID    string
+	SpaceKey   string
+	SpaceName  string
+	HomePageID string
 }
 
 // SpaceInfo is a single Confluence space from the list-spaces API.
@@ -135,8 +135,8 @@ func ConfigFilePath() (string, error) {
 // when the new atlassian-wide path doesn't have a credentials file yet.
 // Order: most recent legacy first, oldest last.
 //
-//   1. <UserConfigDir>/<skill>/credentials   — v0.10–v0.12 per-skill cross-platform path
-//   2. ~/.config/<skill>/credentials         — v0.9 and earlier hardcoded-Linux path
+//  1. <UserConfigDir>/<skill>/credentials   — v0.10–v0.12 per-skill cross-platform path
+//  2. ~/.config/<skill>/credentials         — v0.9 and earlier hardcoded-Linux path
 //
 // Returns paths even if their parent directories don't exist; the caller
 // uses os.IsNotExist to skip absent files.
@@ -529,15 +529,15 @@ func Run(args []string, stdin io.Reader, stdout, stderr io.Writer) (exitCode int
 // runWithClient is the testable core of Run with an injectable HTTP client.
 func runWithClient(args []string, stdin io.Reader, stdout, stderr io.Writer, client httpClient) (int, error) {
 	var (
-		email        string
-		token        string
-		doCheck      bool
+		email         string
+		token         string
+		doCheck       bool
 		doReconfigure bool
-		printPath    bool
-		printFormat  bool
-		setKey       string
-		setValue     string
-		doSet        bool
+		printPath     bool
+		printFormat   bool
+		setKey        string
+		setValue      string
+		doSet         bool
 	)
 
 	for i := 0; i < len(args); i++ {
@@ -634,10 +634,10 @@ func runWithClient(args []string, stdin io.Reader, stdout, stderr io.Writer, cli
 
 // knownConfigKeys is the set of keys accepted by --set.
 var knownConfigKeys = map[string]bool{
-	"cloud":              true,
-	"active_space_id":    true,
-	"active_space_key":   true,
-	"active_space_name":  true,
+	"cloud":               true,
+	"active_space_id":     true,
+	"active_space_key":    true,
+	"active_space_name":   true,
 	"active_home_page_id": true,
 }
 
@@ -900,10 +900,10 @@ func runInteractive(prefillEmail, prefillToken string, stdinRaw io.Reader, stdou
 	}
 
 	token, ok := promptWithDefault(stdin, stdout, promptSpec{
-		Label:      "API token",
-		Current:    prefillToken,
+		Label:       "API token",
+		Current:     prefillToken,
 		MaskCurrent: true,
-		Hint:       "(press Enter to keep, or paste a new token)",
+		Hint:        "(press Enter to keep, or paste a new token)",
 	})
 	if !ok || token == "" {
 		fmt.Fprintln(stderr, "setup cancelled")

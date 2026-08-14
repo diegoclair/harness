@@ -17,9 +17,9 @@ import (
 
 // mockHTTPClient returns a fixed response for every request.
 type mockHTTPClient struct {
-	statusCode  int
-	body        string
-	networkErr  error
+	statusCode int
+	body       string
+	networkErr error
 }
 
 func (m *mockHTTPClient) Do(_ *http.Request) (*http.Response, error) {
@@ -423,10 +423,10 @@ func TestWriteCreds_Permissions(t *testing.T) {
 
 func TestParseCredsData(t *testing.T) {
 	cases := []struct {
-		name       string
-		input      string
-		wantEmail  string
-		wantToken  string
+		name      string
+		input     string
+		wantEmail string
+		wantToken string
 	}{
 		{"basic", "email=a@b.com\ntoken=tok\n", "a@b.com", "tok"},
 		{"spaces", "  email = a@b.com \n  token = tok \n", "a@b.com", "tok"},

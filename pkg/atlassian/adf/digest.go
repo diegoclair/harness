@@ -71,10 +71,10 @@ func statusFromTitle(title string) (string, string) {
 
 // SectionSummary describes one top-level heading and its body.
 type SectionSummary struct {
-	Level    int      `json:"level"`              // 1-6
-	Heading  string   `json:"heading"`            // trimmed text
-	Words    int      `json:"words"`              // word count of body (excluding heading)
-	Macros   []string `json:"macros,omitempty"`   // macros present inside this section, e.g. ["expand", "panel-warning"]
+	Level    int      `json:"level"`            // 1-6
+	Heading  string   `json:"heading"`          // trimmed text
+	Words    int      `json:"words"`            // word count of body (excluding heading)
+	Macros   []string `json:"macros,omitempty"` // macros present inside this section, e.g. ["expand", "panel-warning"]
 	HasTable bool     `json:"hasTable,omitempty"`
 }
 

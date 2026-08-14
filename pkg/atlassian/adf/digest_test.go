@@ -109,9 +109,9 @@ func TestBuildDigest_TOCMacro(t *testing.T) {
 
 func TestBuildDigest_StatusEmoji(t *testing.T) {
 	cases := []struct {
-		title       string
-		wantEmoji   string
-		wantLabel   string
+		title     string
+		wantEmoji string
+		wantLabel string
 	}{
 		{"🟢 Acme - Em andamento", "🟢", "active"},
 		{"🟡 Banco X - Negociação", "🟡", "in-progress"},

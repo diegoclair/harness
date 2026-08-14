@@ -20,9 +20,9 @@ type IssueFields struct {
 	Summary     string
 	Status      Status
 	Issuetype   IssueType
-	Assignee    *User           // nil = unassigned
+	Assignee    *User // nil = unassigned
 	Reporter    *User
-	Priority    *Priority       // nil = no priority set
+	Priority    *Priority // nil = no priority set
 	Labels      []string
 	Project     Project
 	Parent      *IssueRef       // nil = no parent issue
@@ -162,14 +162,14 @@ type CreateIssueInput struct {
 // ProjectFull holds detailed information about a Jira project returned by
 // GET /rest/api/3/project/{key}.
 type ProjectFull struct {
-	ID               string
-	Key              string
-	Name             string
-	ProjectTypeKey   string
-	Simplified       bool
-	Lead             *User
-	DefaultAssignee  string
-	AvatarURL        string
+	ID              string
+	Key             string
+	Name            string
+	ProjectTypeKey  string
+	Simplified      bool
+	Lead            *User
+	DefaultAssignee string
+	AvatarURL       string
 }
 
 // ProjectSearchResult holds one page of results from GET /rest/api/3/project/search.
@@ -202,8 +202,8 @@ type issueWire struct {
 // issueFieldsWire mirrors the "fields" object from the Jira REST v3 response.
 // Custom fields are captured by the RawMessage map in a second pass.
 type issueFieldsWire struct {
-	Summary   string `json:"summary"`
-	Status    struct {
+	Summary string `json:"summary"`
+	Status  struct {
 		Name           string `json:"name"`
 		StatusCategory struct {
 			Key  string `json:"key"`

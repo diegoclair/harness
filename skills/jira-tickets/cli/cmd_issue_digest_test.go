@@ -206,14 +206,14 @@ func TestBuildDigest_NilOptionalFields(t *testing.T) {
 	issue := &jira.Issue{
 		Key: "PROJ-99",
 		Fields: jira.IssueFields{
-			Summary:   "Minimal issue",
-			Assignee:  nil,
-			Reporter:  nil,
-			Priority:  nil,
-			Parent:    nil,
-			Labels:    nil,
-			Updated:   "2026-01-01T00:00:00.000Z",
-			DueDate:   "",
+			Summary:  "Minimal issue",
+			Assignee: nil,
+			Reporter: nil,
+			Priority: nil,
+			Parent:   nil,
+			Labels:   nil,
+			Updated:  "2026-01-01T00:00:00.000Z",
+			DueDate:  "",
 		},
 	}
 	d := buildDigest(nil, issue)

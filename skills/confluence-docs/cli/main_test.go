@@ -376,7 +376,6 @@ func TestUpdate_UnknownFlag(t *testing.T) {
 	}
 }
 
-
 func TestPage_UnknownVerbListsChildren(t *testing.T) {
 	// The "valid verbs" list should include `children` (canonical) — verifies
 	// help message is in sync with the dispatcher.
@@ -963,10 +962,10 @@ func TestPageRewrite_UnknownStrategy(t *testing.T) {
 
 func TestParseATXHeading(t *testing.T) {
 	cases := []struct {
-		in      string
-		level   int
-		title   string
-		isHead  bool
+		in     string
+		level  int
+		title  string
+		isHead bool
 	}{
 		{"## Foo", 2, "Foo", true},
 		{"# Foo", 1, "Foo", true},
@@ -1134,4 +1133,3 @@ func TestValidateMultiOp(t *testing.T) {
 		}
 	}
 }
-

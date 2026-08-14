@@ -13,11 +13,11 @@ var validProjectKey = regexp.MustCompile(`^[A-Z][A-Z0-9_]{1,9}$`)
 
 func runProjectUpdate(args []string, stdout, stderr io.Writer) (int, error) {
 	var (
-		projectKey  string
-		newName     string
-		newKey      string
-		newDesc     string
-		dryRun      bool
+		projectKey string
+		newName    string
+		newKey     string
+		newDesc    string
+		dryRun     bool
 	)
 
 	remaining, cloud, email, token, err := parseCommonFlags(args)
@@ -107,10 +107,10 @@ func runProjectUpdate(args []string, stdout, stderr io.Writer) (int, error) {
 
 	if dryRun {
 		out, _ := json.MarshalIndent(map[string]any{
-			"dry_run":     true,
-			"method":      "PUT",
-			"path":        "/rest/api/3/project/" + projectKey,
-			"body":        update,
+			"dry_run": true,
+			"method":  "PUT",
+			"path":    "/rest/api/3/project/" + projectKey,
+			"body":    update,
 		}, "", "  ")
 		fmt.Fprintln(stdout, string(out))
 		return exitOK, nil

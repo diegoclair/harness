@@ -7,7 +7,6 @@
 // whether to block rendering based on ErrCount > 0.
 package main
 
-
 // Severity classifies how critical a lint finding is.
 type Severity int
 

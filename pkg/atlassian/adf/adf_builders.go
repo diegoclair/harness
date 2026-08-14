@@ -109,11 +109,11 @@ func EmbedCard(url, layout string) Node {
 type LayoutType string
 
 const (
-	LayoutSingle           LayoutType = "single"
-	LayoutTwoEqual         LayoutType = "two_equal"
-	LayoutTwoLeftSidebar   LayoutType = "two_left_sidebar"
-	LayoutTwoRightSidebar  LayoutType = "two_right_sidebar"
-	LayoutThreeEqual       LayoutType = "three_equal"
+	LayoutSingle            LayoutType = "single"
+	LayoutTwoEqual          LayoutType = "two_equal"
+	LayoutTwoLeftSidebar    LayoutType = "two_left_sidebar"
+	LayoutTwoRightSidebar   LayoutType = "two_right_sidebar"
+	LayoutThreeEqual        LayoutType = "three_equal"
 	LayoutThreeWithSidebars LayoutType = "three_with_sidebars"
 )
 

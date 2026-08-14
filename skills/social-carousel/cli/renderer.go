@@ -73,10 +73,10 @@ type RenderResult struct {
 // the schema expected by templates/carousel.html.tmpl and the footer
 // partial — pre-resolved values, no pointer-bool gymnastics in the template.
 type slideHTMLCtx struct {
-	Index           int     // 1-based
-	Total           int     // total slides in the carousel (always 1 in single-slide render)
-	Layout          string  // for data-layout attribute and dispatch
-	Slide           Slide   // raw slide payload
+	Index           int    // 1-based
+	Total           int    // total slides in the carousel (always 1 in single-slide render)
+	Layout          string // for data-layout attribute and dispatch
+	Slide           Slide  // raw slide payload
 	Carousel        *Carousel
 	Theme           *Theme
 	ShowSlideNumber bool

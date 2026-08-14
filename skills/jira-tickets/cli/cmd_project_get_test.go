@@ -56,4 +56,3 @@ func TestRunProjectGet_UnexpectedExtraArg(t *testing.T) {
 		t.Fatalf("expected exit code %d, got %d", exitInputErr, code)
 	}
 }
-

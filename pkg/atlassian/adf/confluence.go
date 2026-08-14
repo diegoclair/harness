@@ -812,9 +812,9 @@ func (c *ConfluenceClient) SearchCQL(cql string, limit int) ([]SearchResult, err
 					WebUI string `json:"webui"`
 				} `json:"_links"`
 			} `json:"content"`
-			Title    string `json:"title"`
-			Excerpt  string `json:"excerpt"`
-			URL      string `json:"url"`
+			Title      string `json:"title"`
+			Excerpt    string `json:"excerpt"`
+			URL        string `json:"url"`
 			EntityType string `json:"entityType"`
 		} `json:"results"`
 	}
@@ -913,11 +913,11 @@ type SpaceResult struct {
 // spaceResultRaw mirrors the v2 API payload before we collapse it into the
 // SpaceResult exposed publicly.
 type spaceResultRaw struct {
-	ID                  string `json:"id"`
-	Key                 string `json:"key"`                 // internal hash key (v2)
-	CurrentActiveAlias  string `json:"currentActiveAlias"`  // human-readable URL/CQL key
-	Name                string `json:"name"`
-	HomepageID          string `json:"homepageId"`
+	ID                 string `json:"id"`
+	Key                string `json:"key"`                // internal hash key (v2)
+	CurrentActiveAlias string `json:"currentActiveAlias"` // human-readable URL/CQL key
+	Name               string `json:"name"`
+	HomepageID         string `json:"homepageId"`
 }
 
 func (raw spaceResultRaw) toResult() SpaceResult {

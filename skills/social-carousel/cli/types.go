@@ -65,9 +65,9 @@ type Slide struct {
 	HookFormula string `yaml:"hook_formula,omitempty" json:"hook_formula,omitempty"`
 
 	// --- cover ---
-	Label string `yaml:"label,omitempty" json:"label,omitempty"`   // small uppercase tag at top, e.g. "SOLO PROVIDER"
-	Hook  string `yaml:"hook,omitempty" json:"hook,omitempty"`     // gigantic headline, ≤12 words
-	Sub   string `yaml:"sub,omitempty" json:"sub,omitempty"`       // microcopy line below the hook
+	Label string `yaml:"label,omitempty" json:"label,omitempty"` // small uppercase tag at top, e.g. "SOLO PROVIDER"
+	Hook  string `yaml:"hook,omitempty" json:"hook,omitempty"`   // gigantic headline, ≤12 words
+	Sub   string `yaml:"sub,omitempty" json:"sub,omitempty"`     // microcopy line below the hook
 
 	// --- list ---
 	Title string   `yaml:"title,omitempty" json:"title,omitempty"`
@@ -102,13 +102,13 @@ type Slide struct {
 	Orientation string `yaml:"orientation,omitempty" json:"orientation,omitempty"`
 
 	// --- screenshot ---
-	Image      string `yaml:"image,omitempty" json:"image,omitempty"` // relative path to screenshot
-	DeviceKind string `yaml:"device,omitempty" json:"device,omitempty"`   // "iphone" | "browser" | "android" | "" (none)
+	Image      string `yaml:"image,omitempty" json:"image,omitempty"`   // relative path to screenshot
+	DeviceKind string `yaml:"device,omitempty" json:"device,omitempty"` // "iphone" | "browser" | "android" | "" (none)
 
 	// --- cta (last slide) ---
-	Headline string `yaml:"headline,omitempty" json:"headline,omitempty"` // question or command, ≤12 words
-	CTAText  string `yaml:"cta_text,omitempty" json:"cta_text,omitempty"` // "Comment LYBEL", "Save and DM me"
-	SwipeBack bool  `yaml:"swipe_back,omitempty" json:"swipe_back,omitempty"` // shows "← back to start"
+	Headline  string `yaml:"headline,omitempty" json:"headline,omitempty"`     // question or command, ≤12 words
+	CTAText   string `yaml:"cta_text,omitempty" json:"cta_text,omitempty"`     // "Comment LYBEL", "Save and DM me"
+	SwipeBack bool   `yaml:"swipe_back,omitempty" json:"swipe_back,omitempty"` // shows "← back to start"
 
 	// --- text (free-form fallback; use sparingly) ---
 	Body string `yaml:"body,omitempty" json:"body,omitempty"`
@@ -139,27 +139,27 @@ type Theme struct {
 	Description string `yaml:"description,omitempty"`
 
 	// Colors. Hex strings, e.g. "#0D1117".
-	BgPrimary   string `yaml:"bg_primary"`              // main slide background
-	BgSecondary string `yaml:"bg_secondary,omitempty"`  // optional alt bg for variation
-	FgPrimary   string `yaml:"fg_primary"`              // body text
-	FgSecondary string `yaml:"fg_secondary,omitempty"`  // muted text (caption, handle)
-	Accent      string `yaml:"accent"`                  // primary brand color
-	AccentAlt   string `yaml:"accent_alt,omitempty"`    // secondary accent
+	BgPrimary   string `yaml:"bg_primary"`             // main slide background
+	BgSecondary string `yaml:"bg_secondary,omitempty"` // optional alt bg for variation
+	FgPrimary   string `yaml:"fg_primary"`             // body text
+	FgSecondary string `yaml:"fg_secondary,omitempty"` // muted text (caption, handle)
+	Accent      string `yaml:"accent"`                 // primary brand color
+	AccentAlt   string `yaml:"accent_alt,omitempty"`   // secondary accent
 	// Optional light-variant palette for the "clarity" tone. When set, a
 	// clarity slide renders on this light background instead of the default
 	// secondary-dark surface — restoring the deliberate dark→light→dark
 	// rhythm without the generic flat-white-card look (layouts now carry
 	// eyebrow + hierarchy + accent on any tone). Leave empty to keep clarity
 	// slides on the dark secondary surface.
-	BgClarity   string `yaml:"bg_clarity,omitempty"`
-	FgClarity   string `yaml:"fg_clarity,omitempty"`
+	BgClarity string `yaml:"bg_clarity,omitempty"`
+	FgClarity string `yaml:"fg_clarity,omitempty"`
 
 	// Typography. Family names must match what is registered in
 	// base.css via @font-face. Presets ship with Outfit + DM Sans;
 	// custom themes can declare new font files in their own dir.
-	FontHeading string `yaml:"font_heading"`            // e.g. "Outfit"
-	FontBody    string `yaml:"font_body"`               // e.g. "DM Sans"
-	FontQuote   string `yaml:"font_quote,omitempty"`    // optional, used by quote layout
+	FontHeading string `yaml:"font_heading"`         // e.g. "Outfit"
+	FontBody    string `yaml:"font_body"`            // e.g. "DM Sans"
+	FontQuote   string `yaml:"font_quote,omitempty"` // optional, used by quote layout
 
 	// Decorative options.
 	BackgroundEffect string `yaml:"background_effect,omitempty"` // "" | "dots" | "grid" | "halo"
@@ -169,12 +169,12 @@ type Theme struct {
 // PlatformSpec is internal — resolved from the Carousel.Platform string.
 // Not part of the user-facing YAML.
 type PlatformSpec struct {
-	Name           string // "instagram-4x5"
-	Width          int    // logical width in CSS px (1080)
-	Height         int    // logical height (1350 for 4x5)
+	Name           string  // "instagram-4x5"
+	Width          int     // logical width in CSS px (1080)
+	Height         int     // logical height (1350 for 4x5)
 	DeviceScale    float64 // 2.0 for retina export → 2160×2700
-	OutputFormat   string // "png" | "pdf"
-	AspectShortcut string // "4:5" | "1:1" | "9:16"
+	OutputFormat   string  // "png" | "pdf"
+	AspectShortcut string  // "4:5" | "1:1" | "9:16"
 	// SafePadX is the horizontal content padding (px), replacing base.css's
 	// default 80px. Instagram's profile grid crops a 4:5 post to 3:4
 	// (~34px/side at 1080px width); this adds margin so text never sits in

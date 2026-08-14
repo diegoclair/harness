@@ -185,8 +185,8 @@ func parseAPIError(statusCode int, body []byte) *APIError {
 // ---------- Core HTTP ----------
 
 const (
-	maxRetries      = 3
-	retryBaseDelay  = time.Second
+	maxRetries     = 3
+	retryBaseDelay = time.Second
 )
 
 // doRequest executes an HTTP request against the given full URL and returns

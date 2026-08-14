@@ -92,12 +92,12 @@ type accessibleResource struct {
 // auth_mode switches to oauth.
 func RunLogin(args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 	var (
-		clientID     string
-		clientSecret string
-		scopes       string
-		site         string
-		port         = DefaultPort
-		noBrowser    bool
+		clientID      string
+		clientSecret  string
+		scopes        string
+		site          string
+		port          = DefaultPort
+		noBrowser     bool
 		printRedirect bool
 	)
 

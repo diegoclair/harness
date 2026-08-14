@@ -29,7 +29,7 @@ func TestIsMarkdownHeading(t *testing.T) {
 		{"#NoSpace", false},         // no space after hash
 		{"plain line", false},
 		{"", false},
-		{"#", false},   // single hash, no space after
+		{"#", false},      // single hash, no space after
 		{" # not", false}, // leading space — not a heading
 	}
 	for _, tc := range cases {

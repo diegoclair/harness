@@ -15,12 +15,13 @@ import (
 // last). The agent fills in the actual copy.
 //
 // Kinds:
-//   listicle     — H-13 hook + 6 numbered list items + recap + CTA
-//   case-study   — H-03 confessional + before/after + result + CTA
-//   framework    — H-01 result-promise + 6 framework steps + recap + CTA
-//   comparison   — H-02 contrarian + comparison slides + CTA
-//   story        — H-11 transformation + narrative + payoff + CTA
-//   data-drop    — H-07 authority + big-number slides + list + CTA
+//
+//	listicle     — H-13 hook + 6 numbered list items + recap + CTA
+//	case-study   — H-03 confessional + before/after + result + CTA
+//	framework    — H-01 result-promise + 6 framework steps + recap + CTA
+//	comparison   — H-02 contrarian + comparison slides + CTA
+//	story        — H-11 transformation + narrative + payoff + CTA
+//	data-drop    — H-07 authority + big-number slides + list + CTA
 func runNew(args []string, stdout, stderr io.Writer) (int, error) {
 	var kind, outPath string
 	for i := 0; i < len(args); i++ {
