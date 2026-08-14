@@ -176,6 +176,7 @@ func TestFlagWithoutAValueIsAUsageError(t *testing.T) {
 func TestWildcardsCombineAsAUnion(t *testing.T) {
 	home := sandboxHome(t)
 	tree := fixtureTree(t)
+	serveReleases(t)
 
 	code, _, stderr := runCLI(t, "install", "--from", tree, "--all-skills", "--all-agents")
 	if code != exitOK {
@@ -188,6 +189,21 @@ func TestWildcardsCombineAsAUnion(t *testing.T) {
 		if _, err := os.Stat(p); err != nil {
 			t.Errorf("missing %s: %v", p, err)
 		}
+	}
+
+	// The same batch carries skills that drive a binary: one pipeline has to
+	// serve both without the caller distinguishing them.
+	for _, name := range []string{"confluence-docs", "jira-tickets", "social-carousel"} {
+		if _, err := os.Stat(filepath.Join(home, ".claude", "skills", name, "bin", name)); err != nil {
+			t.Errorf("%s should have been installed with its binary: %v", name, err)
+		}
+		if _, err := os.Lstat(filepath.Join(home, ".local", "bin", name)); err != nil {
+			t.Errorf("%s should be on PATH: %v", name, err)
+		}
+	}
+	// ...while the plain skills get neither.
+	if _, err := os.Stat(filepath.Join(home, ".claude", "skills", "dev-loop", "bin")); err == nil {
+		t.Error("dev-loop ships no cli/ and must not get a bin/")
 	}
 }
 
@@ -236,6 +252,7 @@ func TestDescriptionLimitCountsCharactersNotBytes(t *testing.T) {
 func TestAFailedArtifactIsReportedAndChangesTheExitCode(t *testing.T) {
 	home := sandboxHome(t)
 	tree := fixtureTree(t)
+	serveReleases(t)
 	// A directory harness did not install makes exactly one artifact fail.
 	mustWrite(t, filepath.Join(home, ".claude", "skills", "dev-loop", "SKILL.md"), "hand-written")
 
@@ -243,7 +260,7 @@ func TestAFailedArtifactIsReportedAndChangesTheExitCode(t *testing.T) {
 	if code != exitErr {
 		t.Errorf("exit = %d, want %d", code, exitErr)
 	}
-	if !strings.Contains(stderr, "of 3 artifact(s) failed") {
+	if !strings.Contains(stderr, "1 of 6 artifact(s) failed") {
 		t.Errorf("stderr should summarise the failures, got %q", stderr)
 	}
 	// The others still install: one bad artifact does not abort the batch.

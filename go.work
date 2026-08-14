@@ -2,5 +2,9 @@ go 1.26.3
 
 use (
 	./installer
+	./pkg/atlassian
 	./pkg/release
+	./skills/confluence-docs/cli
+	./skills/jira-tickets/cli
+	./skills/social-carousel/cli
 )

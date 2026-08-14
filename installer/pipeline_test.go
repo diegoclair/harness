@@ -54,6 +54,42 @@ func makeReleaseZip(t *testing.T, skill, binBody string) []byte {
 	return buf.Bytes()
 }
 
+// serveReleases answers for every skill, building the archive from the name in
+// the requested URL — a batch mixing tree-payload and release-payload skills
+// needs a different zip per skill.
+func serveReleases(t *testing.T) {
+	t.Helper()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		skill := skillFromURL(r.URL.Path)
+		if strings.Contains(r.URL.Path, "/releases") && !strings.Contains(r.URL.Path, "/download/") {
+			w.Header().Set("Content-Type", "application/json")
+			io.WriteString(w, `[{"tag_name":"confluence-v1.0.0","draft":false,"prerelease":false},`+
+				`{"tag_name":"jira-v1.0.0","draft":false,"prerelease":false},`+
+				`{"tag_name":"carousel-v1.0.0","draft":false,"prerelease":false}]`)
+			return
+		}
+		if skill == "" {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		w.Write(makeReleaseZip(t, skill, strings.Replace(fakeCLI, "cli-skill", skill, 1)))
+	}))
+	t.Cleanup(srv.Close)
+
+	prev := httpClient
+	t.Cleanup(func() { httpClient = prev })
+	httpClient = &http.Client{Transport: rewriteTo(srv.URL)}
+}
+
+func skillFromURL(path string) string {
+	for _, name := range []string{"confluence-docs", "jira-tickets", "social-carousel"} {
+		if strings.Contains(path, name+"-") {
+			return name
+		}
+	}
+	return ""
+}
+
 // serveRelease answers both the releases API (tag resolution) and the asset
 // download, so the release path runs end to end.
 func serveRelease(t *testing.T, tag string, zipBody []byte) {

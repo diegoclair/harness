@@ -203,6 +203,12 @@ func fixtureTree(t *testing.T) string {
 	mustWrite(t, filepath.Join(root, "skills", "dev-loop", "reference", "notes.md"), "notes\n")
 	mustWrite(t, filepath.Join(root, "skills", "implementation-plan", "SKILL.md"), "---\nname: implementation-plan\n---\nplan body\n")
 	mustWrite(t, filepath.Join(root, "agents", "unbiased-reviewer.md"), "---\nname: unbiased-reviewer\n---\nreviewer body\n")
+	// The catalogued skills that drive a CLI: cli/ is what routes them to the
+	// release payload, so the tree must carry it for the fixture to be honest.
+	for _, name := range []string{"confluence-docs", "jira-tickets", "social-carousel"} {
+		mustWrite(t, filepath.Join(root, "skills", name, "SKILL.md"), "---\nname: "+name+"\n---\ntree body\n")
+		mustWrite(t, filepath.Join(root, "skills", name, "cli", "main.go"), "package main\n")
+	}
 	return root
 }
 

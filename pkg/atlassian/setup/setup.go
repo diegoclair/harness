@@ -1,0 +1,1120 @@
+// Package setup implements the `confluence-docs setup` sub-command: an interactive
+// wizard that guides the user through obtaining and storing Atlassian API
+// credentials, plus --check / --print-config-path / --print-config-format
+// informational modes.
+package setup
+
+import (
+	"bufio"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"os"
+	"path/filepath"
+	"runtime"
+	"strings"
+
+	"github.com/diegoclair/harness/pkg/atlassian/auth"
+)
+
+// NOTE on masked input: golang.org/x/term would give us proper masked input
+// (password prompts that hide characters). We deliberately avoid adding new
+// dependencies, so we fall back to plain readline. If masked input is needed
+// in the future, add golang.org/x/term and replace the readLine call in
+// runInteractive with:
+//
+//	byteToken, err := term.ReadPassword(int(os.Stdin.Fd()))
+
+// Exit codes for `setup --check`.
+const (
+	ExitOK          = 0
+	ExitNoCreds     = 1
+	ExitInvalidAuth = 2
+	ExitNetworkErr  = 3
+)
+
+// skillName identifies which skill is calling into this package — used to
+// scope the per-skill config file (active_space, home_page_id, etc.) and to
+// build legacy credential fallback paths. Credentials themselves are
+// atlassian-wide and live under `<UserConfigDir>/atlassian/credentials`,
+// shared across all atlassian skills (confluence-docs, jira-tickets, …)
+// since the email and API token are the same.
+//
+// Defaults to "confluence-docs" for back-compat with installs from v0.12.x
+// and earlier. Other skills must call SetSkillName once in main() before
+// any other function in this package is invoked.
+var skillName = "confluence-docs"
+
+// SetSkillName configures the per-skill scope for this package. Idempotent.
+// Must be called from main() before any other function. Calling it with an
+// empty string is a no-op.
+func SetSkillName(name string) {
+	if name != "" {
+		skillName = name
+	}
+}
+
+// SkillName returns the configured skill name (for tests/diagnostics).
+func SkillName() string { return skillName }
+
+// Product is the Atlassian product a skill talks to. It decides which API
+// validates credentials and whether an active Confluence space is part of
+// being "configured" — Jira has no equivalent notion.
+type Product int
+
+const (
+	ProductConfluence Product = iota
+	ProductJira
+)
+
+// Defaults to Confluence for back-compat with callers that predate SetProduct.
+var product = ProductConfluence
+
+// SetProduct configures which Atlassian product this skill targets. Must be
+// called from main() before any other function in this package.
+func SetProduct(p Product) { product = p }
+
+// usesActiveSpace reports whether an active space is required for this
+// product to count as configured.
+func usesActiveSpace() bool { return product == ProductConfluence }
+
+// httpClient is the interface used for HTTP calls so tests can inject a mock.
+type httpClient interface {
+	Do(req *http.Request) (*http.Response, error)
+}
+
+// defaultHTTPClient is the real HTTP client used in production.
+var defaultHTTPClient httpClient = http.DefaultClient
+
+// Config holds the non-sensitive workspace configuration.
+type Config struct {
+	Cloud         string
+	SpaceID       string
+	SpaceKey      string
+	SpaceName     string
+	HomePageID    string
+}
+
+// SpaceInfo is a single Confluence space from the list-spaces API.
+type SpaceInfo struct {
+	ID         string
+	Key        string
+	Name       string
+	HomepageID string
+}
+
+// ConfigPath returns the platform-appropriate path to the atlassian-wide
+// credentials file. Credentials (email + API token) are shared across all
+// atlassian skills since they identify the user, not the product.
+//
+//   - Linux:   $XDG_CONFIG_HOME/atlassian/credentials  (falls back to ~/.config/…)
+//   - macOS:   ~/Library/Application Support/atlassian/credentials
+//   - Windows: %AppData%\atlassian\credentials
+func ConfigPath() (string, error) {
+	dir, err := os.UserConfigDir()
+	if err != nil {
+		return "", fmt.Errorf("cannot determine config directory: %w", err)
+	}
+	return filepath.Join(dir, "atlassian", "credentials"), nil
+}
+
+// ConfigFilePath returns the platform-appropriate path to the non-sensitive
+// per-skill config file (cloud, active_space_*, active_home_page_id).
+// Scoped to skillName because active workspace differs between skills
+// (a Confluence space ID is meaningless to jira-tickets).
+func ConfigFilePath() (string, error) {
+	dir, err := os.UserConfigDir()
+	if err != nil {
+		return "", fmt.Errorf("cannot determine config directory: %w", err)
+	}
+	return filepath.Join(dir, skillName, "config"), nil
+}
+
+// fallbackCredsPaths returns the ordered list of legacy locations to try
+// when the new atlassian-wide path doesn't have a credentials file yet.
+// Order: most recent legacy first, oldest last.
+//
+//   1. <UserConfigDir>/<skill>/credentials   — v0.10–v0.12 per-skill cross-platform path
+//   2. ~/.config/<skill>/credentials         — v0.9 and earlier hardcoded-Linux path
+//
+// Returns paths even if their parent directories don't exist; the caller
+// uses os.IsNotExist to skip absent files.
+func fallbackCredsPaths() []string {
+	var paths []string
+	if dir, err := os.UserConfigDir(); err == nil {
+		paths = append(paths, filepath.Join(dir, skillName, "credentials"))
+	}
+	if home, err := os.UserHomeDir(); err == nil {
+		paths = append(paths, filepath.Join(home, ".config", skillName, "credentials"))
+	}
+	return paths
+}
+
+// legacyConfigPath kept as an alias for tests and external callers that
+// expect a single legacy path. Returns the first legacy path (the v0.10+
+// per-skill cross-platform location).
+func legacyConfigPath() (string, error) {
+	paths := fallbackCredsPaths()
+	if len(paths) == 0 {
+		return "", fmt.Errorf("cannot determine legacy config path")
+	}
+	return paths[0], nil
+}
+
+// ReadCredsFile reads the credentials file at the canonical config path.
+// If the new path does not exist but the legacy path does, it reads the legacy
+// file and prints a warning to stderr suggesting migration.
+//
+// Returns (email, token, error). An os.IsNotExist error means no file found.
+// Cloud is no longer returned here — it's read from ReadConfigFile.
+func ReadCredsFile(stderr io.Writer) (email, token string, err error) {
+	newPath, pathErr := ConfigPath()
+	if pathErr != nil {
+		return "", "", pathErr
+	}
+
+	data, readErr := os.ReadFile(newPath)
+	if readErr != nil && os.IsNotExist(readErr) {
+		// New atlassian-wide path doesn't exist yet. Try each legacy
+		// per-skill path in order (most recent first). Print a one-shot
+		// warning so users know to migrate by re-running setup, but keep
+		// the read working so existing installs aren't broken.
+		for _, legacyPath := range fallbackCredsPaths() {
+			if legacyPath == newPath {
+				continue // would have already been tried
+			}
+			legacyData, legacyReadErr := os.ReadFile(legacyPath)
+			if legacyReadErr == nil {
+				fmt.Fprintf(stderr,
+					"warning: credentials found at legacy path %s — run `%s setup` to migrate to %s (shared across atlassian skills)\n",
+					legacyPath, skillName, newPath)
+				data = legacyData
+				readErr = nil
+				break
+			}
+		}
+	}
+	if readErr != nil {
+		return "", "", readErr
+	}
+
+	return parseCredsData(data)
+}
+
+// parseCredsData parses a key=value credential file, returning only email and
+// token (cloud is no longer part of the credentials file in v0.10.0+).
+func parseCredsData(data []byte) (email, token string, err error) {
+	for _, line := range strings.Split(string(data), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		kv := strings.SplitN(line, "=", 2)
+		if len(kv) != 2 {
+			continue
+		}
+		key := strings.TrimSpace(kv[0])
+		val := strings.TrimSpace(kv[1])
+		switch key {
+		case "email":
+			email = val
+		case "token":
+			token = val
+		}
+	}
+	return email, token, nil
+}
+
+// ReadConfigFile reads the non-sensitive config file and returns a Config
+// struct. Falls back to reading cloud= from the old credentials file for
+// backward compatibility with v0.9.x installs.
+// Returns a zero-value Config (not an error) when the file doesn't exist yet.
+func ReadConfigFile() Config {
+	var cfg Config
+
+	// Try the new config file first.
+	path, err := ConfigFilePath()
+	if err == nil {
+		if data, rerr := os.ReadFile(path); rerr == nil {
+			cfg = parseConfigData(data)
+			if cfg.Cloud != "" {
+				return cfg
+			}
+		}
+	}
+
+	// Backward compat: read cloud= from the old credentials file.
+	cfg.Cloud = readCloudFromOldCreds()
+	return cfg
+}
+
+// parseConfigData parses a key=value config file into a Config struct.
+func parseConfigData(data []byte) Config {
+	var cfg Config
+	for _, line := range strings.Split(string(data), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		kv := strings.SplitN(line, "=", 2)
+		if len(kv) != 2 {
+			continue
+		}
+		key := strings.TrimSpace(kv[0])
+		val := strings.TrimSpace(kv[1])
+		switch key {
+		case "cloud":
+			cfg.Cloud = val
+		case "active_space_id":
+			cfg.SpaceID = val
+		case "active_space_key":
+			cfg.SpaceKey = val
+		case "active_space_name":
+			cfg.SpaceName = val
+		case "active_home_page_id":
+			cfg.HomePageID = val
+		}
+	}
+	return cfg
+}
+
+// WriteConfig writes the config file with the given Config. Creates parent
+// directories if needed. Permissions: 0644 (non-sensitive data).
+func WriteConfig(cfg Config) error {
+	path, err := ConfigFilePath()
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+		return fmt.Errorf("create config dir: %w", err)
+	}
+	var sb strings.Builder
+	if cfg.Cloud != "" {
+		fmt.Fprintf(&sb, "cloud=%s\n", cfg.Cloud)
+	}
+	if cfg.SpaceID != "" {
+		fmt.Fprintf(&sb, "active_space_id=%s\n", cfg.SpaceID)
+	}
+	if cfg.SpaceKey != "" {
+		fmt.Fprintf(&sb, "active_space_key=%s\n", cfg.SpaceKey)
+	}
+	if cfg.SpaceName != "" {
+		fmt.Fprintf(&sb, "active_space_name=%s\n", cfg.SpaceName)
+	}
+	if cfg.HomePageID != "" {
+		fmt.Fprintf(&sb, "active_home_page_id=%s\n", cfg.HomePageID)
+	}
+	if err := os.WriteFile(path, []byte(sb.String()), 0644); err != nil {
+		return fmt.Errorf("write config: %w", err)
+	}
+	return nil
+}
+
+// readCloudFromOldCreds reads the cloud= line from the old credentials file
+// (v0.9.x single-file format). Used as backward-compat fallback only.
+func readCloudFromOldCreds() string {
+	path, err := ConfigPath()
+	if err != nil {
+		return ""
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		// Try legacy path.
+		legacy, lerr := legacyConfigPath()
+		if lerr != nil || legacy == path {
+			return ""
+		}
+		data, err = os.ReadFile(legacy)
+		if err != nil {
+			return ""
+		}
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		kv := strings.SplitN(line, "=", 2)
+		if len(kv) != 2 {
+			continue
+		}
+		if strings.TrimSpace(kv[0]) == "cloud" {
+			return strings.TrimSpace(kv[1])
+		}
+	}
+	return ""
+}
+
+// ReadCloudFromCreds returns the cloud subdomain from either the config file
+// (v0.10.0+) or the old single credentials file (v0.9.x backward compat).
+// Kept for compatibility; new code should use ReadConfigFile().Cloud.
+func ReadCloudFromCreds() string {
+	cfg := ReadConfigFile()
+	return cfg.Cloud
+}
+
+// WriteCreds stores email and token in the shared atlassian credentials file
+// (0600) via the auth store, preserving any stored OAuth grant fields.
+// Running setup is an explicit choice of token auth, so auth_mode is set to
+// apitoken. The variadic cloud arg is accepted but ignored (cloud now goes
+// to WriteConfig).
+func WriteCreds(email, token string, cloud ...string) error {
+	c, err := auth.ReadCreds()
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	c.Email = email
+	c.Token = token
+	c.Mode = auth.ModeAPIToken
+	return auth.WriteCreds(c)
+}
+
+// userInfoResult holds the parsed response from the Confluence current-user API.
+type userInfoResult struct {
+	DisplayName string
+	AccountID   string
+	StatusCode  int
+	// Err is non-nil only for network/transport errors.
+	// Auth failures (401/403) are indicated by StatusCode, not Err.
+	Err error
+}
+
+// fetchCurrentUser calls the configured product's API to validate credentials.
+// The Authorizer decides both the base URL and the Authorization header
+// (Basic against the site domain, Bearer against the OAuth gateway). Probing
+// the right product matters on sites that only have one of them: Confluence's
+// endpoint 404s where Jira is the only product installed, and vice versa.
+func fetchCurrentUser(client httpClient, a auth.Authorizer) userInfoResult {
+	// Both are classic v1/v3 REST endpoints that always expose displayName.
+	url := a.ConfluenceBase() + "/rest/api/user/current"
+	if product == ProductJira {
+		url = a.JiraBase() + "/rest/api/3/myself"
+	}
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return userInfoResult{Err: fmt.Errorf("build request: %w", err)}
+	}
+
+	if err := a.Apply(req); err != nil {
+		return userInfoResult{Err: fmt.Errorf("apply auth: %w", err)}
+	}
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return userInfoResult{Err: fmt.Errorf("network error: %w", err)}
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
+		return userInfoResult{StatusCode: resp.StatusCode}
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return userInfoResult{
+			StatusCode: resp.StatusCode,
+			Err:        fmt.Errorf("unexpected status %d", resp.StatusCode),
+		}
+	}
+
+	var body struct {
+		DisplayName string `json:"displayName"`
+		AccountID   string `json:"accountId"`
+		PublicName  string `json:"publicName"` // v2 API alternative
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		return userInfoResult{
+			StatusCode: resp.StatusCode,
+			Err:        fmt.Errorf("parse response: %w", err),
+		}
+	}
+	name := body.DisplayName
+	if name == "" {
+		name = body.PublicName
+	}
+	return userInfoResult{
+		DisplayName: name,
+		AccountID:   body.AccountID,
+		StatusCode:  resp.StatusCode,
+	}
+}
+
+// fetchSpaces fetches accessible spaces from the Confluence API.
+// Returns the list of SpaceInfo and any error.
+func fetchSpaces(client httpClient, a auth.Authorizer) ([]SpaceInfo, error) {
+	url := a.ConfluenceBase() + "/api/v2/spaces?status=current&limit=250"
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("build request: %w", err)
+	}
+	if err := a.Apply(req); err != nil {
+		return nil, fmt.Errorf("apply auth: %w", err)
+	}
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("network error: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("unexpected status %d fetching spaces", resp.StatusCode)
+	}
+
+	// Confluence v2 returns the human-readable URL/CQL key in
+	// `currentActiveAlias`; the `key` field holds an internal hex hash for
+	// non-personal spaces. Prefer the alias when present (same logic as
+	// adf.ListSpaces).
+	var result struct {
+		Results []struct {
+			ID                 string `json:"id"`
+			Key                string `json:"key"`
+			CurrentActiveAlias string `json:"currentActiveAlias"`
+			Name               string `json:"name"`
+			HomepageID         string `json:"homepageId"`
+		} `json:"results"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("parse spaces response: %w", err)
+	}
+
+	spaces := make([]SpaceInfo, 0, len(result.Results))
+	for _, r := range result.Results {
+		key := r.CurrentActiveAlias
+		if key == "" {
+			key = r.Key
+		}
+		spaces = append(spaces, SpaceInfo{
+			ID:         r.ID,
+			Key:        key,
+			Name:       r.Name,
+			HomepageID: r.HomepageID,
+		})
+	}
+	return spaces, nil
+}
+
+// resolveCloud returns the effective Confluence cloud subdomain.
+// Priority: $ATLASSIAN_CLOUD env var → config file → old credentials file → "".
+// Callers must handle the empty case (e.g. error with a clear message).
+func resolveCloud() string {
+	if env := os.Getenv("ATLASSIAN_CLOUD"); env != "" {
+		return env
+	}
+	cfg := ReadConfigFile()
+	return cfg.Cloud
+}
+
+// readLine reads a single trimmed line from r.
+// Uses bufio.Reader.ReadString to avoid reading ahead past the first newline,
+// so successive calls on the same underlying reader each get one line.
+func readLine(r io.Reader) (string, error) {
+	br := bufio.NewReader(r)
+	line, err := br.ReadString('\n')
+	if err != nil && err != io.EOF {
+		return "", err
+	}
+	line = strings.TrimRight(line, "\r\n")
+	return strings.TrimSpace(line), nil
+}
+
+// Run is the main entry point for the `setup` sub-command.
+func Run(args []string, stdin io.Reader, stdout, stderr io.Writer) (exitCode int, err error) {
+	return runWithClient(args, stdin, stdout, stderr, defaultHTTPClient)
+}
+
+// runWithClient is the testable core of Run with an injectable HTTP client.
+func runWithClient(args []string, stdin io.Reader, stdout, stderr io.Writer, client httpClient) (int, error) {
+	var (
+		email        string
+		token        string
+		doCheck      bool
+		doReconfigure bool
+		printPath    bool
+		printFormat  bool
+		setKey       string
+		setValue     string
+		doSet        bool
+	)
+
+	for i := 0; i < len(args); i++ {
+		a := args[i]
+		switch {
+		case a == "--email":
+			if i+1 >= len(args) {
+				fmt.Fprintln(stderr, "flag --email requires a value")
+				return ExitNoCreds, fmt.Errorf("missing value")
+			}
+			email = args[i+1]
+			i++
+		case strings.HasPrefix(a, "--email="):
+			email = a[8:]
+		case a == "--token":
+			if i+1 >= len(args) {
+				fmt.Fprintln(stderr, "flag --token requires a value")
+				return ExitNoCreds, fmt.Errorf("missing value")
+			}
+			token = args[i+1]
+			i++
+		case strings.HasPrefix(a, "--token="):
+			token = a[8:]
+		case a == "--check":
+			doCheck = true
+		case a == "--reconfigure":
+			doReconfigure = true
+		case a == "--print-config-path":
+			printPath = true
+		case a == "--print-config-format":
+			printFormat = true
+		case a == "--set":
+			if i+2 >= len(args) {
+				fmt.Fprintln(stderr, "flag --set requires two values: --set <key> <value>")
+				return ExitNoCreds, fmt.Errorf("missing value")
+			}
+			setKey = args[i+1]
+			setValue = args[i+2]
+			doSet = true
+			i += 2
+		default:
+			fmt.Fprintln(stderr, "setup: unknown flag:", a)
+			return ExitNoCreds, fmt.Errorf("unknown flag: %s", a)
+		}
+	}
+
+	if printPath {
+		p, err := ConfigPath()
+		if err != nil {
+			fmt.Fprintln(stderr, "setup:", err)
+			return ExitNetworkErr, err
+		}
+		fmt.Fprintln(stdout, p)
+		return ExitOK, nil
+	}
+
+	if printFormat {
+		fmt.Fprintln(stdout, "email=user@example.com")
+		fmt.Fprintln(stdout, "token=ATATT3xFfGF0...")
+		fmt.Fprintln(stdout, "# the file may also hold oauth_* keys, managed by the `login` command")
+		return ExitOK, nil
+	}
+
+	if doSet {
+		return runSet(setKey, setValue, stdout, stderr)
+	}
+
+	if doCheck {
+		return runCheck(stdout, stderr, client)
+	}
+
+	// Non-interactive mode: both flags provided.
+	if email != "" && token != "" && !doReconfigure {
+		return runNonInteractive(email, token, stdout, stderr, client)
+	}
+
+	// Interactive wizard. Always prefill from existing credentials when
+	// present — the wizard shows them masked and lets the user press Enter
+	// to keep, so first-time `setup` after a v0.9.x install doesn't force
+	// the user to re-paste the token they already have.
+	prefillEmail := email
+	prefillToken := token
+	if prefillEmail == "" || prefillToken == "" {
+		existEmail, existToken, _ := ReadCredsFile(stderr)
+		if prefillEmail == "" {
+			prefillEmail = existEmail
+		}
+		if prefillToken == "" {
+			prefillToken = existToken
+		}
+	}
+	return runInteractive(prefillEmail, prefillToken, stdin, stdout, stderr, client)
+}
+
+// knownConfigKeys is the set of keys accepted by --set.
+var knownConfigKeys = map[string]bool{
+	"cloud":              true,
+	"active_space_id":    true,
+	"active_space_key":   true,
+	"active_space_name":  true,
+	"active_home_page_id": true,
+}
+
+// runSet implements `setup --set <key> <value>`.
+func runSet(key, value string, stdout, stderr io.Writer) (int, error) {
+	if !knownConfigKeys[key] {
+		fmt.Fprintf(stderr, "setup --set: unknown key %q\n", key)
+		fmt.Fprintln(stderr, "  valid keys: cloud, active_space_id, active_space_key, active_space_name, active_home_page_id")
+		fmt.Fprintln(stderr, "  tip: to switch spaces use `confluence-docs space use <key>` instead")
+		return ExitNoCreds, fmt.Errorf("unknown key: %s", key)
+	}
+	// Read existing config.
+	cfg := ReadConfigFile()
+	// Apply the new value.
+	switch key {
+	case "cloud":
+		cfg.Cloud = value
+	case "active_space_id":
+		cfg.SpaceID = value
+	case "active_space_key":
+		cfg.SpaceKey = value
+	case "active_space_name":
+		cfg.SpaceName = value
+	case "active_home_page_id":
+		cfg.HomePageID = value
+	}
+	if err := WriteConfig(cfg); err != nil {
+		fmt.Fprintln(stderr, "setup --set: writing config:", err)
+		return ExitNetworkErr, err
+	}
+	path, _ := ConfigFilePath()
+	fmt.Fprintf(stdout, "config updated: %s = %q (saved to %s)\n", key, value, path)
+	return ExitOK, nil
+}
+
+// productMissingMsg explains a 404 from the product API: the credentials are
+// fine, the site simply does not have that product installed. Atlassian only
+// grants scopes for products a site actually has, so this is a common shape
+// on Confluence-only or Jira-only sites.
+func productMissingMsg() string {
+	name := "Confluence"
+	if product == ProductJira {
+		name = "Jira"
+	}
+	return fmt.Sprintf("credentials are valid but this Atlassian site has no %s — %s cannot be used here", name, skillName)
+}
+
+// spaceSuffix renders the active space for the success line, or nothing for
+// products that have no such concept.
+func spaceSuffix(cfg Config) string {
+	if !usesActiveSpace() {
+		return ""
+	}
+	return ", space: " + cfg.SpaceKey
+}
+
+// hasActiveSpace reports whether the active-space requirement is satisfied,
+// printing the fix when it is not. Always true for products without spaces.
+func hasActiveSpace(cfg Config, stderr io.Writer) bool {
+	if !usesActiveSpace() {
+		return true
+	}
+	if cfg.SpaceID != "" && cfg.HomePageID != "" {
+		return true
+	}
+	fmt.Fprintf(stderr, "no active space configured — run `%s setup` or `%s space use <key>`\n", skillName, skillName)
+	return false
+}
+
+// runCheck validates existing credentials and returns the appropriate exit code.
+func runCheck(stdout, stderr io.Writer, client httpClient) (int, error) {
+	// A stored OAuth grant takes precedence unless auth_mode forces apitoken
+	// (mirrors auth.Resolve). OAuth calls go through the api.atlassian.com
+	// gateway, so no cloud subdomain is needed in that mode.
+	if creds, credsErr := auth.ReadCreds(); credsErr == nil &&
+		creds.HasOAuth() && creds.Mode != auth.ModeAPIToken {
+		return runCheckOAuth(creds, stdout, stderr, client)
+	}
+
+	email, token, err := ReadCredsFile(stderr)
+	if err != nil {
+		if os.IsNotExist(err) {
+			fmt.Fprintf(stderr, "no credentials configured — run `%s setup`\n", skillName)
+		} else {
+			fmt.Fprintln(stderr, "no credentials configured")
+		}
+		return ExitNoCreds, nil
+	}
+	if email == "" || token == "" {
+		fmt.Fprintf(stderr, "no credentials configured — run `%s setup`\n", skillName)
+		return ExitNoCreds, nil
+	}
+
+	cloud := resolveCloud()
+	if cloud == "" {
+		fmt.Fprintf(stderr, "no Atlassian site subdomain configured — run `%s setup`\n", skillName)
+		fmt.Fprintf(stderr, "  fix: run `%s setup` and provide your subdomain\n", skillName)
+		fmt.Fprintln(stderr, "       (e.g. 'mycompany' for mycompany.atlassian.net),")
+		fmt.Fprintln(stderr, "       or export ATLASSIAN_CLOUD=mycompany")
+		return ExitNoCreds, nil
+	}
+
+	cfg := ReadConfigFile()
+	if !hasActiveSpace(cfg, stderr) {
+		return ExitNoCreds, nil
+	}
+
+	res := fetchCurrentUser(client, auth.Basic{Email: email, Token: token, Cloud: cloud})
+	if res.StatusCode == http.StatusNotFound {
+		fmt.Fprintf(stderr, "%s\n", productMissingMsg())
+		return ExitNoCreds, nil
+	}
+	if res.Err != nil {
+		fmt.Fprintf(stderr, "could not validate (network error): %v\n", res.Err)
+		return ExitNetworkErr, nil
+	}
+	if res.StatusCode == http.StatusUnauthorized || res.StatusCode == http.StatusForbidden {
+		fmt.Fprintln(stderr, "credentials present but invalid")
+		return ExitInvalidAuth, nil
+	}
+	if res.StatusCode < 200 || res.StatusCode >= 300 {
+		fmt.Fprintf(stderr, "could not validate (network error): unexpected status %d\n", res.StatusCode)
+		return ExitNetworkErr, nil
+	}
+
+	name := res.DisplayName
+	if name == "" {
+		name = email
+	}
+	fmt.Fprintf(stdout, "credentials valid (%s%s)\n", name, spaceSuffix(cfg))
+	return ExitOK, nil
+}
+
+// runCheckOAuth validates a stored OAuth grant against the product's API.
+// The cloud subdomain is irrelevant here — the gateway routes by cloudId —
+// but the active space is still required, same as the apitoken path.
+func runCheckOAuth(creds auth.Credentials, stdout, stderr io.Writer, client httpClient) (int, error) {
+	cfg := ReadConfigFile()
+	if !hasActiveSpace(cfg, stderr) {
+		return ExitNoCreds, nil
+	}
+
+	a := auth.NewOAuth(creds)
+	// Route token refresh through the same injectable client so tests can
+	// mock the whole exchange.
+	a.HTTP = client
+
+	res := fetchCurrentUser(client, a)
+	if res.StatusCode == http.StatusNotFound {
+		fmt.Fprintf(stderr, "%s\n", productMissingMsg())
+		return ExitNoCreds, nil
+	}
+	if res.Err != nil {
+		if auth.IsReloginRequired(res.Err) {
+			fmt.Fprintln(stderr, "OAuth session invalid — run `login` again")
+			return ExitInvalidAuth, nil
+		}
+		fmt.Fprintf(stderr, "could not validate (network error): %v\n", res.Err)
+		return ExitNetworkErr, nil
+	}
+	if res.StatusCode == http.StatusUnauthorized || res.StatusCode == http.StatusForbidden {
+		fmt.Fprintln(stderr, "OAuth session invalid — run `login` again")
+		return ExitInvalidAuth, nil
+	}
+	if res.StatusCode < 200 || res.StatusCode >= 300 {
+		fmt.Fprintf(stderr, "could not validate (network error): unexpected status %d\n", res.StatusCode)
+		return ExitNetworkErr, nil
+	}
+
+	name := res.DisplayName
+	if name == "" {
+		name = creds.Site
+	}
+	fmt.Fprintf(stdout, "credentials valid (%s, oauth%s)\n", name, spaceSuffix(cfg))
+	return ExitOK, nil
+}
+
+// runNonInteractive saves credentials provided via flags without prompting.
+func runNonInteractive(email, token string, stdout, stderr io.Writer, client httpClient) (int, error) {
+	cloud := resolveCloud()
+	if cloud == "" {
+		fmt.Fprintln(stderr, "error: no Confluence subdomain configured")
+		fmt.Fprintln(stderr, "  fix: export ATLASSIAN_CLOUD=mycompany before running setup,")
+		fmt.Fprintln(stderr, "       or run setup without flags for the interactive wizard.")
+		return ExitNoCreds, fmt.Errorf("no cloud")
+	}
+	fmt.Fprint(stderr, "Validating connection... ")
+	res := fetchCurrentUser(client, auth.Basic{Email: email, Token: token, Cloud: cloud})
+	if res.Err != nil {
+		fmt.Fprintf(stderr, "\nerror: could not validate (network error): %v\n", res.Err)
+		return ExitNetworkErr, res.Err
+	}
+	if res.StatusCode == http.StatusUnauthorized || res.StatusCode == http.StatusForbidden {
+		fmt.Fprintf(stderr, "\nerror: invalid credentials — token may be wrong or revoked\n")
+		return ExitInvalidAuth, nil
+	}
+	if res.StatusCode < 200 || res.StatusCode >= 300 {
+		fmt.Fprintf(stderr, "\nerror: unexpected status %d\n", res.StatusCode)
+		return ExitNetworkErr, nil
+	}
+
+	// Write secrets only to credentials file.
+	if err := WriteCreds(email, token); err != nil {
+		fmt.Fprintln(stderr, "error saving credentials:", err)
+		return ExitNetworkErr, err
+	}
+	// Persist cloud to config file (migrate old single-file format).
+	cfg := ReadConfigFile()
+	cfg.Cloud = cloud
+	if err := WriteConfig(cfg); err != nil {
+		fmt.Fprintln(stderr, "error saving config:", err)
+		return ExitNetworkErr, err
+	}
+
+	path, _ := ConfigPath()
+	fmt.Fprintf(stderr, "connected as %s (%s at %s)\n", res.DisplayName, res.AccountID, cloud)
+	fmt.Fprintf(stdout, "credentials saved to %s\n", path)
+	return ExitOK, nil
+}
+
+// runInteractive runs the interactive setup wizard.
+func runInteractive(prefillEmail, prefillToken string, stdinRaw io.Reader, stdout, stderr io.Writer, client httpClient) (int, error) {
+	// Wrap stdin in a buffered reader once. readLine calls bufio.NewReader(stdin)
+	// internally — when stdin is already a *bufio.Reader, bufio.NewReader returns
+	// it unchanged, so successive readLine calls each consume one line correctly.
+	stdin := bufio.NewReader(stdinRaw)
+	// Detect if we're likely in a headless environment (no interactive terminal).
+	// We still proceed identically — just print a note to stderr.
+	if isHeadless() {
+		fmt.Fprintln(stderr, "(note: headless environment detected — no interactive terminal detected)")
+		fmt.Fprintln(stderr, "      You can also use: confluence-docs setup --email X --token Y")
+	}
+
+	fmt.Fprintln(stdout, "confluence-docs setup")
+	fmt.Fprintln(stdout, "─────────────────")
+	fmt.Fprintln(stdout, "To use confluence-docs we need an Atlassian API token.")
+	fmt.Fprintln(stdout)
+	fmt.Fprintln(stdout, "  1. Open this URL in your browser:")
+	fmt.Fprintln(stdout, "     https://id.atlassian.com/manage-profile/security/api-tokens")
+	fmt.Fprintln(stdout, `  2. Click "Create API token"`)
+	fmt.Fprintln(stdout, "  3. Label it: confluence-docs")
+	fmt.Fprintln(stdout, "  4. Copy the token and paste below")
+	fmt.Fprintln(stdout)
+	fmt.Fprintln(stdout, "(Press Ctrl+C any time to cancel)")
+	fmt.Fprintln(stdout)
+
+	// Unified prompt pattern: when a value already exists, show it on a
+	// separate "current" line and let the user press Enter to keep, or type
+	// a new value to override. When there is no existing value, just ask
+	// directly (single line). Same UX for all three fields.
+
+	email, ok := promptWithDefault(stdin, stdout, promptSpec{
+		Label:   "Atlassian email",
+		Current: prefillEmail,
+		Hint:    "(press Enter to keep, or type a new value)",
+	})
+	if !ok || email == "" {
+		fmt.Fprintln(stderr, "setup cancelled")
+		return ExitNoCreds, nil
+	}
+
+	token, ok := promptWithDefault(stdin, stdout, promptSpec{
+		Label:      "API token",
+		Current:    prefillToken,
+		MaskCurrent: true,
+		Hint:       "(press Enter to keep, or paste a new token)",
+	})
+	if !ok || token == "" {
+		fmt.Fprintln(stderr, "setup cancelled")
+		return ExitNoCreds, nil
+	}
+
+	currentCloud := resolveCloud()
+	cloud, ok := promptWithDefault(stdin, stdout, promptSpec{
+		Label:   "Confluence subdomain",
+		Example: "e.g. 'mycompany' for mycompany.atlassian.net",
+		Current: currentCloud,
+		Hint:    "(press Enter to keep, or type a new value)",
+	})
+	if !ok {
+		fmt.Fprintln(stderr, "setup cancelled")
+		return ExitNoCreds, nil
+	}
+	if cloud == "" {
+		fmt.Fprintln(stderr, "setup cancelled — a Confluence subdomain is required")
+		return ExitNoCreds, nil
+	}
+
+	path, err := ConfigPath()
+	if err != nil {
+		fmt.Fprintln(stderr, "setup:", err)
+		return ExitNetworkErr, err
+	}
+	fmt.Fprintf(stdout, "\nSaving credentials to: %s\n", path)
+
+	fmt.Fprint(stdout, "Validating connection... ")
+	basic := auth.Basic{Email: email, Token: token, Cloud: cloud}
+	res := fetchCurrentUser(client, basic)
+	if res.Err != nil {
+		fmt.Fprintf(stdout, "\nerror: could not validate (network error): %v\n", res.Err)
+		return ExitNetworkErr, res.Err
+	}
+	if res.StatusCode == http.StatusUnauthorized || res.StatusCode == http.StatusForbidden {
+		fmt.Fprintf(stdout, "\nerror: invalid credentials — token may be wrong or revoked\n")
+		return ExitInvalidAuth, nil
+	}
+	if res.StatusCode < 200 || res.StatusCode >= 300 {
+		fmt.Fprintf(stdout, "\nerror: unexpected status %d\n", res.StatusCode)
+		return ExitNetworkErr, nil
+	}
+	fmt.Fprintln(stdout, "ok")
+
+	// Step 6: auto-detect spaces via API.
+	fmt.Fprint(stdout, "Fetching accessible spaces... ")
+	spaces, spaceErr := fetchSpaces(client, basic)
+	if spaceErr != nil {
+		fmt.Fprintf(stdout, "\nwarning: could not fetch spaces (%v)\n", spaceErr)
+		fmt.Fprintln(stdout, "Space configuration skipped. Run `confluence-docs space use <key>` later.")
+		spaces = nil
+	}
+
+	var chosenSpace *SpaceInfo
+	switch {
+	case len(spaces) == 0 && spaceErr == nil:
+		fmt.Fprintln(stdout, "\nno accessible spaces found")
+		fmt.Fprintln(stdout, "Space configuration skipped. Run `confluence-docs space use <key>` after gaining access.")
+	case len(spaces) == 1:
+		chosenSpace = &spaces[0]
+		fmt.Fprintf(stdout, "found 1 space: %s (%s)\n", chosenSpace.Name, chosenSpace.Key)
+	case len(spaces) > 1:
+		fmt.Fprintf(stdout, "found %d spaces:\n", len(spaces))
+		for i, s := range spaces {
+			fmt.Fprintf(stdout, "  %d. %s (%s, id %s)\n", i+1, s.Name, s.Key, s.ID)
+		}
+
+		// Check if there's a current active space to use as default.
+		currentCfg := ReadConfigFile()
+		defaultIdx := 1
+		if currentCfg.SpaceKey != "" {
+			for i, s := range spaces {
+				if s.Key == currentCfg.SpaceKey {
+					defaultIdx = i + 1
+					break
+				}
+			}
+		}
+
+		fmt.Fprintf(stdout, "Select space [%d]: ", defaultIdx)
+		choiceStr, choiceErr := readLine(stdin)
+		if choiceErr != nil {
+			fmt.Fprintln(stderr, "setup cancelled")
+			return ExitNoCreds, nil
+		}
+		if choiceStr == "" {
+			choiceStr = fmt.Sprintf("%d", defaultIdx)
+		}
+		var choiceNum int
+		if _, scanErr := fmt.Sscanf(choiceStr, "%d", &choiceNum); scanErr != nil || choiceNum < 1 || choiceNum > len(spaces) {
+			fmt.Fprintf(stderr, "invalid selection %q — setup cancelled\n", choiceStr)
+			return ExitNoCreds, nil
+		}
+		s := spaces[choiceNum-1]
+		chosenSpace = &s
+	}
+
+	// Write secrets to credentials file.
+	if err := WriteCreds(email, token); err != nil {
+		fmt.Fprintln(stdout, "\nerror saving credentials:", err)
+		return ExitNetworkErr, err
+	}
+
+	// Build and write config.
+	cfg := Config{Cloud: cloud}
+	if chosenSpace != nil {
+		cfg.SpaceID = chosenSpace.ID
+		cfg.SpaceKey = chosenSpace.Key
+		cfg.SpaceName = chosenSpace.Name
+		cfg.HomePageID = chosenSpace.HomepageID
+	}
+	if err := WriteConfig(cfg); err != nil {
+		fmt.Fprintln(stdout, "\nerror saving config:", err)
+		return ExitNetworkErr, err
+	}
+
+	name := res.DisplayName
+	if name == "" {
+		name = email
+	}
+	fmt.Fprintf(stdout, "connected as %s (%s at %s)\n", name, res.AccountID, cloud)
+	if chosenSpace != nil {
+		fmt.Fprintf(stdout, "active space: %s (key: %s, id: %s)\n", chosenSpace.Name, chosenSpace.Key, chosenSpace.ID)
+		if chosenSpace.HomepageID != "" {
+			fmt.Fprintf(stdout, "home page ID: %s\n", chosenSpace.HomepageID)
+		}
+	}
+	fmt.Fprintln(stdout)
+	fmt.Fprintln(stdout, "Done. You can now use:")
+	fmt.Fprintln(stdout, "  confluence-docs page get/upload/create")
+	fmt.Fprintln(stdout, "  confluence-docs index add/remove/sync")
+	fmt.Fprintln(stdout, "  confluence-docs space list/use/current")
+	return ExitOK, nil
+}
+
+// maskToken returns the first 4 characters followed by asterisks, to allow
+// confirming the token prefix without showing the full secret.
+func maskToken(token string) string {
+	if len(token) <= 4 {
+		return strings.Repeat("*", len(token))
+	}
+	return token[:4] + strings.Repeat("*", len(token)-4)
+}
+
+// promptSpec drives a uniform multi-line "value with default" prompt.
+type promptSpec struct {
+	Label       string // e.g. "Atlassian email"
+	Example     string // optional inline example, e.g. "e.g. 'mycompany' for ..."
+	Current     string // existing value, if any
+	MaskCurrent bool   // if true, show masked (for tokens)
+	Hint        string // e.g. "(press Enter to keep, or type a new value)"
+}
+
+// promptWithDefault renders a prompt of the form:
+//
+//	Label (Example)
+//	  current: <value>
+//	  new (Hint): _____
+//
+// or, when no current value exists:
+//
+//	Label (Example): _____
+//
+// Returns the value (current if user hit Enter, new typed value otherwise) and
+// a bool indicating success (false on read error or Ctrl+D).
+func promptWithDefault(stdin io.Reader, stdout io.Writer, spec promptSpec) (string, bool) {
+	header := spec.Label
+	if spec.Example != "" {
+		header = fmt.Sprintf("%s (%s)", spec.Label, spec.Example)
+	}
+	if spec.Current == "" {
+		// No current value — single-line prompt.
+		fmt.Fprintf(stdout, "%s: ", header)
+		val, err := readLine(stdin)
+		if err != nil {
+			return "", false
+		}
+		return val, true
+	}
+	// Has a current value — multi-line layout.
+	displayed := spec.Current
+	if spec.MaskCurrent {
+		displayed = maskToken(displayed)
+	}
+	fmt.Fprintln(stdout, header)
+	fmt.Fprintf(stdout, "  current: %s\n", displayed)
+	hint := spec.Hint
+	if hint == "" {
+		hint = "(press Enter to keep)"
+	}
+	fmt.Fprintf(stdout, "  new %s: ", hint)
+	val, err := readLine(stdin)
+	if err != nil {
+		return "", false
+	}
+	if val == "" {
+		return spec.Current, true
+	}
+	return val, true
+}
+
+// isHeadless returns true if the process appears to be running without an
+// interactive terminal.
+func isHeadless() bool {
+	if runtime.GOOS == "linux" {
+		// Headless if neither a display server nor a terminal type is set.
+		if os.Getenv("DISPLAY") == "" && os.Getenv("WAYLAND_DISPLAY") == "" && os.Getenv("TERM") == "" {
+			return true
+		}
+	}
+	return false
+}

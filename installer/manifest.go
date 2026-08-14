@@ -56,6 +56,26 @@ var catalog = []Artifact{
 		Summary:  "Turn a fuzzy objective into a bulletproof spec, adversarially reviewed",
 		Requires: []string{"unbiased-reviewer"},
 	},
+	{
+		Name:       "confluence-docs",
+		Kind:       KindSkill,
+		TagPrefix:  "confluence-v",
+		Summary:    "Search, create and update Confluence pages from natural language",
+		VersionEnv: "CONFLUENCE_DOCS_VERSION",
+	},
+	{
+		Name:       "jira-tickets",
+		Kind:       KindSkill,
+		TagPrefix:  "jira-v",
+		Summary:    "Read, create and transition Jira issues without burning context",
+		VersionEnv: "JIRA_TICKETS_VERSION",
+	},
+	{
+		Name:      "social-carousel",
+		Kind:      KindSkill,
+		TagPrefix: "carousel-v",
+		Summary:   "Generate Instagram and LinkedIn carousels from a YAML brief",
+	},
 }
 
 func findArtifact(name string) (Artifact, bool) {

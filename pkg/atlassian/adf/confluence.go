@@ -1,0 +1,1377 @@
+// Package adf - Confluence Cloud REST API v2 HTTP client.
+//
+// Requests are signed by an auth.Authorizer (pkg/atlassian/auth), which
+// supports Basic (email + API token) and OAuth 2.0 (3LO, via the `login`
+// command, with auto-refreshing tokens). Auth is resolved in order:
+//  1. Explicit token/email (flags / NewClient)
+//  2. $ATLASSIAN_API_TOKEN and $ATLASSIAN_EMAIL env vars
+//  3. Stored OAuth grant in the shared credentials file
+//  4. email/token in the shared credentials file
+//     (<UserConfigDir>/atlassian/credentials — see auth.CredsPath)
+//  5. Legacy per-skill files, read with a migration warning:
+//     <UserConfigDir>/confluence-docs/credentials, then
+//     ~/.config/confluence-docs/credentials
+//
+// Cloud subdomain is resolved in order:
+//  1. Explicit cloud passed to NewClient
+//  2. $ATLASSIAN_CLOUD env var
+//  3. cloud= line in config file (~/.config/confluence-docs/config)
+//  4. cloud= line in old credentials file (v0.9.x backward compat)
+//  5. "" — caller must surface a clear error
+//
+// OAuth mode does not need a cloud subdomain (it routes through the
+// api.atlassian.com gateway using the stored cloudId).
+package adf
+
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"net/url"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/diegoclair/harness/pkg/atlassian/auth"
+)
+
+// configPath returns the platform-appropriate credentials file path via
+// os.UserConfigDir(), which resolves to:
+//   - Linux:   $XDG_CONFIG_HOME/confluence-docs/credentials (or ~/.config/…)
+//   - macOS:   ~/Library/Application Support/confluence-docs/credentials
+//   - Windows: %AppData%\confluence-docs\credentials
+func configPath() (string, error) {
+	dir, err := os.UserConfigDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, "confluence-docs", "credentials"), nil
+}
+
+// configFilePath returns the path to the non-sensitive config file
+// (~/.config/confluence-docs/config or platform equivalent).
+func configFilePath() (string, error) {
+	dir, err := os.UserConfigDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, "confluence-docs", "config"), nil
+}
+
+// ActiveConfig holds the workspace config read from the config file.
+type ActiveConfig struct {
+	Cloud      string
+	SpaceID    string
+	SpaceKey   string
+	SpaceName  string
+	HomePageID string
+}
+
+// ReadActiveConfig reads the config file and returns the active workspace
+// configuration. Falls back to reading cloud= from the old credentials file for
+// v0.9.x backward compatibility. Returns zero-value ActiveConfig on any error.
+func ReadActiveConfig() ActiveConfig {
+	var cfg ActiveConfig
+
+	path, err := configFilePath()
+	if err == nil {
+		if data, rerr := os.ReadFile(path); rerr == nil {
+			for _, line := range strings.Split(string(data), "\n") {
+				line = strings.TrimSpace(line)
+				if line == "" || strings.HasPrefix(line, "#") {
+					continue
+				}
+				kv := strings.SplitN(line, "=", 2)
+				if len(kv) != 2 {
+					continue
+				}
+				key := strings.TrimSpace(kv[0])
+				val := strings.TrimSpace(kv[1])
+				switch key {
+				case "cloud":
+					cfg.Cloud = val
+				case "active_space_id":
+					cfg.SpaceID = val
+				case "active_space_key":
+					cfg.SpaceKey = val
+				case "active_space_name":
+					cfg.SpaceName = val
+				case "active_home_page_id":
+					cfg.HomePageID = val
+				}
+			}
+		}
+	}
+
+	// Backward compat: if cloud not set from config file, try old creds file.
+	if cfg.Cloud == "" {
+		cfg.Cloud = cloudFromOldCredsFile()
+	}
+	return cfg
+}
+
+// legacyConfigPath returns the pre-migration path ~/.config/confluence-docs/credentials.
+func legacyConfigPath() (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(home, ".config", "confluence-docs", "credentials"), nil
+}
+
+// ConfluenceCreds holds authentication credentials for the Confluence API.
+type ConfluenceCreds struct {
+	Email string
+	Token string
+}
+
+// HTTPError is returned by client methods when the API responds with a non-2xx
+// status. Callers can type-assert to inspect StatusCode (e.g. 409 conflict).
+type HTTPError struct {
+	StatusCode int
+	Message    string
+}
+
+func (e *HTTPError) Error() string {
+	if e.Message != "" {
+		return fmt.Sprintf("Confluence API error %d: %s", e.StatusCode, e.Message)
+	}
+	return fmt.Sprintf("Confluence API returned %d", e.StatusCode)
+}
+
+// IsConflict reports whether err (or any error it wraps) is a 409 from the
+// Confluence API — typically a stale version on update.
+func IsConflict(err error) bool {
+	for err != nil {
+		if h, ok := err.(*HTTPError); ok {
+			return h.StatusCode == 409
+		}
+		// Unwrap manually since we don't import errors here in tight loops
+		type unwrapper interface{ Unwrap() error }
+		if u, ok := err.(unwrapper); ok {
+			err = u.Unwrap()
+			continue
+		}
+		return false
+	}
+	return false
+}
+
+// ConfluenceClient is a minimal Confluence Cloud REST API v2 client.
+type ConfluenceClient struct {
+	auth       auth.Authorizer
+	httpClient *http.Client
+}
+
+// PageMeta holds the minimal page metadata needed for updates.
+type PageMeta struct {
+	ID      string `json:"id"`
+	Title   string `json:"title"`
+	Status  string `json:"status"`
+	Version struct {
+		Number int `json:"number"`
+	} `json:"version"`
+	Body struct {
+		Storage struct {
+			Value          string `json:"value"`
+			Representation string `json:"representation"`
+		} `json:"storage"`
+		AtlasDocFormat struct {
+			Value          string `json:"value"`
+			Representation string `json:"representation"`
+		} `json:"atlas_doc_format"`
+		View struct {
+			Value          string `json:"value"`
+			Representation string `json:"representation"`
+		} `json:"view"`
+		ExportView struct {
+			Value          string `json:"value"`
+			Representation string `json:"representation"`
+		} `json:"export_view"`
+	} `json:"body"`
+	Links struct {
+		WebUI string `json:"webui"`
+	} `json:"_links"`
+}
+
+// PageCreateResult is returned by page create.
+type PageCreateResult struct {
+	ID    string `json:"id"`
+	Title string `json:"title"`
+	Links struct {
+		WebUI string `json:"webui"`
+	} `json:"_links"`
+}
+
+// ResolveCloud returns the effective cloud subdomain, checking (in order):
+// the explicit override, $ATLASSIAN_CLOUD, the config file, the old credentials
+// file (v0.9.x backward compat). Returns "" if none is set — callers must
+// surface a clear error to the user (e.g. "run `confluence-docs setup` to
+// configure your Confluence subdomain").
+func ResolveCloud(override string) string {
+	if override != "" {
+		return override
+	}
+	if env := os.Getenv("ATLASSIAN_CLOUD"); env != "" {
+		return env
+	}
+	return cloudFromConfigFile()
+}
+
+// cloudFromConfigFile reads the `cloud=` line from the new config file
+// (~/.config/confluence-docs/config). Falls back to the old credentials file
+// for backward compatibility with v0.9.x installs.
+// Returns "" on any error or when the key is absent.
+func cloudFromConfigFile() string {
+	// Try the new config file first.
+	cfgPath, err := configFilePath()
+	if err == nil {
+		if data, rerr := os.ReadFile(cfgPath); rerr == nil {
+			for _, line := range strings.Split(string(data), "\n") {
+				line = strings.TrimSpace(line)
+				if line == "" || strings.HasPrefix(line, "#") {
+					continue
+				}
+				kv := strings.SplitN(line, "=", 2)
+				if len(kv) != 2 {
+					continue
+				}
+				if strings.TrimSpace(kv[0]) == "cloud" {
+					return strings.TrimSpace(kv[1])
+				}
+			}
+		}
+	}
+	// Backward compat: read from old credentials file.
+	return cloudFromOldCredsFile()
+}
+
+// cloudFromOldCredsFile reads the `cloud=` line from the old single credentials
+// file (v0.9.x format). Returns "" on any error or when the key is absent.
+func cloudFromOldCredsFile() string {
+	path, err := configPath()
+	if err != nil {
+		return ""
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		legacy, lerr := legacyConfigPath()
+		if lerr != nil || legacy == path {
+			return ""
+		}
+		data, err = os.ReadFile(legacy)
+		if err != nil {
+			return ""
+		}
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		kv := strings.SplitN(line, "=", 2)
+		if len(kv) != 2 {
+			continue
+		}
+		if strings.TrimSpace(kv[0]) == "cloud" {
+			return strings.TrimSpace(kv[1])
+		}
+	}
+	return ""
+}
+
+// ResolveCreds reads credentials from the first source that provides both
+// email and token: explicit args → env vars → credentials file (canonical
+// shared path, then legacy per-skill paths).
+// Returns an error with actionable text if no credentials are found.
+func ResolveCreds(email, token string) (ConfluenceCreds, error) {
+	// 1. Explicit flags
+	if email != "" && token != "" {
+		return ConfluenceCreds{Email: email, Token: token}, nil
+	}
+
+	// 2. Environment variables
+	envToken := os.Getenv("ATLASSIAN_API_TOKEN")
+	envEmail := os.Getenv("ATLASSIAN_EMAIL")
+	if envToken != "" && envEmail != "" {
+		return ConfluenceCreds{Email: envEmail, Token: envToken}, nil
+	}
+
+	// 3. Credentials file
+	cfgCreds, err := readCredsFile()
+	if err == nil && cfgCreds.Email != "" && cfgCreds.Token != "" {
+		return cfgCreds, nil
+	}
+
+	// Build a helpful path hint using the actual shared credentials path.
+	cfgPathHint := "~/.config/atlassian/credentials"
+	if p, err := auth.CredsPath(); err == nil {
+		cfgPathHint = p
+	}
+	return ConfluenceCreds{}, fmt.Errorf(
+		"no Confluence credentials found.\n"+
+			"Options (use any one):\n"+
+			"  1. Flags:   --email you@example.com --token <api-token>\n"+
+			"  2. Env:     ATLASSIAN_EMAIL=you@example.com ATLASSIAN_API_TOKEN=<api-token>\n"+
+			"  3. File:    %s\n"+
+			"              email=you@example.com\n"+
+			"              token=<api-token>\n"+
+			"Run `confluence-docs setup` to create this file interactively.\n"+
+			"See SETUP.md for how to generate an API token.",
+		cfgPathHint,
+	)
+}
+
+// readCredsFile reads email+token from the canonical shared credentials file
+// (<UserConfigDir>/atlassian/credentials). When it is absent or has no token,
+// the legacy per-skill paths — <UserConfigDir>/confluence-docs/credentials,
+// then ~/.config/confluence-docs/credentials — are tried with a migration
+// warning printed to stderr on a hit.
+func readCredsFile() (ConfluenceCreds, error) {
+	canonical, err := auth.CredsPath()
+	if err == nil {
+		if data, rerr := os.ReadFile(canonical); rerr == nil {
+			if c := auth.ParseCreds(data); c.HasAPIToken() {
+				return ConfluenceCreds{Email: c.Email, Token: c.Token}, nil
+			}
+		}
+	}
+
+	seen := map[string]bool{}
+	for _, pathFn := range []func() (string, error){configPath, legacyConfigPath} {
+		legacyPath, perr := pathFn()
+		if perr != nil || seen[legacyPath] {
+			continue
+		}
+		seen[legacyPath] = true
+		data, rerr := os.ReadFile(legacyPath)
+		if rerr != nil {
+			continue
+		}
+		c := auth.ParseCreds(data)
+		if !c.HasAPIToken() {
+			continue
+		}
+		fmt.Fprintf(os.Stderr,
+			"warning: credentials found at legacy path %s — run `confluence-docs setup` to migrate to %s\n",
+			legacyPath, canonical)
+		return ConfluenceCreds{Email: c.Email, Token: c.Token}, nil
+	}
+	return ConfluenceCreds{}, os.ErrNotExist
+}
+
+// NewClient creates a ConfluenceClient using Basic auth for the given cloud
+// subdomain and creds.
+func NewClient(cloud string, creds ConfluenceCreds) *ConfluenceClient {
+	return NewClientWithAuthorizer(auth.Basic{Email: creds.Email, Token: creds.Token, Cloud: cloud})
+}
+
+// NewClientWithAuthorizer creates a ConfluenceClient signing requests with the
+// given authorizer (Basic or OAuth).
+func NewClientWithAuthorizer(a auth.Authorizer) *ConfluenceClient {
+	return &ConfluenceClient{
+		auth:       a,
+		httpClient: &http.Client{},
+	}
+}
+
+// doRequest executes an HTTP request, returning the response body bytes.
+// Non-2xx responses are returned as errors with the body included.
+func (c *ConfluenceClient) doRequest(method, path string, body io.Reader) ([]byte, int, error) {
+	url := c.auth.ConfluenceBase() + path
+	req, err := http.NewRequest(method, url, body)
+	if err != nil {
+		return nil, 0, fmt.Errorf("build request: %w", err)
+	}
+	if err := c.auth.Apply(req); err != nil {
+		return nil, 0, err
+	}
+	req.Header.Set("Accept", "application/json")
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, 0, fmt.Errorf("HTTP %s %s: %w", method, url, err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, resp.StatusCode, fmt.Errorf("reading response body: %w", err)
+	}
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		// Try to extract a human-readable error message from the response.
+		var apiErr struct {
+			Message string `json:"message"`
+			Errors  []struct {
+				Message string `json:"message"`
+			} `json:"errors"`
+		}
+		if jerr := json.Unmarshal(respBody, &apiErr); jerr == nil && apiErr.Message != "" {
+			return nil, resp.StatusCode, &HTTPError{StatusCode: resp.StatusCode, Message: apiErr.Message}
+		}
+		// Truncate body for readability
+		body := string(respBody)
+		if len(body) > 300 {
+			body = body[:300] + "..."
+		}
+		return nil, resp.StatusCode, &HTTPError{StatusCode: resp.StatusCode, Message: body}
+	}
+
+	return respBody, resp.StatusCode, nil
+}
+
+// GetPage fetches a page by ID with its body in the given representation.
+// representation: "atlas_doc_format" for ADF, "storage" for HTML/XHTML,
+// "export_view" for rendered HTML. Use "atlas_doc_format" for ADF edits.
+func (c *ConfluenceClient) GetPage(pageID, bodyFormat string) (*PageMeta, error) {
+	if bodyFormat == "" {
+		bodyFormat = "atlas_doc_format"
+	}
+	path := fmt.Sprintf("/api/v2/pages/%s?body-format=%s", pageID, bodyFormat)
+	data, _, err := c.doRequest("GET", path, nil)
+	if err != nil {
+		return nil, fmt.Errorf("get page %s: %w", pageID, err)
+	}
+	var meta PageMeta
+	if err := json.Unmarshal(data, &meta); err != nil {
+		return nil, fmt.Errorf("parse page response: %w", err)
+	}
+	return &meta, nil
+}
+
+// GetPageChildren returns the IDs and titles of a page's direct children.
+func (c *ConfluenceClient) GetPageChildren(pageID string) ([]PageCreateResult, error) {
+	path := fmt.Sprintf("/api/v2/pages/%s/children?limit=250", pageID)
+	data, _, err := c.doRequest("GET", path, nil)
+	if err != nil {
+		return nil, fmt.Errorf("get children of %s: %w", pageID, err)
+	}
+	var resp struct {
+		Results []PageCreateResult `json:"results"`
+	}
+	if err := json.Unmarshal(data, &resp); err != nil {
+		return nil, fmt.Errorf("parse children response: %w", err)
+	}
+	return resp.Results, nil
+}
+
+// UpdatePage uploads a new ADF body to an existing page.
+// title and versionNumber are fetched automatically if not provided (0/"").
+// dryRun prints a summary to dryRunOut without calling the API.
+func (c *ConfluenceClient) UpdatePage(pageID, title string, versionNumber int, adfBody Node, versionMessage string, dryRun bool, dryRunOut io.Writer) error {
+	// Auto-fetch title and version if not provided.
+	if title == "" || versionNumber == 0 {
+		meta, err := c.GetPage(pageID, "atlas_doc_format")
+		if err != nil {
+			return fmt.Errorf("auto-fetch page metadata: %w", err)
+		}
+		if title == "" {
+			title = meta.Title
+		}
+		if versionNumber == 0 {
+			versionNumber = meta.Version.Number + 1
+		}
+	}
+
+	bodyJSON, err := json.Marshal(adfBody)
+	if err != nil {
+		return fmt.Errorf("marshal ADF body: %w", err)
+	}
+
+	if dryRun {
+		fmt.Fprintf(dryRunOut, "[dry-run] Would update page ID %s:\n", pageID)
+		fmt.Fprintf(dryRunOut, "  Title:   %s\n", title)
+		fmt.Fprintf(dryRunOut, "  Version: %d\n", versionNumber)
+		if versionMessage != "" {
+			fmt.Fprintf(dryRunOut, "  Message: %s\n", versionMessage)
+		}
+		fmt.Fprintf(dryRunOut, "  Body size: %d bytes\n", len(bodyJSON))
+		fmt.Fprintf(dryRunOut, "[dry-run] No changes made.\n")
+		return nil
+	}
+
+	payload := map[string]any{
+		"id":     pageID,
+		"status": "current",
+		"title":  title,
+		"version": map[string]any{
+			"number":  versionNumber,
+			"message": versionMessage,
+		},
+		"body": map[string]any{
+			"representation": "atlas_doc_format",
+			"value":          string(bodyJSON),
+		},
+	}
+
+	payloadBytes, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("marshal update payload: %w", err)
+	}
+
+	path := fmt.Sprintf("/api/v2/pages/%s", pageID)
+	_, _, err = c.doRequest("PUT", path, bytes.NewReader(payloadBytes))
+	if err != nil {
+		return fmt.Errorf("update page %s: %w", pageID, err)
+	}
+	return nil
+}
+
+// CreatePageStorage creates a new page with a body in Confluence storage
+// (XHTML + macro XML) format instead of ADF. Use this when the markdown source
+// contains macros that have no pure-ADF equivalent (e.g. page-properties).
+func (c *ConfluenceClient) CreatePageStorage(spaceID, parentID, title string, storageBody string) (*PageCreateResult, error) {
+	payload := map[string]any{
+		"spaceId":  spaceID,
+		"parentId": parentID,
+		"status":   "current",
+		"title":    title,
+		"body": map[string]any{
+			"representation": "storage",
+			"value":          storageBody,
+		},
+	}
+
+	payloadBytes, err := json.Marshal(payload)
+	if err != nil {
+		return nil, fmt.Errorf("marshal create payload: %w", err)
+	}
+
+	data, _, err := c.doRequest("POST", "/api/v2/pages", bytes.NewReader(payloadBytes))
+	if err != nil {
+		return nil, fmt.Errorf("create page (storage): %w", err)
+	}
+
+	var result PageCreateResult
+	if err := json.Unmarshal(data, &result); err != nil {
+		return nil, fmt.Errorf("parse create response: %w", err)
+	}
+	return &result, nil
+}
+
+// UpdatePageStorage updates an existing page body in Confluence storage
+// (XHTML + macro XML) format instead of ADF. Use this when the markdown source
+// contains macros that have no pure-ADF equivalent (e.g. page-properties).
+// title and versionNumber are fetched automatically if not provided (0/"").
+func (c *ConfluenceClient) UpdatePageStorage(pageID, title string, versionNumber int, storageBody string, versionMessage string, dryRun bool, dryRunOut io.Writer) error {
+	// Auto-fetch title and version if not provided.
+	if title == "" || versionNumber == 0 {
+		meta, err := c.GetPage(pageID, "storage")
+		if err != nil {
+			return fmt.Errorf("auto-fetch page metadata: %w", err)
+		}
+		if title == "" {
+			title = meta.Title
+		}
+		if versionNumber == 0 {
+			versionNumber = meta.Version.Number + 1
+		}
+	}
+
+	if dryRun {
+		fmt.Fprintf(dryRunOut, "[dry-run] Would update page ID %s (storage format):\n", pageID)
+		fmt.Fprintf(dryRunOut, "  Title:   %s\n", title)
+		fmt.Fprintf(dryRunOut, "  Version: %d\n", versionNumber)
+		if versionMessage != "" {
+			fmt.Fprintf(dryRunOut, "  Message: %s\n", versionMessage)
+		}
+		fmt.Fprintf(dryRunOut, "  Body size: %d bytes\n", len(storageBody))
+		fmt.Fprintf(dryRunOut, "[dry-run] No changes made.\n")
+		return nil
+	}
+
+	payload := map[string]any{
+		"id":     pageID,
+		"status": "current",
+		"title":  title,
+		"version": map[string]any{
+			"number":  versionNumber,
+			"message": versionMessage,
+		},
+		"body": map[string]any{
+			"representation": "storage",
+			"value":          storageBody,
+		},
+	}
+
+	payloadBytes, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("marshal update payload: %w", err)
+	}
+
+	path := fmt.Sprintf("/api/v2/pages/%s", pageID)
+	_, _, err = c.doRequest("PUT", path, bytes.NewReader(payloadBytes))
+	if err != nil {
+		return fmt.Errorf("update page %s (storage): %w", pageID, err)
+	}
+	return nil
+}
+
+// MovePage moves a page to a new parent and/or renames it. The body is
+// preserved (refetched and re-PUT) since the v2 PUT requires it.
+// If newParentID is "", parent is unchanged. If newTitle is "", title is
+// unchanged. At least one must be non-empty.
+func (c *ConfluenceClient) MovePage(pageID, newParentID, newTitle, versionMessage string, dryRun bool, dryRunOut io.Writer) error {
+	if newParentID == "" && newTitle == "" {
+		return fmt.Errorf("MovePage requires --parent-id and/or --title")
+	}
+
+	meta, err := c.GetPage(pageID, "atlas_doc_format")
+	if err != nil {
+		return fmt.Errorf("fetch current page: %w", err)
+	}
+
+	title := newTitle
+	if title == "" {
+		title = meta.Title
+	}
+	versionNumber := meta.Version.Number + 1
+	bodyValue := meta.Body.AtlasDocFormat.Value
+
+	if dryRun {
+		fmt.Fprintf(dryRunOut, "[dry-run] Would move/rename page ID %s:\n", pageID)
+		fmt.Fprintf(dryRunOut, "  Old title: %s\n", meta.Title)
+		fmt.Fprintf(dryRunOut, "  New title: %s\n", title)
+		if newParentID != "" {
+			fmt.Fprintf(dryRunOut, "  New parent: %s\n", newParentID)
+		} else {
+			fmt.Fprintf(dryRunOut, "  Parent: unchanged\n")
+		}
+		fmt.Fprintf(dryRunOut, "  Version: %d\n", versionNumber)
+		if versionMessage != "" {
+			fmt.Fprintf(dryRunOut, "  Message: %s\n", versionMessage)
+		}
+		fmt.Fprintf(dryRunOut, "[dry-run] No changes made.\n")
+		return nil
+	}
+
+	payload := map[string]any{
+		"id":     pageID,
+		"status": "current",
+		"title":  title,
+		"version": map[string]any{
+			"number":  versionNumber,
+			"message": versionMessage,
+		},
+		"body": map[string]any{
+			"representation": "atlas_doc_format",
+			"value":          bodyValue,
+		},
+	}
+	if newParentID != "" {
+		payload["parentId"] = newParentID
+	}
+
+	payloadBytes, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("marshal move payload: %w", err)
+	}
+
+	path := fmt.Sprintf("/api/v2/pages/%s", pageID)
+	_, _, err = c.doRequest("PUT", path, bytes.NewReader(payloadBytes))
+	if err != nil {
+		return fmt.Errorf("move page %s: %w", pageID, err)
+	}
+	return nil
+}
+
+// DeletePage trashes a page (soft delete). The page can be restored from
+// the trash within the Confluence retention window.
+func (c *ConfluenceClient) DeletePage(pageID string) error {
+	path := fmt.Sprintf("/api/v2/pages/%s", pageID)
+	_, _, err := c.doRequest("DELETE", path, nil)
+	if err != nil {
+		return fmt.Errorf("delete page %s: %w", pageID, err)
+	}
+	return nil
+}
+
+// ReorderPage repositions a page among its siblings (or appends it as the
+// last child of a target parent). Uses the v1 endpoint
+// `PUT /wiki/rest/api/content/{pageId}/move/{position}/{targetId}` since the
+// v2 API doesn't expose sibling-order control.
+//
+// position must be one of:
+//
+//	"before" — place pageID immediately before targetID (same parent).
+//	"after"  — place pageID immediately after targetID (same parent).
+//	"append" — append pageID as the last child of targetID (re-parents).
+//
+// Body and title are untouched.
+func (c *ConfluenceClient) ReorderPage(pageID, position, targetID string) error {
+	switch position {
+	case "before", "after", "append":
+	default:
+		return fmt.Errorf("ReorderPage: invalid position %q (want before|after|append)", position)
+	}
+	if pageID == "" || targetID == "" {
+		return fmt.Errorf("ReorderPage: pageID and targetID are required")
+	}
+	path := fmt.Sprintf("/rest/api/content/%s/move/%s/%s", pageID, position, targetID)
+	_, _, err := c.doRequest("PUT", path, nil)
+	if err != nil {
+		return fmt.Errorf("reorder page %s %s %s: %w", pageID, position, targetID, err)
+	}
+	return nil
+}
+
+// CreatePage creates a new page under the given parent in the given space.
+// Content can be provided as ADF (adfBody != nil) or left empty.
+func (c *ConfluenceClient) CreatePage(spaceID, parentID, title string, adfBody *Node) (*PageCreateResult, error) {
+	payload := map[string]any{
+		"spaceId":  spaceID,
+		"parentId": parentID,
+		"status":   "current",
+		"title":    title,
+	}
+
+	if adfBody != nil {
+		bodyJSON, err := json.Marshal(adfBody)
+		if err != nil {
+			return nil, fmt.Errorf("marshal ADF body: %w", err)
+		}
+		payload["body"] = map[string]any{
+			"representation": "atlas_doc_format",
+			"value":          string(bodyJSON),
+		}
+	}
+
+	payloadBytes, err := json.Marshal(payload)
+	if err != nil {
+		return nil, fmt.Errorf("marshal create payload: %w", err)
+	}
+
+	data, _, err := c.doRequest("POST", "/api/v2/pages", bytes.NewReader(payloadBytes))
+	if err != nil {
+		return nil, fmt.Errorf("create page: %w", err)
+	}
+
+	var result PageCreateResult
+	if err := json.Unmarshal(data, &result); err != nil {
+		return nil, fmt.Errorf("parse create response: %w", err)
+	}
+	return &result, nil
+}
+
+// PageURL returns a full Confluence page URL from the base URL and webui path.
+func (c *ConfluenceClient) PageURL(webuiPath string) string {
+	if strings.HasPrefix(webuiPath, "http") {
+		return webuiPath
+	}
+	return strings.TrimRight(c.auth.ConfluenceWebBase(), "/") + "/" + strings.TrimLeft(webuiPath, "/")
+}
+
+// SearchResult is one row from a CQL search.
+type SearchResult struct {
+	PageID  string
+	Title   string
+	URL     string
+	Excerpt string // plain-text excerpt, HTML highlight tags stripped
+}
+
+// SearchCQL runs a CQL query via the v1 Confluence search REST endpoint and
+// returns up to `limit` results (max 250). The v2 API has no search endpoint,
+// so we use /rest/api/search which has been stable for years.
+//
+// CQL is passed verbatim — caller is responsible for escaping. Typical shape:
+//
+//	space = "lybel" AND (title ~ "term" OR text ~ "term")
+func (c *ConfluenceClient) SearchCQL(cql string, limit int) ([]SearchResult, error) {
+	if limit <= 0 {
+		limit = 10
+	}
+	if limit > 250 {
+		limit = 250
+	}
+	// URL-encode the CQL query
+	q := url.Values{}
+	q.Set("cql", cql)
+	q.Set("limit", strconv.Itoa(limit))
+	q.Set("expand", "content.history,content.version")
+	path := "/rest/api/search?" + q.Encode()
+
+	data, _, err := c.doRequest("GET", path, nil)
+	if err != nil {
+		return nil, fmt.Errorf("search: %w", err)
+	}
+	var resp struct {
+		Results []struct {
+			Content struct {
+				ID    string `json:"id"`
+				Title string `json:"title"`
+				Type  string `json:"type"`
+				Links struct {
+					WebUI string `json:"webui"`
+				} `json:"_links"`
+			} `json:"content"`
+			Title    string `json:"title"`
+			Excerpt  string `json:"excerpt"`
+			URL      string `json:"url"`
+			EntityType string `json:"entityType"`
+		} `json:"results"`
+	}
+	if err := json.Unmarshal(data, &resp); err != nil {
+		return nil, fmt.Errorf("parse search response: %w", err)
+	}
+
+	out := make([]SearchResult, 0, len(resp.Results))
+	for _, r := range resp.Results {
+		// Skip non-page results (attachments, comments, etc.)
+		if r.EntityType != "" && r.EntityType != "content" {
+			continue
+		}
+		if r.Content.Type != "" && r.Content.Type != "page" {
+			continue
+		}
+
+		pageID := r.Content.ID
+		title := r.Content.Title
+		if title == "" {
+			title = r.Title
+		}
+		webui := r.Content.Links.WebUI
+		if webui == "" {
+			webui = r.URL
+		}
+		out = append(out, SearchResult{
+			PageID:  pageID,
+			Title:   title,
+			URL:     c.PageURL(webui),
+			Excerpt: stripExcerptHTML(r.Excerpt),
+		})
+	}
+	return out, nil
+}
+
+// stripExcerptHTML removes Confluence's <b>highlight</b> tags and other
+// minimal HTML noise from search excerpts. Not a full HTML parser — just
+// enough to make the output readable as plain text.
+func stripExcerptHTML(s string) string {
+	if s == "" {
+		return ""
+	}
+	// Drop common tags
+	for _, tag := range []string{"<b>", "</b>", "<i>", "</i>", "<em>", "</em>", "<strong>", "</strong>", "<mark>", "</mark>"} {
+		s = strings.ReplaceAll(s, tag, "")
+	}
+	// Collapse newlines and multiple spaces
+	s = strings.ReplaceAll(s, "\n", " ")
+	s = strings.ReplaceAll(s, "\r", " ")
+	for strings.Contains(s, "  ") {
+		s = strings.ReplaceAll(s, "  ", " ")
+	}
+	return strings.TrimSpace(s)
+}
+
+// BaseURL returns the Confluence API root this client talks to.
+func (c *ConfluenceClient) BaseURL() string {
+	return c.auth.ConfluenceBase()
+}
+
+// WebBaseURL returns the site root for browser links. Use this — not
+// BaseURL — for anything a human clicks: under OAuth the API root is the
+// api.atlassian.com gateway, which does not serve the web UI.
+func (c *ConfluenceClient) WebBaseURL() string {
+	return c.auth.ConfluenceWebBase()
+}
+
+// PageBaseURL returns the browser URL prefix for page links, without a
+// trailing slash — append "/<pageId>". Falls back to a space-less path when no
+// active space is configured; Confluence redirects it to the canonical URL.
+func (c *ConfluenceClient) PageBaseURL() string {
+	if key := ReadActiveConfig().SpaceKey; key != "" {
+		return c.WebBaseURL() + "/spaces/" + key + "/pages"
+	}
+	return c.WebBaseURL() + "/pages"
+}
+
+// ---------- Spaces ----------
+
+// SpaceResult is a single space returned by the list-spaces API.
+//
+// IMPORTANT: in Confluence Cloud's v2 API, the `key` field is the *internal*
+// space identifier (typically a hex hash like "f53b318e3ee044c49c76ddaae276f180"
+// for non-personal spaces). The HUMAN-READABLE key — the one used in URLs like
+// /wiki/spaces/<KEY>/pages/... and in CQL queries (`space = "<KEY>"`) — is
+// `currentActiveAlias`. We surface that as `Key` after unmarshaling so callers
+// always work with the canonical user-facing key.
+type SpaceResult struct {
+	ID         string `json:"id"`
+	Key        string `json:"-"` // populated from currentActiveAlias (see below)
+	Name       string `json:"name"`
+	HomepageID string `json:"homepageId"`
+}
+
+// spaceResultRaw mirrors the v2 API payload before we collapse it into the
+// SpaceResult exposed publicly.
+type spaceResultRaw struct {
+	ID                  string `json:"id"`
+	Key                 string `json:"key"`                 // internal hash key (v2)
+	CurrentActiveAlias  string `json:"currentActiveAlias"`  // human-readable URL/CQL key
+	Name                string `json:"name"`
+	HomepageID          string `json:"homepageId"`
+}
+
+func (raw spaceResultRaw) toResult() SpaceResult {
+	// Prefer the human alias; fall back to the raw key (personal spaces have
+	// alias == key with a ~ prefix anyway).
+	key := raw.CurrentActiveAlias
+	if key == "" {
+		key = raw.Key
+	}
+	return SpaceResult{
+		ID:         raw.ID,
+		Key:        key,
+		Name:       raw.Name,
+		HomepageID: raw.HomepageID,
+	}
+}
+
+// ListSpaces fetches up to 250 current spaces accessible to the authenticated
+// user. Uses the v2 API endpoint GET /api/v2/spaces?status=current&limit=250.
+func (c *ConfluenceClient) ListSpaces() ([]SpaceResult, error) {
+	data, _, err := c.doRequest("GET", "/api/v2/spaces?status=current&limit=250", nil)
+	if err != nil {
+		return nil, fmt.Errorf("list spaces: %w", err)
+	}
+	var resp struct {
+		Results []spaceResultRaw `json:"results"`
+	}
+	if err := json.Unmarshal(data, &resp); err != nil {
+		return nil, fmt.Errorf("parse spaces response: %w", err)
+	}
+	out := make([]SpaceResult, 0, len(resp.Results))
+	for _, raw := range resp.Results {
+		out = append(out, raw.toResult())
+	}
+	return out, nil
+}
+
+// ---------- Page Properties (appearance) ----------
+
+// PageAppearance represents the content appearance of a page.
+type PageAppearance string
+
+const (
+	// PageAppearanceFullWidth sets the page to full-width layout.
+	PageAppearanceFullWidth PageAppearance = "full-width"
+	// PageAppearanceFixedWidth sets the page to fixed-width layout (default).
+	PageAppearanceFixedWidth PageAppearance = "fixed-width"
+)
+
+// SetPageAppearance posts the content-appearance-draft and
+// content-appearance-published page properties to apply a full-width or
+// fixed-width layout to the page.
+//
+// This requires two POST calls to /wiki/api/v2/pages/{pageId}/properties —
+// one for the draft state and one for the published state.
+//
+// IMPORTANT: Confluence page properties use a "create or update" pattern.
+// The v2 API does not support PATCH; if the property already exists, a
+// subsequent POST returns 409. To handle this we try POST first and fall back
+// to PUT if we get a conflict.
+func (c *ConfluenceClient) SetPageAppearance(pageID string, appearance PageAppearance) error {
+	keys := []string{
+		"content-appearance-draft",
+		"content-appearance-published",
+	}
+	for _, key := range keys {
+		if err := c.upsertPageProperty(pageID, key, string(appearance)); err != nil {
+			return fmt.Errorf("set page appearance (%s): %w", key, err)
+		}
+	}
+	return nil
+}
+
+// upsertPageProperty creates or updates a single page property by key.
+// It tries POST first; on 409 it lists existing properties to find the
+// property version and retries with PUT.
+func (c *ConfluenceClient) upsertPageProperty(pageID, key, value string) error {
+	payload := map[string]any{
+		"key":   key,
+		"value": value,
+	}
+	payloadBytes, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("marshal property: %w", err)
+	}
+
+	path := fmt.Sprintf("/api/v2/pages/%s/properties", pageID)
+	_, statusCode, postErr := c.doRequest("POST", path, bytes.NewReader(payloadBytes))
+	if postErr == nil {
+		return nil
+	}
+
+	// 409 = property already exists; fetch it to get its ID and version, then PUT.
+	if statusCode == 409 {
+		propID, version, getErr := c.getPagePropertyIDAndVersion(pageID, key)
+		if getErr != nil {
+			return fmt.Errorf("get existing property %q: %w", key, getErr)
+		}
+		updatePayload := map[string]any{
+			"key":   key,
+			"value": value,
+			"version": map[string]any{
+				"number": version + 1,
+			},
+		}
+		updateBytes, _ := json.Marshal(updatePayload)
+		putPath := fmt.Sprintf("/api/v2/pages/%s/properties/%s", pageID, propID)
+		_, _, putErr := c.doRequest("PUT", putPath, bytes.NewReader(updateBytes))
+		return putErr
+	}
+
+	return postErr
+}
+
+// getPagePropertyIDAndVersion fetches a page property by key and returns
+// its ID and current version number.
+func (c *ConfluenceClient) getPagePropertyIDAndVersion(pageID, key string) (id string, version int, err error) {
+	path := fmt.Sprintf("/api/v2/pages/%s/properties?key=%s", pageID, url.QueryEscape(key))
+	data, _, reqErr := c.doRequest("GET", path, nil)
+	if reqErr != nil {
+		return "", 0, reqErr
+	}
+	var resp struct {
+		Results []struct {
+			ID      string `json:"id"`
+			Version struct {
+				Number int `json:"number"`
+			} `json:"version"`
+		} `json:"results"`
+	}
+	if err := json.Unmarshal(data, &resp); err != nil {
+		return "", 0, fmt.Errorf("parse properties response: %w", err)
+	}
+	for _, r := range resp.Results {
+		return r.ID, r.Version.Number, nil
+	}
+	return "", 0, fmt.Errorf("property %q not found for page %s", key, pageID)
+}
+
+// ExtractBodyFromMCPResponse unwraps the body from an MCP getConfluencePage
+// response, which may arrive in two shapes:
+//
+//  1. MCP envelope: [{type:"text", text:"<JSON string>"}]
+//     The inner JSON string is parsed and .body extracted.
+//
+//  2. Bare page JSON: the response is already a page object with a .body field.
+//
+// Returns the raw JSON of the .body field, or an error.
+func ExtractBodyFromMCPResponse(data []byte) ([]byte, error) {
+	data = bytes.TrimSpace(data)
+
+	// Shape 1: MCP envelope — starts with '['
+	if len(data) > 0 && data[0] == '[' {
+		var envelope []struct {
+			Type string `json:"type"`
+			Text string `json:"text"`
+		}
+		if err := json.Unmarshal(data, &envelope); err != nil {
+			return nil, fmt.Errorf("parse MCP envelope: %w", err)
+		}
+		if len(envelope) == 0 {
+			return nil, fmt.Errorf("MCP envelope is empty")
+		}
+		// Find the first text item
+		for _, item := range envelope {
+			if item.Type == "text" && item.Text != "" {
+				return extractBodyFromPageJSON([]byte(item.Text))
+			}
+		}
+		return nil, fmt.Errorf("no text item found in MCP envelope")
+	}
+
+	// Shape 2: bare page JSON
+	return extractBodyFromPageJSON(data)
+}
+
+// extractBodyFromPageJSON extracts .body from a Confluence page JSON object.
+func extractBodyFromPageJSON(data []byte) ([]byte, error) {
+	var page struct {
+		Body json.RawMessage `json:"body"`
+	}
+	if err := json.Unmarshal(data, &page); err != nil {
+		return nil, fmt.Errorf("parse page JSON: %w", err)
+	}
+	if page.Body == nil {
+		return nil, fmt.Errorf("page JSON has no .body field")
+	}
+
+	// The body might be an object with atlas_doc_format or storage sub-keys,
+	// or it might be the ADF doc directly. Try to get atlas_doc_format.value first.
+	var bodyObj struct {
+		AtlasDocFormat struct {
+			Value string `json:"value"`
+		} `json:"atlas_doc_format"`
+		Storage struct {
+			Value string `json:"value"`
+		} `json:"storage"`
+	}
+	if err := json.Unmarshal(page.Body, &bodyObj); err == nil {
+		if bodyObj.AtlasDocFormat.Value != "" {
+			// The value is itself a JSON string (the ADF doc)
+			return []byte(bodyObj.AtlasDocFormat.Value), nil
+		}
+		if bodyObj.Storage.Value != "" {
+			return nil, fmt.Errorf("page body is in 'storage' (XHTML) format, not ADF. Re-fetch with body-format=atlas_doc_format")
+		}
+	}
+
+	// Maybe body IS the ADF doc directly (type=doc)
+	var docCheck struct {
+		Type string `json:"type"`
+	}
+	if err := json.Unmarshal(page.Body, &docCheck); err == nil && docCheck.Type == "doc" {
+		return page.Body, nil
+	}
+
+	return nil, fmt.Errorf("could not extract ADF from body — unexpected shape: %s", string(page.Body)[:min(200, len(page.Body))])
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+// AddLabels attaches one or more "global" labels to a page. Existing labels
+// are preserved; duplicates are ignored by the Confluence API.
+//
+// Uses the v1 endpoint POST /wiki/rest/api/content/{id}/label — v2 exposes
+// only a read endpoint for labels (mai/2026).
+func (c *ConfluenceClient) AddLabels(pageID string, labels []string) error {
+	if len(labels) == 0 {
+		return nil
+	}
+	type labelPayload struct {
+		Prefix string `json:"prefix"`
+		Name   string `json:"name"`
+	}
+	body := make([]labelPayload, 0, len(labels))
+	for _, l := range labels {
+		l = strings.TrimSpace(l)
+		if l == "" {
+			continue
+		}
+		body = append(body, labelPayload{Prefix: "global", Name: l})
+	}
+	payload, err := json.Marshal(body)
+	if err != nil {
+		return fmt.Errorf("marshal labels: %w", err)
+	}
+	path := fmt.Sprintf("/rest/api/content/%s/label", pageID)
+	_, _, err = c.doRequest("POST", path, bytes.NewReader(payload))
+	return err
+}
+
+// GetLabels returns the current "global" labels attached to a page.
+func (c *ConfluenceClient) GetLabels(pageID string) ([]string, error) {
+	path := fmt.Sprintf("/api/v2/pages/%s/labels?prefix=global&limit=250", pageID)
+	data, _, err := c.doRequest("GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+	var resp struct {
+		Results []struct {
+			Name string `json:"name"`
+		} `json:"results"`
+	}
+	if err := json.Unmarshal(data, &resp); err != nil {
+		return nil, fmt.Errorf("decode labels: %w", err)
+	}
+	out := make([]string, 0, len(resp.Results))
+	for _, r := range resp.Results {
+		out = append(out, r.Name)
+	}
+	return out, nil
+}
+
+// RemoveLabel detaches a single label from a page.
+func (c *ConfluenceClient) RemoveLabel(pageID, label string) error {
+	path := fmt.Sprintf("/rest/api/content/%s/label/%s", pageID, url.PathEscape(label))
+	_, _, err := c.doRequest("DELETE", path, nil)
+	return err
+}
+
+// ---------- User lookup ----------
+
+// UserInfo holds the minimal user info needed for mention links.
+type UserInfo struct {
+	AccountID   string `json:"accountId"`
+	DisplayName string `json:"displayName"`
+	Email       string `json:"email"`
+}
+
+// LookupUser resolves a query string (handle without @, or email) to a
+// Confluence Cloud user via the v1 user picker endpoint. Returns (nil, nil)
+// when no match is found so callers can fall back gracefully.
+func (c *ConfluenceClient) LookupUser(query string) (*UserInfo, error) {
+	q := url.Values{}
+	q.Set("query", query)
+	q.Set("limit", "5")
+	path := "/rest/api/user/picker?" + q.Encode()
+
+	data, _, err := c.doRequest("GET", path, nil)
+	if err != nil {
+		return nil, fmt.Errorf("user picker %q: %w", query, err)
+	}
+
+	// The v1 user picker returns:
+	// {"users": [{"user": {"accountId": "...", "displayName": "...", "emailAddress": "..."}}]}
+	var resp struct {
+		Users []struct {
+			User struct {
+				AccountID    string `json:"accountId"`
+				DisplayName  string `json:"displayName"`
+				EmailAddress string `json:"emailAddress"`
+			} `json:"user"`
+		} `json:"users"`
+	}
+	if err := json.Unmarshal(data, &resp); err != nil {
+		return nil, fmt.Errorf("parse user picker response: %w", err)
+	}
+	if len(resp.Users) == 0 {
+		return nil, nil
+	}
+	u := resp.Users[0].User
+	return &UserInfo{
+		AccountID:   u.AccountID,
+		DisplayName: u.DisplayName,
+		Email:       u.EmailAddress,
+	}, nil
+}
+
+// ---------- User cache ----------
+
+// userCachePath returns the platform-appropriate path to the user cache file:
+//   - Linux:   $XDG_CACHE_HOME/confluence-docs/users.json
+//   - macOS:   ~/Library/Caches/confluence-docs/users.json
+//   - Windows: %LocalAppData%/confluence-docs/users.json
+func userCachePath() (string, error) {
+	dir, err := os.UserCacheDir()
+	if err != nil {
+		return "", fmt.Errorf("resolve cache dir: %w", err)
+	}
+	return filepath.Join(dir, "confluence-docs", "users.json"), nil
+}
+
+// userCacheTTL is the maximum age before a user cache entry is considered stale.
+const userCacheTTL = 24 * time.Hour
+
+// UserCacheFile is the on-disk representation of the user lookup cache.
+type UserCacheFile struct {
+	Version   int                 `json:"version"`
+	FetchedAt time.Time           `json:"fetchedAt"`
+	Users     map[string]UserInfo `json:"users"` // key: @handle or email
+}
+
+// LoadUserCache reads the user cache from disk. Returns an empty cache (not
+// nil) when the file doesn't exist or is unreadable, so callers always get a
+// usable map.
+func LoadUserCache() *UserCacheFile {
+	path, err := userCachePath()
+	if err != nil {
+		return &UserCacheFile{Version: 1, Users: map[string]UserInfo{}}
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return &UserCacheFile{Version: 1, Users: map[string]UserInfo{}}
+	}
+	var c UserCacheFile
+	if err := json.Unmarshal(data, &c); err != nil {
+		return &UserCacheFile{Version: 1, Users: map[string]UserInfo{}}
+	}
+	if c.Users == nil {
+		c.Users = map[string]UserInfo{}
+	}
+	return &c
+}
+
+// SaveUserCache writes the user cache to disk, creating parent dirs as needed.
+// Errors are silently swallowed — cache writes are best-effort.
+func SaveUserCache(c *UserCacheFile) error {
+	path, err := userCachePath()
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return fmt.Errorf("create cache dir: %w", err)
+	}
+	data, err := json.MarshalIndent(c, "", "  ")
+	if err != nil {
+		return fmt.Errorf("marshal user cache: %w", err)
+	}
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		return fmt.Errorf("write user cache: %w", err)
+	}
+	return nil
+}
+
+// ---------- ClientUserResolver ----------
+
+// ClientUserResolver implements UserResolver using a ConfluenceClient with an
+// in-process memory cache (populated from/saved to the persistent disk cache).
+type ClientUserResolver struct {
+	client    *ConfluenceClient
+	diskCache *UserCacheFile    // loaded once from disk
+	mem       map[string]string // handle/email → accountId (in-process cache)
+	dirty     bool              // true if mem has unsaved entries
+}
+
+// NewClientUserResolver creates a ClientUserResolver backed by client. It
+// loads the persistent user cache from disk on construction.
+func NewClientUserResolver(client *ConfluenceClient) *ClientUserResolver {
+	diskCache := LoadUserCache()
+	// Pre-populate in-process cache from disk, skipping expired entries.
+	mem := make(map[string]string, len(diskCache.Users))
+	if time.Since(diskCache.FetchedAt) < userCacheTTL {
+		for k, v := range diskCache.Users {
+			mem[k] = v.AccountID
+		}
+	}
+	return &ClientUserResolver{
+		client:    client,
+		diskCache: diskCache,
+		mem:       mem,
+	}
+}
+
+// Resolve returns the accountId for the given handle or email. Returns ("", false)
+// on cache miss + network failure so callers can fall back gracefully.
+func (r *ClientUserResolver) Resolve(query string) (accountID string, ok bool) {
+	if id, found := r.mem[query]; found {
+		return id, id != ""
+	}
+	// Not in memory cache — query the API.
+	info, err := r.client.LookupUser(query)
+	if err != nil || info == nil {
+		// Cache negative result so we don't re-query this run.
+		r.mem[query] = ""
+		return "", false
+	}
+	r.mem[query] = info.AccountID
+	// Also write back to disk cache map with current timestamp.
+	r.diskCache.Users[query] = *info
+	r.diskCache.FetchedAt = time.Now()
+	r.dirty = true
+	return info.AccountID, true
+}
+
+// Flush persists in-memory changes to the disk cache. Errors are silently
+// swallowed — cache persistence is best-effort.
+func (r *ClientUserResolver) Flush() {
+	if !r.dirty {
+		return
+	}
+	_ = SaveUserCache(r.diskCache)
+}

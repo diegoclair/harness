@@ -9,8 +9,10 @@ coverage.html
 /dist/
 installer/bin/
 installer/dist/
-*/cli/bin/
-*/cli/dist/
+**/cli/bin/
+**/cli/dist/
+**/cli/cli
+**/cli/cli.exe
 release-assets/
 vendor/
 
@@ -23,6 +25,14 @@ vendor/
 .env.*.local
 *.pem
 *.key
+
+# Fonts are downloaded by `make fonts` and embedded at build time via go:embed.
+# Release CI re-downloads them; they are not source.
+skills/social-carousel/cli/templates/fonts/*.woff2
+skills/social-carousel/cli/templates/fonts/*.ttf
+
+# Skill-root bin/ (some skills install via `make install-local`).
+skills/*/bin/
 
 # OS / editors
 .DS_Store

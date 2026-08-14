@@ -70,7 +70,7 @@ func TestFindLatestByPrefix_HappyPath(t *testing.T) {
 	]`
 	client := mockClient(http.StatusOK, body)
 
-	got, err := FindLatestByPrefix("diegoclair/skills", "jira-v", client)
+	got, err := FindLatestByPrefix("diegoclair/harness", "jira-v", client)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -78,7 +78,7 @@ func TestFindLatestByPrefix_HappyPath(t *testing.T) {
 		t.Errorf("FindLatestByPrefix jira-v = %q, want jira-v0.2.0", got)
 	}
 
-	got, err = FindLatestByPrefix("diegoclair/skills", "confluence-v", client)
+	got, err = FindLatestByPrefix("diegoclair/harness", "confluence-v", client)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -97,7 +97,7 @@ func TestFindLatestByPrefix_SkipsDraftAndPrerelease(t *testing.T) {
 	]`
 	client := mockClient(http.StatusOK, body)
 
-	got, err := FindLatestByPrefix("diegoclair/skills", "jira-v", client)
+	got, err := FindLatestByPrefix("diegoclair/harness", "jira-v", client)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -112,7 +112,7 @@ func TestFindLatestByPrefix_NoMatch(t *testing.T) {
 	]`
 	client := mockClient(http.StatusOK, body)
 
-	_, err := FindLatestByPrefix("diegoclair/skills", "jira-v", client)
+	_, err := FindLatestByPrefix("diegoclair/harness", "jira-v", client)
 	if err == nil {
 		t.Fatal("expected an error when prefix matches no release")
 	}
@@ -126,7 +126,7 @@ func TestFindLatestByPrefix_NoMatch(t *testing.T) {
 
 func TestFindLatestByPrefix_EmptyResponse(t *testing.T) {
 	client := mockClient(http.StatusOK, `[]`)
-	_, err := FindLatestByPrefix("diegoclair/skills", "jira-v", client)
+	_, err := FindLatestByPrefix("diegoclair/harness", "jira-v", client)
 	if err == nil {
 		t.Fatal("expected an error for empty release list")
 	}
@@ -136,7 +136,7 @@ func TestFindLatestByPrefix_RateLimit(t *testing.T) {
 	// 403 + "rate limit" in body gets a dedicated, friendlier error
 	// message pointing at the manual-pin escape hatch.
 	client := mockClient(http.StatusForbidden, `{"message":"API rate limit exceeded"}`)
-	_, err := FindLatestByPrefix("diegoclair/skills", "jira-v", client)
+	_, err := FindLatestByPrefix("diegoclair/harness", "jira-v", client)
 	if err == nil {
 		t.Fatal("expected an error for 403 rate-limit")
 	}
@@ -152,7 +152,7 @@ func TestFindLatestByPrefix_OtherHTTPError(t *testing.T) {
 	// Non-rate-limit 4xx/5xx falls through to the generic "status + body
 	// snippet" error so the caller still gets enough to debug.
 	client := mockClient(http.StatusInternalServerError, `{"message":"upstream blew up"}`)
-	_, err := FindLatestByPrefix("diegoclair/skills", "jira-v", client)
+	_, err := FindLatestByPrefix("diegoclair/harness", "jira-v", client)
 	if err == nil {
 		t.Fatal("expected an error for 5xx")
 	}
@@ -166,7 +166,7 @@ func TestFindLatestByPrefix_OtherHTTPError(t *testing.T) {
 
 func TestFindLatestByPrefix_MalformedJSON(t *testing.T) {
 	client := mockClient(http.StatusOK, `not json`)
-	_, err := FindLatestByPrefix("diegoclair/skills", "jira-v", client)
+	_, err := FindLatestByPrefix("diegoclair/harness", "jira-v", client)
 	if err == nil {
 		t.Fatal("expected an error for invalid JSON")
 	}
@@ -180,7 +180,7 @@ func TestFindLatestByPrefix_RequiredArgs(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "repoOwnerRepo") {
 		t.Errorf("expected required-field error for empty repo, got: %v", err)
 	}
-	_, err = FindLatestByPrefix("diegoclair/skills", "", nil)
+	_, err = FindLatestByPrefix("diegoclair/harness", "", nil)
 	if err == nil || !strings.Contains(err.Error(), "prefix") {
 		t.Errorf("expected required-field error for empty prefix, got: %v", err)
 	}
@@ -200,7 +200,7 @@ func TestFindLatestByPrefix_RequestHeaders(t *testing.T) {
 			}, nil
 		}),
 	}
-	_, _ = FindLatestByPrefix("diegoclair/skills", "jira-v", client)
+	_, _ = FindLatestByPrefix("diegoclair/harness", "jira-v", client)
 	if capturedAccept != "application/vnd.github+json" {
 		t.Errorf("Accept = %q, want application/vnd.github+json", capturedAccept)
 	}

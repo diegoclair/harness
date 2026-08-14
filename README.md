@@ -28,7 +28,13 @@ Skills compose agents. Installing a skill pulls in the agents it needs.
 
 Both skills dispatch `unbiased-reviewer`, so it comes along automatically.
 
-Three more skills — `confluence-docs`, `jira-tickets`, `social-carousel` — still live in [`diegoclair/skills`](https://github.com/diegoclair/skills) and move here per [the migration plan](./docs/migration-from-skills.md).
+| Skill | What it does |
+|---|---|
+| **`confluence-docs`** | Search, create, classify and update Confluence Cloud pages in natural language. Ships a Go CLI returning page digests and single sections instead of full ADF bodies — far cheaper in tokens than the raw MCP path, which stays as a fallback. |
+| **`jira-tickets`** | Read, create, transition and link Jira issues without burning context. Shares `pkg/atlassian` with `confluence-docs`, so one login covers both. |
+| **`social-carousel`** | Generates Instagram and LinkedIn carousels from a small YAML brief, rendered locally through headless Chrome. Ships design presets, layout templates, and a linter of research-backed rules that blocks a bad render. |
+
+These three drive a Go CLI, so installing them also puts a binary on your PATH.
 
 ## Install
 
@@ -149,6 +155,42 @@ Run `go run ./installer validate .` before opening a PR.
 4. `cd installer && make test`.
 
 A skill without a `cli/` needs no release: it ships from `main` the moment it is merged. The catalog entry travels in the installer binary, so an already-installed `harness` sees a brand-new artifact after the next `harness-v*` release; `go run ./installer` from a clone sees it immediately.
+
+## Credentials
+
+The Atlassian skills share one login via `~/.config/atlassian/credentials`:
+
+```bash
+confluence-docs login          # browser OAuth; tokens refresh themselves
+confluence-docs setup --check  # validate what is configured
+jira-tickets setup --check     # reuses the same credentials
+```
+
+Uninstalling a skill never touches that file. Remove `~/.config/atlassian/` only when you are done with **both** Atlassian skills.
+
+## Credentials
+
+The Atlassian skills share one login via `~/.config/atlassian/credentials`:
+
+```bash
+confluence-docs login          # browser OAuth; tokens refresh themselves
+confluence-docs setup --check  # validate what is configured
+jira-tickets setup --check     # reuses the same credentials
+```
+
+Uninstalling a skill never touches that file. Remove `~/.config/atlassian/` only when you are done with **both** Atlassian skills.
+
+## Credentials
+
+The Atlassian skills share one login via `~/.config/atlassian/credentials`:
+
+```bash
+confluence-docs login          # browser OAuth; tokens refresh themselves
+confluence-docs setup --check  # validate what is configured
+jira-tickets setup --check     # reuses the same credentials
+```
+
+Uninstalling a skill never touches that file. Remove `~/.config/atlassian/` only when you are done with **both** Atlassian skills.
 
 ## License
 
