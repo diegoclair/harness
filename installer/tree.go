@@ -224,8 +224,9 @@ func clearSkillDir(dir string, keepBin bool, name string, out io.Writer) error {
 	}
 
 	if _, err := os.Stat(filepath.Join(dir, markerFile)); err != nil {
-		return fmt.Errorf("%s already exists and was not installed by harness; "+
-			"remove it first if you want to replace it", dir)
+		if err := adoptOrPreserve(dir, name, out); err != nil {
+			return err
+		}
 	}
 	for _, e := range entries {
 		if e.Name() == "bin" {
@@ -241,6 +242,33 @@ func clearSkillDir(dir string, keepBin bool, name string, out io.Writer) error {
 			return fmt.Errorf("clear %s: %w", dir, err)
 		}
 	}
+	return nil
+}
+
+// adoptOrPreserve decides what to do with a skill directory carrying no marker.
+// A bin/<name> is an installer's signature — nobody hand-writes one — so such a
+// directory is a previous install, including one from the predecessor repo that
+// never wrote markers, and is adopted. Anything else may be the user's own work
+// and is moved aside rather than destroyed.
+func adoptOrPreserve(dir, name string, out io.Writer) error {
+	if _, err := os.Stat(filepath.Join(dir, "bin", binaryName(name))); err == nil {
+		fmt.Fprintf(out, "  Adopting an existing install of %s\n", name)
+		return nil
+	}
+
+	backup := dir + ".bak"
+	if err := os.RemoveAll(backup); err != nil {
+		return fmt.Errorf("clear %s: %w", backup, err)
+	}
+	if err := os.Rename(dir, backup); err != nil {
+		return fmt.Errorf("%s already exists and was not installed by harness, "+
+			"and could not be moved aside: %w", dir, err)
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+	fmt.Fprintf(out, "  %s already existed and was not installed by harness; "+
+		"kept the previous contents in %s\n", dir, backup)
 	return nil
 }
 

@@ -259,21 +259,57 @@ func TestPlainSkillInstallClearsStaleFiles(t *testing.T) {
 	}
 }
 
-// Wiping a directory the harness did not create would destroy a user's own
-// skill of the same name.
-func TestInstallRefusesToWipeAForeignDirectory(t *testing.T) {
+// A directory the harness did not create may be the user's own work, so it is
+// preserved rather than destroyed — but the install still goes through.
+func TestForeignDirectoryIsMovedAsideNotDestroyed(t *testing.T) {
 	home := sandboxHome(t)
 	tree := localTree{path: fixtureTree(t)}
 	skill, _ := findArtifact("dev-loop")
 
 	dst := filepath.Join(home, ".claude", "skills", "dev-loop")
 	mustWrite(t, filepath.Join(dst, "SKILL.md"), "hand-written, not ours")
+	mustWrite(t, filepath.Join(dst, "notes.md"), "my notes")
 
-	err := installOne(t, skill, tree, io.Discard)
-	if err == nil {
-		t.Fatal("want a refusal when the target was not installed by harness")
+	var out strings.Builder
+	if err := installOne(t, skill, tree, &out); err != nil {
+		t.Fatalf("install should proceed: %v", err)
 	}
-	assertFile(t, filepath.Join(dst, "SKILL.md"), "hand-written, not ours")
+	assertFile(t, filepath.Join(dst, "SKILL.md"), "loop body")
+	assertFile(t, dst+".bak/SKILL.md", "hand-written, not ours")
+	assertFile(t, dst+".bak/notes.md", "my notes")
+	if !strings.Contains(out.String(), "kept the previous contents") {
+		t.Errorf("the user must be told where their files went, got %q", out.String())
+	}
+}
+
+// Every existing user was installed by the predecessor, which wrote no marker.
+// Refusing those would block the whole migration, so a directory carrying the
+// installer's signature — bin/<name> — is adopted.
+func TestALegacyInstallIsAdoptedNotRefused(t *testing.T) {
+	home := sandboxHome(t)
+	root := fixtureTree(t)
+	mustWrite(t, filepath.Join(root, "skills", "cli-skill", "SKILL.md"), "---\nname: cli-skill\n---\n")
+	mustWrite(t, filepath.Join(root, "skills", "cli-skill", "cli", "main.go"), "package main\n")
+	serveRelease(t, "cli-v9.9.9", makeReleaseZip(t, "cli-skill", fakeCLI))
+
+	// Exactly what the predecessor left behind: files plus bin/<name>, no marker.
+	dst := filepath.Join(home, ".claude", "skills", "cli-skill")
+	mustWrite(t, filepath.Join(dst, "SKILL.md"), "old body")
+	mustWrite(t, filepath.Join(dst, "bin", "cli-skill"), "old ELF")
+
+	skill := Artifact{Name: "cli-skill", Kind: KindSkill, TagPrefix: "cli-v"}
+	var out strings.Builder
+	if err := installOne(t, skill, localTree{path: root}, &out); err != nil {
+		t.Fatalf("a legacy install must upgrade, not fail: %v", err)
+	}
+	assertFile(t, filepath.Join(dst, "SKILL.md"), "released body")
+	assertFile(t, filepath.Join(dst, markerFile), "cli-skill")
+	if _, err := os.Stat(dst + ".bak"); err == nil {
+		t.Error("adopting a previous install must not litter a .bak")
+	}
+	if !strings.Contains(out.String(), "Adopting an existing install") {
+		t.Errorf("the adoption should be reported, got %q", out.String())
+	}
 }
 
 func TestLocalTreeRejectsANonHarnessDirectory(t *testing.T) {

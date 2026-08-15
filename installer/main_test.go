@@ -253,8 +253,10 @@ func TestAFailedArtifactIsReportedAndChangesTheExitCode(t *testing.T) {
 	home := sandboxHome(t)
 	tree := fixtureTree(t)
 	serveReleases(t)
-	// A directory harness did not install makes exactly one artifact fail.
-	mustWrite(t, filepath.Join(home, ".claude", "skills", "dev-loop", "SKILL.md"), "hand-written")
+	// A skill missing from the tree makes exactly one artifact fail.
+	if err := os.Remove(filepath.Join(tree, "skills", "dev-loop", "SKILL.md")); err != nil {
+		t.Fatal(err)
+	}
 
 	code, _, stderr := runCLI(t, "install", "--from", tree, "--all")
 	if code != exitErr {
