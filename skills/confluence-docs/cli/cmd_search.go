@@ -58,7 +58,7 @@ func runSearch(args []string, stdout, stderr io.Writer) (int, error) {
 			fmt.Fprintln(stdout, "search — CQL search via the Confluence v1 search API. TSV output by default.")
 			fmt.Fprintln(stdout, "")
 			fmt.Fprintln(stdout, "  confluence-docs search \"term\"                  # title or text match in default space")
-			fmt.Fprintln(stdout, "  confluence-docs search --cql 'space=lybel AND label=\"adr\"'")
+			fmt.Fprintln(stdout, "  confluence-docs search --cql 'space=ENG AND label=\"adr\"'")
 			fmt.Fprintln(stdout, "  confluence-docs search \"term\" --limit 5 --json")
 			return exitOK, nil
 		default:

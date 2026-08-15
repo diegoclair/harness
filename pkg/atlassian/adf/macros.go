@@ -21,7 +21,7 @@ import (
 //     CommonMark indented code blocks and blockquotes.
 
 const (
-	macroPlaceholderPrefix = "%%LYBELDOC_MACRO_"
+	macroPlaceholderPrefix = "%%CONFLUENCE_MACRO_"
 	macroPlaceholderSuffix = "%%"
 )
 

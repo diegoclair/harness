@@ -50,7 +50,7 @@ type Credentials struct {
 	RefreshToken string
 	Expiry       time.Time // access-token expiry
 	CloudID      string    // from oauth/token/accessible-resources
-	Site         string    // cloud subdomain (e.g. "lybel"), for web links
+	Site         string    // cloud subdomain (e.g. "mycompany"), for web links
 	Scopes       string    // space-separated scopes granted at login
 }
 

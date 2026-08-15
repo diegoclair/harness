@@ -159,7 +159,7 @@ func runPageRewrite(args []string, stdout, stderr io.Writer) (int, error) {
 	}
 
 	// Build temp dir for fragment files.
-	tmpDir, err := os.MkdirTemp("", "lybel-rewrite-")
+	tmpDir, err := os.MkdirTemp("", "confluence-rewrite-")
 	if err != nil {
 		fmt.Fprintln(stderr, "tempdir:", err)
 		return exitUnknownErr, err

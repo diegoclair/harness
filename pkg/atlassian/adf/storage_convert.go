@@ -28,7 +28,7 @@ import (
 	"github.com/yuin/goldmark/renderer/html"
 )
 
-const storageMacroPlaceholderPrefix = "<!-- __LYBEL_MACRO_"
+const storageMacroPlaceholderPrefix = "<!-- __CONFLUENCE_MACRO_"
 const storageMacroPlaceholderSuffix = "__ -->"
 
 // RequiresStorageFormat reports whether the given markdown source contains

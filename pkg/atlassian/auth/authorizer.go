@@ -48,7 +48,7 @@ type Authorizer interface {
 type Basic struct {
 	Email string
 	Token string
-	Cloud string // subdomain, e.g. "lybel"
+	Cloud string // subdomain, e.g. "mycompany"
 }
 
 func (b Basic) Apply(req *http.Request) error {

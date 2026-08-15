@@ -152,8 +152,8 @@ rules:
     scope: global
     captured: 2026-05-19
     confidence: high
-  - text: For Lybel posts default to mint accent + slate
-    scope: brand:lybel
+  - text: For Acme posts default to mint accent + slate
+    scope: brand:acme
     captured: 2026-05-19
     confidence: high
 ---
@@ -166,7 +166,7 @@ Apply these rules silently when making design / copy decisions in this session. 
 
 - The user uses an **imperative scope-word**: "never", "always", "prefer", "stop using", "from now on", "default to". Or an explicit "remember: …" in the brief.
 - ECHO BACK before saving — never silent capture: *"Salvando como regra permanente: '<rule>'. Diga 'só dessa vez' se preferir que eu não persista."* One-line confirmation.
-- Classify scope: generic preference → `scope: global`; brand-specific ("for Lybel use X") → `scope: brand:<slug>`; slide-specific ("this slide is too long") → DO NOT save, it's a one-off edit.
+- Classify scope: generic preference → `scope: global`; brand-specific ("for Acme use X") → `scope: brand:<slug>`; slide-specific ("this slide is too long") → DO NOT save, it's a one-off edit.
 - Default `confidence: high` for explicit corrections; only use `confidence: low` for inferences you made without an explicit user signal (these auto-expire after 30 days on the next render — protects against early-session noise).
 - Default `captured: <today-YYYY-MM-DD>`.
 

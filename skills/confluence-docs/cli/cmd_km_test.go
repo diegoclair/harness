@@ -1,12 +1,16 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/diegoclair/harness/pkg/atlassian/setup"
 )
 
 // ── TestKMClassifyFase ────────────────────────────────────────────────────
@@ -131,7 +135,7 @@ func TestKMRender_SmallInput(t *testing.T) {
 		"555": {ID: "555", Title: "Spike AbacatePay", Tipo: "capture", Tags: []string{"fase-mvp"}},
 	}
 
-	md := renderKMMD(pages)
+	md := renderKMMD(pages, testPagesBase, testSpaceOverview)
 
 	// Must contain the frontmatter block.
 	if !strings.Contains(md, ":::properties") {
@@ -167,7 +171,7 @@ func TestKMRender_ExpandForLargeSection(t *testing.T) {
 	// A couple of others to avoid empty sections.
 	pages["999"] = kmPage{ID: "999", Title: "Decision A", Tipo: "decision"}
 
-	md := renderKMMD(pages)
+	md := renderKMMD(pages, testPagesBase, testSpaceOverview)
 
 	if !strings.Contains(md, ":::expand Show all 14 pages") {
 		t.Error("expected :::expand block for reference section with 14 items")
@@ -181,7 +185,7 @@ func TestKMRender_RealAnomaliesSection(t *testing.T) {
 		"222": {ID: "222", Title: "Normal Doc", Tipo: "reference"},
 	}
 
-	md := renderKMMD(pages)
+	md := renderKMMD(pages, testPagesBase, testSpaceOverview)
 
 	// :::expand anomalies block must appear.
 	if !strings.Contains(md, ":::expand 1 pages with real anomaly for review") {
@@ -210,7 +214,7 @@ func TestKMRender_NoAnomalies(t *testing.T) {
 	pages := map[string]kmPage{
 		"111": {ID: "111", Title: "Clean Page", Tipo: "reference"},
 	}
-	md := renderKMMD(pages)
+	md := renderKMMD(pages, testPagesBase, testSpaceOverview)
 
 	if !strings.Contains(md, "_No real anomalies flagged._") {
 		t.Error("expected '_No real anomalies flagged._' when no anomalies")
@@ -514,3 +518,169 @@ func TestKMUnknownSubcommand(t *testing.T) {
 // ── helpers ────────────────────────────────────────────────────────────────
 
 func strPtr(s string) *string { return &s }
+
+// A configured space yields links; without one the map must degrade to plain
+// ids rather than pointing at somebody else's instance.
+const (
+	testPagesBase     = "https://example.atlassian.net/wiki/spaces/ENG/pages/"
+	testSpaceOverview = "https://example.atlassian.net/wiki/spaces/ENG/overview"
+)
+
+// kmSample exercises every branch that emits a link: the plain list, the
+// >12-item expand block, and the anomalies section.
+func kmSample() map[string]kmPage {
+	pages := map[string]kmPage{}
+	for i := 1; i <= 14; i++ {
+		id := strconv.Itoa(i)
+		pages[id] = kmPage{ID: id, Title: "Page " + id, Tipo: "reference"}
+	}
+	pages["99"] = kmPage{ID: "99", Title: "Odd one", Tipo: "reference", RealAnomaly: "suspected duplicate"}
+	return pages
+}
+
+// Asserting only the absence of a hostname is not enough: a broken guard would
+// emit a relative link like `](1)`, which is still a wrong link.
+func TestUnconfiguredRenderEmitsNoMarkdownLinkAtAll(t *testing.T) {
+	md := renderKMMD(kmSample(), "", "")
+
+	for _, line := range strings.Split(md, "\n") {
+		if strings.HasPrefix(strings.TrimSpace(line), "- ") && strings.Contains(line, "](") {
+			t.Errorf("unconfigured render must not link anywhere, got: %s", line)
+		}
+	}
+	if !strings.Contains(md, "Page 1 `(1)`") {
+		t.Errorf("pages must still be listed, just unlinked:\n%s", md)
+	}
+}
+
+// Every link-emitting branch must use the resolved base, not just the first one.
+func TestConfiguredRenderLinksEverySection(t *testing.T) {
+	md := renderKMMD(kmSample(), testPagesBase, testSpaceOverview)
+
+	for _, id := range []string{"1", "14", "99"} {
+		if !strings.Contains(md, "]("+testPagesBase+id+")") {
+			t.Errorf("page %s is not linked to the configured instance:\n%s", id, md)
+		}
+	}
+	if !strings.Contains(md, testSpaceOverview) {
+		t.Errorf("the space overview link is missing:\n%s", md)
+	}
+}
+
+// The whole point of the change: the instance comes from configuration. A
+// swapped or truncated base would still "look like" a URL.
+func TestKMLinksDerivesFromConfiguration(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("HOME", dir)
+	t.Setenv("XDG_CONFIG_HOME", dir)
+	t.Setenv("ATLASSIAN_CLOUD", "")
+	writeTestConfig(t, dir, setup.Config{Cloud: "acme", SpaceKey: "ENG"})
+
+	pagesBase, overview := kmLinks("")
+	if pagesBase != "https://acme.atlassian.net/wiki/spaces/ENG/pages/" {
+		t.Errorf("pagesBase = %q", pagesBase)
+	}
+	if overview != "https://acme.atlassian.net/wiki/spaces/ENG/overview" {
+		t.Errorf("overview = %q", overview)
+	}
+}
+
+// `login` stores the site in the credential store and never writes cloud= to
+// the config, so resolving from the config alone drops every link for the
+// recommended auth mode.
+func TestKMLinksFallsBackToTheStoredSite(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("HOME", dir)
+	t.Setenv("XDG_CONFIG_HOME", dir)
+	t.Setenv("ATLASSIAN_CLOUD", "")
+	writeTestConfig(t, dir, setup.Config{SpaceKey: "ENG"}) // no cloud=, as login leaves it
+	writeOAuthSite(t, dir, "acme")
+
+	pagesBase, _ := kmLinks("")
+	if pagesBase != "https://acme.atlassian.net/wiki/spaces/ENG/pages/" {
+		t.Errorf("pagesBase = %q, want the site from the credential store", pagesBase)
+	}
+}
+
+func TestKMLinksPrefersAnExplicitOverride(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("HOME", dir)
+	t.Setenv("XDG_CONFIG_HOME", dir)
+	t.Setenv("ATLASSIAN_CLOUD", "")
+	writeTestConfig(t, dir, setup.Config{Cloud: "fromconfig", SpaceKey: "ENG"})
+
+	pagesBase, _ := kmLinks("fromflag")
+	if !strings.HasPrefix(pagesBase, "https://fromflag.atlassian.net/") {
+		t.Errorf("pagesBase = %q, want the override to win", pagesBase)
+	}
+}
+
+func TestKMLinksReturnsNothingWhenUnconfigured(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("HOME", dir)
+	t.Setenv("XDG_CONFIG_HOME", dir)
+	t.Setenv("ATLASSIAN_CLOUD", "")
+
+	pagesBase, overview := kmLinks("")
+	if pagesBase != "" || overview != "" {
+		t.Errorf("unconfigured should yield empty links, got %q / %q", pagesBase, overview)
+	}
+}
+
+// A space with no known instance must not produce a half-built URL.
+func TestKMLinksNeedsBothInstanceAndSpace(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("HOME", dir)
+	t.Setenv("XDG_CONFIG_HOME", dir)
+	t.Setenv("ATLASSIAN_CLOUD", "")
+	writeTestConfig(t, dir, setup.Config{Cloud: "acme"}) // instance known, space not
+
+	if pagesBase, _ := kmLinks(""); pagesBase != "" {
+		t.Errorf("pagesBase = %q, want empty without a space", pagesBase)
+	}
+}
+
+// login stores the site in the shared credential store, not in the CLI config.
+func writeOAuthSite(t *testing.T, home, site string) {
+	t.Helper()
+	dir := filepath.Join(home, "atlassian")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	body := "auth_mode=oauth\noauth_site=" + site + "\n"
+	if err := os.WriteFile(filepath.Join(dir, "credentials"), []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// Deleting the wiring between the resolved configuration and the renderer
+// would leave every unit test green while the command emitted an unlinked map.
+func TestKMGenerateWiresTheResolvedInstanceIntoTheOutput(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_CONFIG_HOME", home)
+	t.Setenv("ATLASSIAN_CLOUD", "")
+	writeTestConfig(t, home, setup.Config{Cloud: "acme", SpaceKey: "ENG"})
+
+	input := t.TempDir()
+	batch := `[{"pageId":"777","title":"A page","tipo_proposto":"reference","anomalia":null}]`
+	if err := os.WriteFile(filepath.Join(input, "batch-1.json"), []byte(batch), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	out := filepath.Join(t.TempDir(), "km.md")
+
+	var stdout, stderr bytes.Buffer
+	code, err := runKMGenerate([]string{"--input", input, "--output", out}, &stdout, &stderr)
+	if err != nil || code != exitOK {
+		t.Fatalf("km generate: code=%d err=%v stderr=%s", code, err, stderr.String())
+	}
+
+	md, rerr := os.ReadFile(out)
+	if rerr != nil {
+		t.Fatal(rerr)
+	}
+	want := "https://acme.atlassian.net/wiki/spaces/ENG/pages/777"
+	if !strings.Contains(string(md), want) {
+		t.Errorf("the generated map does not link to the configured instance (%s):\n%s", want, md)
+	}
+}

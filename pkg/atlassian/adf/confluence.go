@@ -783,7 +783,7 @@ type SearchResult struct {
 //
 // CQL is passed verbatim — caller is responsible for escaping. Typical shape:
 //
-//	space = "lybel" AND (title ~ "term" OR text ~ "term")
+//	space = "ENG" AND (title ~ "term" OR text ~ "term")
 func (c *ConfluenceClient) SearchCQL(cql string, limit int) ([]SearchResult, error) {
 	if limit <= 0 {
 		limit = 10

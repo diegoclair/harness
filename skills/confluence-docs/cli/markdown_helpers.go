@@ -140,4 +140,4 @@ func collectAllText(n adf.Node, sb *strings.Builder) {
 }
 
 // runSearch runs a CQL query against Confluence and prints results as TSV
-// (pageId\ttitle\turl\texcerpt). Defaults the space filter to `lybel`.
+// (pageId\ttitle\turl\texcerpt). The space filter comes from the caller.

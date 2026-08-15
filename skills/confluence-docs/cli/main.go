@@ -38,7 +38,7 @@ USAGE:
   confluence-docs adf          [--file PATH] [--pretty]
   confluence-docs edit         [--input PATH] OPERATION [--at-level N] [--pretty]
   confluence-docs page         VERB [flags]
-  confluence-docs search       "term" [--limit N] [--space lybel] [--cql RAW] [--json]
+  confluence-docs search       "term" [--limit N] [--space KEY] [--cql RAW] [--json]
   confluence-docs home         [--refresh | --status | --show | --query "X" | --digest] [--max-age 24h]
   confluence-docs lint         FILE.json
   confluence-docs extract-body [< mcp-response.json]
@@ -63,7 +63,7 @@ COMMANDS:
   index         Manage the Page ID Index table on the Home page.
   check         Fuzzy title search before creating a page. Returns JSON with exists/similar/suggestion.
   new           Generate a markdown template for a new page by doc type (reference/decision/explanation/how-to/capture).
-  km            Knowledge Map: generate and upload the Lybel KNOWLEDGE_MAP page (subcommands: generate, classify).
+  km            Knowledge Map: generate and upload the KNOWLEDGE_MAP page (subcommands: generate, classify).
 
 SETUP FLAGS:
   (no flags)              Interactive wizard — prompts for email and API token.
@@ -226,8 +226,8 @@ MARKDOWN EXTENSIONS (adf & edit fragments):
 SEARCH:
   search "term" [--limit N] [--space KEY] [--json]
     Default CQL: space="<KEY>" AND type="page" AND (title ~ "term" OR text ~ "term")
-    Default space: lybel. Default limit: 10. Output: TSV (id, title, url, excerpt).
-  search --cql 'space=lybel AND label="adr"'
+    Default space: the configured one. Default limit: 10. Output: TSV (id, title, url, excerpt).
+  search --cql 'space=ENG AND label="adr"'
     Pass raw CQL — caller is responsible for escaping.
 
 HOME CACHE:
@@ -251,7 +251,7 @@ EXAMPLES:
   confluence-docs page apply --page-id 164232 \
     --replace-section "Roadmap" --fragment new.md --message "rewrite roadmap"
 
-  # Search the lybel space
+  # Search the configured space
   confluence-docs search "advisor" --limit 5
 
   # Append a new section (preserves all macros)

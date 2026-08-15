@@ -4,9 +4,9 @@
 
 ## Introduction
 
-This is a paragraph with **bold**, *italic*, `inline code`, and a [link](https://lybel.com).
+This is a paragraph with **bold**, *italic*, `inline code`, and a [link](https://example.com).
 
-Combined: **[bold link](https://lybel.com)**.
+Combined: **[bold link](https://example.com)**.
 
 ## Lists
 
@@ -23,7 +23,7 @@ Combined: **[bold link](https://lybel.com)**.
 | Name | Role |
 |------|------|
 | Diego | Co-founder |
-| Lybel | Brand |
+| Acme | Brand |
 
 ## Code
 

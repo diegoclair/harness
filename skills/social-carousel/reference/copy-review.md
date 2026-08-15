@@ -34,7 +34,7 @@ Many readers jump straight to the last slide without reading the rest. A vague r
 **Test:** read ONLY the final slide, pretending you saw nothing else. Does every pronoun/reference resolve? If "it", "your name", "this", or "that" points to something defined earlier and not restated, it fails.
 
 - Bad: `headline: "Seu nome ainda está livre?"` (nome de quê?)
-- Good: `headline: "Seu nome de usuário lybel.com.br/seunome ainda está livre?"` or restate the noun: `"Seu link ainda está disponível?"`
+- Good: `headline: "Seu nome de usuário acme.com/seunome ainda está livre?"` or restate the noun: `"Seu link ainda está disponível?"`
 
 **Fix:** name the object explicitly in the CTA slide's own text. Never rely on the reader having read slide 2.
 

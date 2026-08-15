@@ -77,7 +77,7 @@ func runHome(args []string, stdout, stderr io.Writer) (int, error) {
 			pageID = remaining[i+1]
 			i++
 		case "-h", "--help":
-			fmt.Fprintln(stdout, "home — Lybel Confluence Home page cache.")
+			fmt.Fprintln(stdout, "home — Confluence Home page cache.")
 			fmt.Fprintln(stdout, "")
 			fmt.Fprintln(stdout, "  confluence-docs home --refresh             # always fetch + overwrite cache")
 			fmt.Fprintln(stdout, "  confluence-docs home --status              # show cache metadata (read-only)")

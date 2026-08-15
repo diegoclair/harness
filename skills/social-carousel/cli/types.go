@@ -24,7 +24,7 @@ type Carousel struct {
 	// Default: "example-dark-tech".
 	Theme string `yaml:"theme,omitempty" json:"theme,omitempty"`
 
-	// Handle shown at the bottom of every slide (e.g. "@lybel.com.br").
+	// Handle shown at the bottom of every slide (e.g. "@yourbrand").
 	// Empty = no handle (the brand-anchor footer is omitted).
 	Handle string `yaml:"handle,omitempty" json:"handle,omitempty"`
 
@@ -107,7 +107,7 @@ type Slide struct {
 
 	// --- cta (last slide) ---
 	Headline  string `yaml:"headline,omitempty" json:"headline,omitempty"`     // question or command, ≤12 words
-	CTAText   string `yaml:"cta_text,omitempty" json:"cta_text,omitempty"`     // "Comment LYBEL", "Save and DM me"
+	CTAText   string `yaml:"cta_text,omitempty" json:"cta_text,omitempty"`     // "Comment GUIDE", "Save and DM me"
 	SwipeBack bool   `yaml:"swipe_back,omitempty" json:"swipe_back,omitempty"` // shows "← back to start"
 
 	// --- text (free-form fallback; use sparingly) ---

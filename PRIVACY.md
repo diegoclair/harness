@@ -1,4 +1,4 @@
-# Privacy Policy — Lybel Skills
+# Privacy Policy — harness
 
 _Last updated: 2026-08-01_
 

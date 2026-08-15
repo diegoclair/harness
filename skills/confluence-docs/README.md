@@ -186,6 +186,6 @@ Each project picks its own Confluence space, its own taxonomy on the Home page, 
 
 ## License & attribution
 
-Built and maintained by [Lybel](https://lybel.com.br) — released as a free Claude skill for any team that wants to ship faster on Confluence. Contributions welcome at the project repo. Acknowledgements to the Anthropic skill-creator guidance the structure follows.
+Part of [harness](https://github.com/diegoclair/harness) — a free Claude skill for any team that wants to ship faster on Confluence. Contributions welcome. Acknowledgements to the Anthropic skill-creator guidance the structure follows.
 
 If you ship this in a team, drop a line — it's nice to know the skill is paying back somewhere.

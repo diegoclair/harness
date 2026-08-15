@@ -21,7 +21,7 @@ type Digest struct {
 	TotalWords  int              `json:"totalWords"`
 	MacroCounts map[string]int   `json:"macroCounts"` // e.g. "expand": 2, "panel-warning": 1, "toc": 1
 	LinksCount  int              `json:"linksCount"`
-	// Status is a Lybel convention: page titles often start with a status
+	// Status is a title-prefix convention: page titles often start with a status
 	// emoji (🟢/🟡/🔴/🟠/🔵/⚪/✅) that conveys where the page sits in its
 	// lifecycle. When present, this field carries the parsed semantic label
 	// ("active", "evaluating", "blocked", etc.) so callers can answer
@@ -31,11 +31,11 @@ type Digest struct {
 	StatusEmoji string `json:"statusEmoji,omitempty"`
 }
 
-// statusFromTitle scans the leading characters of a title for a Lybel
+// statusFromTitle scans the leading characters of a title for a
 // status emoji and returns (emoji, label). Returns ("","") when no
 // recognized emoji is present.
 //
-// The mapping reflects the conventions documented across the Lybel
+// The mapping reflects the conventions documented across the
 // Confluence space (see Home → "Regras de organização"):
 //
 //	🟢 active       — em andamento / contratado / aprovado

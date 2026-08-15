@@ -1,13 +1,13 @@
 // cmd_km.go — `confluence-docs km` subcommand.
 //
-// Generates and optionally uploads the Lybel KNOWLEDGE_MAP page, consolidating
+// Generates and optionally uploads the KNOWLEDGE_MAP page, consolidating
 // pages from a triage directory (batch-*.json from subagent classification) and
 // an optional baseline JSON file (the original hand-classified pages).
 //
 // Usage:
 //
 //	confluence-docs km generate \
-//	    --input /tmp/lybel-triage \
+//	    --input /tmp/confluence-triage \
 //	    --baseline baseline.json \
 //	    --target-page-id 200441858 \
 //	    --message "regenerate KM"
@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/diegoclair/harness/pkg/atlassian/adf"
+	"github.com/diegoclair/harness/pkg/atlassian/auth"
 )
 
 // ── Data types ─────────────────────────────────────────────────────────────
@@ -89,7 +90,7 @@ func runKM(args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error
 }
 
 func printKMHelp(w io.Writer) {
-	fmt.Fprintln(w, `km — generate and optionally upload the Lybel KNOWLEDGE_MAP page.
+	fmt.Fprintln(w, `km — generate and optionally upload the KNOWLEDGE_MAP page.
 
 SUBCOMMANDS:
   generate    Consolidate triage batches + baseline into markdown, and optionally upload.
@@ -97,7 +98,7 @@ SUBCOMMANDS:
 
 USAGE (generate):
   confluence-docs km generate \
-      [--input DIR]             triage directory with batch-*.json files (default: /tmp/lybel-triage)
+      [--input DIR]             triage directory with batch-*.json files (default: /tmp/confluence-triage)
       [--baseline FILE]         baseline JSON with hand-classified pages
       [--target-page-id ID]     if set, upload result to this Confluence page
       [--output FILE]           write markdown to FILE (default: stdout when no --target-page-id)
@@ -108,7 +109,7 @@ USAGE (generate):
 BASELINE FORMAT (--baseline FILE):
   {
     "pages": [
-      {"pageId": "185303042", "title": "Sobre a Lybel", "tipo": "reference", "tags": []},
+      {"pageId": "185303042", "title": "About the company", "tipo": "reference", "tags": []},
       {"pageId": "187695141", "title": "Proposta fit HOJE",  "tipo": "decision", "tags": ["fase-mvp"]}
     ]
   }
@@ -123,7 +124,7 @@ EXIT CODES:
 
 func runKMGenerate(args []string, stdout, stderr io.Writer) (int, error) {
 	var (
-		inputDir     = "/tmp/lybel-triage"
+		inputDir     = "/tmp/confluence-triage"
 		baselineFile string
 		targetPageID string
 		outputFile   string
@@ -210,7 +211,8 @@ func runKMGenerate(args []string, stdout, stderr io.Writer) (int, error) {
 	pageMap := mergePages(bl, triageEntries)
 
 	// Render markdown.
-	md := renderKMMD(pageMap)
+	pagesBase, spaceOverview := kmLinks(cloud)
+	md := renderKMMD(pageMap, pagesBase, spaceOverview)
 
 	// Output.
 	if targetPageID != "" && !dryRun {
@@ -441,7 +443,26 @@ func mergePages(bl baseline, triage []triageEntry) map[string]kmPage {
 
 // ── Render ────────────────────────────────────────────────────────────────
 
-const kmURLBase = "https://lybel.atlassian.net/wiki/spaces/lybel/pages/"
+// kmLinks resolves where the generated map should point. It follows the same
+// resolution order as every other command — flag/env/config, then the site
+// stored by `login` — because OAuth never writes cloud= to the config file and
+// resolving from the config alone would silently drop every link. Both values
+// are empty when the instance or space is unknown, and the map then lists page
+// ids unlinked rather than pointing somewhere wrong.
+func kmLinks(cloudOverride string) (pagesBase, spaceOverview string) {
+	cloud := adf.ResolveCloud(cloudOverride)
+	if cloud == "" {
+		if creds, err := auth.ReadCreds(); err == nil {
+			cloud = creds.Site
+		}
+	}
+	space := adf.ReadActiveConfig().SpaceKey
+	if cloud == "" || space == "" {
+		return "", ""
+	}
+	base := fmt.Sprintf("https://%s.atlassian.net/wiki/spaces/%s", cloud, space)
+	return base + "/pages/", base + "/overview"
+}
 
 type tipoMeta struct {
 	label string
@@ -459,7 +480,7 @@ var tipoMetas = map[string]tipoMeta{
 }
 
 // renderKMMD produces the full markdown body for the KNOWLEDGE_MAP page.
-func renderKMMD(pages map[string]kmPage) string {
+func renderKMMD(pages map[string]kmPage, pagesBase, spaceOverview string) string {
 	// Group by tipo.
 	byTipo := make(map[string][]kmPage)
 	for _, p := range pages {
@@ -522,7 +543,11 @@ func renderKMMD(pages map[string]kmPage) string {
 		"- Today **%d pages** carry tag `fase-final-checkout-universal`. No value judgment — just a filter to find them when you want to revisit the vision.",
 		faseFinalCount,
 	))
-	wl("- For navigation by topic area, use the [Home](https://lybel.atlassian.net/wiki/spaces/lybel/overview). The two maps are complementary.")
+	if spaceOverview == "" {
+		wl("- For navigation by topic area, use the space Home. The two maps are complementary.")
+	} else {
+		wl(fmt.Sprintf("- For navigation by topic area, use the [Home](%s). The two maps are complementary.", spaceOverview))
+	}
 	wl("")
 
 	// Why this map exists.
@@ -589,12 +614,12 @@ func renderKMMD(pages map[string]kmPage) string {
 		if len(items) > 12 {
 			wl(fmt.Sprintf(":::expand Show all %d pages", len(items)))
 			for _, p := range items {
-				wl(renderKMPageLine(p))
+				wl(renderKMPageLine(p, pagesBase))
 			}
 			wl(":::")
 		} else {
 			for _, p := range items {
-				wl(renderKMPageLine(p))
+				wl(renderKMPageLine(p, pagesBase))
 			}
 		}
 		wl("")
@@ -630,7 +655,11 @@ func renderKMMD(pages map[string]kmPage) string {
 					a = a[:90] + "…"
 				}
 			}
-			wl(fmt.Sprintf("- [%s](%s%s) `(%s)` — type: `%s`", p.Title, kmURLBase, p.ID, p.ID, p.Tipo))
+			if pagesBase == "" {
+				wl(fmt.Sprintf("- %s `(%s)` — type: `%s`", p.Title, p.ID, p.Tipo))
+			} else {
+				wl(fmt.Sprintf("- [%s](%s%s) `(%s)` — type: `%s`", p.Title, pagesBase, p.ID, p.ID, p.Tipo))
+			}
 			wl(fmt.Sprintf("  - %s", a))
 		}
 		wl(":::")
@@ -642,7 +671,11 @@ func renderKMMD(pages map[string]kmPage) string {
 	// See also.
 	wl("## See also")
 	wl("")
-	wl("- [Home — Navigation by topic area](https://lybel.atlassian.net/wiki/spaces/lybel/overview)")
+	if spaceOverview == "" {
+		wl("- Home — navigation by topic area (space overview)")
+	} else {
+		wl(fmt.Sprintf("- [Home — Navigation by topic area](%s)", spaceOverview))
+	}
 	wl("- `reference/doc-types.md` (skill) — full canonical spec for the 5 types, frontmatter, anti-patterns")
 	wl("")
 
@@ -657,9 +690,13 @@ func renderKMMD(pages map[string]kmPage) string {
 }
 
 // renderKMPageLine formats a single page entry in the KNOWLEDGE_MAP lists.
-func renderKMPageLine(p kmPage) string {
+func renderKMPageLine(p kmPage, pagesBase string) string {
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("- [%s](%s%s) `(%s)`", p.Title, kmURLBase, p.ID, p.ID))
+	if pagesBase == "" {
+		sb.WriteString(fmt.Sprintf("- %s `(%s)`", p.Title, p.ID))
+	} else {
+		sb.WriteString(fmt.Sprintf("- [%s](%s%s) `(%s)`", p.Title, pagesBase, p.ID, p.ID))
+	}
 	if len(p.Tags) > 0 {
 		sb.WriteString(" — tags: ")
 		for i, t := range p.Tags {

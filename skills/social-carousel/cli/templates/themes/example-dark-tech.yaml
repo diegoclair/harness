@@ -2,7 +2,7 @@
 # ------------------------------------------------
 # Style: Authority, tech, SaaS, finance, B2B.
 # Palette: Spec D §3 "Dark high-contrast" row.
-# Accent: Volt Mint #11C47E (Lybel brand primary).
+# Accent: Volt Mint #11C47E.
 # Background effect: dots — subtle grid that appears at full-size.
 # Font combo D: Outfit (heading) + DM Sans (body).
 # Contrast: white on #0D1117 → ~21:1 (far exceeds WCAG AAA 7:1).

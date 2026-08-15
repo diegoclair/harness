@@ -28,8 +28,8 @@ func runProjectGet(args []string, stdout, stderr io.Writer) (int, error) {
 		case "-h", "--help":
 			fmt.Fprintln(stdout, "project get — show details for one project.")
 			fmt.Fprintln(stdout, "")
-			fmt.Fprintln(stdout, "  jira-tickets project get LYBEL")
-			fmt.Fprintln(stdout, "  jira-tickets project get LYBEL --json")
+			fmt.Fprintln(stdout, "  jira-tickets project get ENG")
+			fmt.Fprintln(stdout, "  jira-tickets project get ENG --json")
 			fmt.Fprintln(stdout, "")
 			fmt.Fprintln(stdout, "Prints: key, name, id, project type, lead, default assignee,")
 			fmt.Fprintln(stdout, "  simplified (yes/no), and avatar URL.")
@@ -48,7 +48,7 @@ func runProjectGet(args []string, stdout, stderr io.Writer) (int, error) {
 	}
 
 	if key == "" {
-		fmt.Fprintln(stderr, "project get: project KEY is required (e.g. jira-tickets project get LYBEL)")
+		fmt.Fprintln(stderr, "project get: project KEY is required (e.g. jira-tickets project get ENG)")
 		return exitInputErr, errInvalidUsage
 	}
 

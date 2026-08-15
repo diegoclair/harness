@@ -55,9 +55,9 @@ func runProjectUpdate(args []string, stdout, stderr io.Writer) (int, error) {
 		case "-h", "--help":
 			fmt.Fprintln(stdout, "project update — rename or edit a project's metadata.")
 			fmt.Fprintln(stdout, "")
-			fmt.Fprintln(stdout, "  jira-tickets project update LYBEL --name \"Lybel Platform\"")
-			fmt.Fprintln(stdout, "  jira-tickets project update LYBEL --key LYBL --dry-run")
-			fmt.Fprintln(stdout, "  jira-tickets project update LYBEL --description \"Core platform\" --name \"Lybel\"")
+			fmt.Fprintln(stdout, "  jira-tickets project update ENG --name \"Engineering Platform\"")
+			fmt.Fprintln(stdout, "  jira-tickets project update ENG --key ENGX --dry-run")
+			fmt.Fprintln(stdout, "  jira-tickets project update ENG --description \"Core platform\" --name \"Engineering\"")
 			fmt.Fprintln(stdout, "")
 			fmt.Fprintln(stdout, "Flags:")
 			fmt.Fprintln(stdout, "  --name \"New Name\"    new display name")
@@ -82,7 +82,7 @@ func runProjectUpdate(args []string, stdout, stderr io.Writer) (int, error) {
 	}
 
 	if projectKey == "" {
-		fmt.Fprintln(stderr, "project update: project KEY is required (e.g. jira-tickets project update LYBEL --name \"New Name\")")
+		fmt.Fprintln(stderr, "project update: project KEY is required (e.g. jira-tickets project update ENG --name \"New Name\")")
 		return exitInputErr, errInvalidUsage
 	}
 	if newName == "" && newKey == "" && newDesc == "" {

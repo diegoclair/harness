@@ -436,7 +436,7 @@ func lintHandle(r *LintReport, c *Carousel) {
 	if c.Handle == "" {
 		r.addWarn("U10", -1,
 			"handle field is empty; brand anchor will not be displayed",
-			"set handle (e.g. '@lybel.com.br') for consistent identity across slides",
+			"set handle (e.g. '@yourbrand') for consistent identity across slides",
 		)
 	}
 }

@@ -126,7 +126,7 @@ func (c *converter) convertBlock(n ast.Node) (Node, bool) {
 func (c *converter) tryMacroParagraph(p ast.Node) (Node, bool) {
 	// Collect all text within the paragraph and check if it's exactly a
 	// placeholder. This handles the common case where pre-processing produced
-	// a line like `%%LYBELDOC_MACRO_3%%`.
+	// a line like `%%CONFLUENCE_MACRO_3%%`.
 	var sb strings.Builder
 	ast.Walk(p, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
 		if !entering {
