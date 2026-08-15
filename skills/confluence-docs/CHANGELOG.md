@@ -1,5 +1,23 @@
 # Changelog — confluence-docs
 
+## v0.21.0 (2026-08-15) — metadata becomes queryable
+
+`page create` and `page upload` now turn a page's `:::properties` into real
+Confluence labels — `type: decision` → `type-decision`, `status: active` →
+`status-active`, each `tags:` entry as its own label. `AddLabels` had existed
+since v0.8.1 but nothing called it once `km` was removed, so metadata lived only
+as text inside page bodies: readable one page at a time, never in bulk.
+
+A label is indexed by Confluence, so `map --type` now answers from one search
+per type instead of needing every page body, and `label="checkout"` works across
+the space. Labels are additive — a write never removes one the page no longer
+declares. `--no-labels` opts out.
+
+`SKILL.md` tells the agent to fill the properties honestly on create and to keep
+them current on edit, since a page written without them stays invisible to those
+filters. This only grows coverage forward: pages that never carried metadata
+still have none, and nothing cheap can invent it.
+
 ## v0.20.0 (2026-08-15) — `map` replaces `km`
 
 `km` rendered a Knowledge Map page from triage batches an LLM had to produce by

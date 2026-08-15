@@ -123,7 +123,8 @@ All `page get` calls accept `--output FILE` and `--quiet`.
 4. `confluence-docs new <type> --title "..." [--parent-id ID] [--output /tmp/page.md]` — generate the template (frontmatter + headings).
 5. **Confirm with the user** the final title, parent and type before creating.
 6. **Title rule for child pages: don't duplicate parent context.** If the parent is `ICPs + Validation Plan`, the child title is `Personal trainer autonomous solo`, NOT `ICP — Personal trainer autonomous solo`. The Confluence sidebar already shows the breadcrumb; the prefix wastes space. See `reference/doc-types.md` § "Child page titles" for the full pattern (and the slug-vs-title distinction).
-7. Fill the markdown template, then create:
+7. **Fill the `:::properties` block honestly** — `type`, `status` and `tags` describing what this page actually is. They are not decoration: on write, `type`/`status`/`tags` become real Confluence labels, which is what makes `map --type` and label search work across the whole space later. A page created without them is invisible to those filters. `--no-labels` skips writing them when you have a reason to.
+8. Fill the rest of the markdown template, then create:
    ```bash
    confluence-docs page create \
      --parent-id <parentId> --title "Final Title" \
@@ -181,6 +182,8 @@ confluence-docs page apply --page-id <id> --replace-section 'Roadmap' --fragment
 **If `apply` reports "section not found"**, it lists the page's current top-level headings — correct the spelling or pick a different section. **Never blindly retry** — confirm with the user when the page structure differs from what was expected.
 
 For two-step fallback (`get + edit + upload`) and MCP fallback, see `reference/workflows.md` § Workflow 4.
+
+**Editing an existing page:** if you rewrite a page's body, keep its `:::properties` current — a changed `status` or a new `tag` only reaches Confluence's index when the page is written with it. Labels are additive: writing a page never removes labels it no longer declares, so correcting a wrong one is a manual step in Confluence.
 
 ### 5. List — "what programs do we have" / "list partners"
 

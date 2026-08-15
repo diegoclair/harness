@@ -127,6 +127,23 @@ Owner is read from `git config user.email`. Template includes `status: draft`, t
 
 For `decision` type, the template also includes: Alternatives Considered (table), Consequences, and Review date.
 
+## Labels from `:::properties`
+
+`page create` and `page upload` turn a page's own metadata into real Confluence
+labels: `type: decision` becomes `type-decision`, `status: active` becomes
+`status-active`, and every entry in `tags:` becomes a label of its own
+(lowercased, non-alphanumerics collapsed to dashes).
+
+This is what makes metadata queryable in bulk. A label is indexed by Confluence,
+so `map --type decision` and `label="checkout"` searches cover the whole space
+in one call, instead of needing to read every page body.
+
+Labels are **additive** — writing a page never removes a label it no longer
+declares, so correcting a wrong one is a manual step in Confluence. Pass
+`--no-labels` to skip writing them. A newly written label takes a moment to
+appear in search results: Confluence's index is eventually consistent, while
+the page's own label list is immediate.
+
 ## `map` — structural index of the space
 
 Answers "what is in here and where" without reading pages. The index is built

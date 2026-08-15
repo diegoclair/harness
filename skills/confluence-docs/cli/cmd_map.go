@@ -266,6 +266,7 @@ func buildSpaceMap(client *adf.ConfluenceClient, space, root string, stderr io.W
 	walk(root, 0)
 
 	enrichFromSearch(client, space, sm.Entries, stderr)
+	enrichFromLabels(client, space, sm.Entries, stderr)
 	return sm, nil
 }
 
@@ -307,6 +308,41 @@ func enrichFromSearch(client *adf.ConfluenceClient, space string, entries []mapE
 				if e.Status == "" {
 					e.Status = m[2]
 				}
+			}
+		}
+	}
+}
+
+// docTypes are the labels `page create`/`page upload` write from a page's
+// :::properties block. One CQL call per type covers the whole space, which is
+// why labels beat reading bodies: the metadata is indexed.
+var docTypes = []string{"reference", "decision", "explanation", "how-to", "capture"}
+
+// enrichFromLabels fills type for pages labelled by the write path. It runs
+// after the excerpt pass and only fills what is still unknown, so a page that
+// carries the metadata inline is not overwritten by a stale label.
+func enrichFromLabels(client *adf.ConfluenceClient, space string, entries []mapEntry, stderr io.Writer) {
+	byID := map[string]*mapEntry{}
+	missing := 0
+	for i := range entries {
+		byID[entries[i].ID] = &entries[i]
+		if entries[i].Type == "" {
+			missing++
+		}
+	}
+	if missing == 0 {
+		return
+	}
+
+	for _, t := range docTypes {
+		rows, err := client.SearchCQL(fmt.Sprintf("space=%q AND label=%q AND type=page", space, "type-"+t), searchEnrichLimit)
+		if err != nil {
+			fmt.Fprintf(stderr, "map: label lookup for %s failed: %v\n", t, err)
+			return
+		}
+		for _, r := range rows {
+			if e, ok := byID[r.PageID]; ok && e.Type == "" {
+				e.Type = t
 			}
 		}
 	}

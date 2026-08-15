@@ -10,7 +10,7 @@ import (
 
 func runPageUpload(args []string, stdout, stderr io.Writer) (int, error) {
 	var pageID, adfFile, markdownFile, title, message string
-	var dryRun, fullWidth, fixedWidth bool
+	var dryRun, fullWidth, fixedWidth, noLabels bool
 
 	remaining, cloud, email, token, err := parseCommonPageFlags(args)
 	if err != nil {
@@ -56,6 +56,8 @@ func runPageUpload(args []string, stdout, stderr io.Writer) (int, error) {
 			}
 			message = remaining[i+1]
 			i++
+		case "--no-labels":
+			noLabels = true
 		case "--dry-run":
 			dryRun = true
 		case "--full-width":
@@ -101,6 +103,7 @@ func runPageUpload(args []string, stdout, stderr io.Writer) (int, error) {
 	}
 
 	var updateErr error
+	var markdownBody string
 	if adfFile != "" {
 		adfBytes, rdErr := os.ReadFile(adfFile)
 		if rdErr != nil {
@@ -119,6 +122,7 @@ func runPageUpload(args []string, stdout, stderr io.Writer) (int, error) {
 			fmt.Fprintln(stderr, "reading markdown:", rdErr)
 			return exitInputErr, rdErr
 		}
+		markdownBody = string(mdBytes)
 		if adf.RequiresStorageFormat(string(mdBytes)) {
 			// Markdown contains :::properties or other storage-only macros.
 			// Use client-aware conversion so @handle mentions in :::properties
@@ -156,6 +160,9 @@ func runPageUpload(args []string, stdout, stderr io.Writer) (int, error) {
 			}
 		}
 		// Auto-refresh the home cache if this write touched the Home page.
+		if !dryRun {
+			applyLabels(client, pageID, markdownBody, !noLabels, stderr)
+		}
 		refreshHomeCacheAfterWrite(pageID, client, stderr)
 		fmt.Fprintf(stdout, `{"status":"ok","pageId":%q}`+"\n", pageID)
 	}

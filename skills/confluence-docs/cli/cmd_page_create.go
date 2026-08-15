@@ -48,7 +48,7 @@ func resolveSpaceID(spaceID string, client *adf.ConfluenceClient) (string, error
 
 func runPageCreate(args []string, stdout, stderr io.Writer) (int, error) {
 	var spaceID, parentID, title, markdownFile, adfFile string
-	var fullWidth, fixedWidth bool
+	var fullWidth, fixedWidth, noLabels bool
 
 	remaining, cloud, email, token, err := parseCommonPageFlags(args)
 	if err != nil {
@@ -98,6 +98,8 @@ func runPageCreate(args []string, stdout, stderr io.Writer) (int, error) {
 			fullWidth = true
 		case "--fixed-width":
 			fixedWidth = true
+		case "--no-labels":
+			noLabels = true
 		default:
 			fmt.Fprintln(stderr, "unknown flag:", a)
 			return exitInputErr, errInvalidUsage
@@ -132,6 +134,7 @@ func runPageCreate(args []string, stdout, stderr io.Writer) (int, error) {
 		return exitInputErr, spaceErr
 	}
 
+	var markdownBody string
 	var result *adf.PageCreateResult
 	var createErr error
 
@@ -141,6 +144,7 @@ func runPageCreate(args []string, stdout, stderr io.Writer) (int, error) {
 			fmt.Fprintln(stderr, "reading markdown:", rdErr)
 			return exitInputErr, rdErr
 		}
+		markdownBody = string(src)
 		if adf.RequiresStorageFormat(string(src)) {
 			// Markdown contains :::properties or other storage-only macros.
 			// Convert to Confluence storage XML and upload with representation=storage.
@@ -185,6 +189,8 @@ func runPageCreate(args []string, stdout, stderr io.Writer) (int, error) {
 		fmt.Fprintln(stderr, err)
 		return exitUnknownErr, err
 	}
+
+	applyLabels(client, result.ID, markdownBody, !noLabels, stderr)
 
 	// Apply page appearance (full-width / fixed-width) if requested.
 	if fullWidth || fixedWidth {
