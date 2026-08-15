@@ -24,11 +24,11 @@ jobs:
       # present on disk BEFORE the cross-compile step. `make fonts` is
       # idempotent and skips if assets exist. ~12 MB / ~5 s on cold cache.
       - name: Download fonts (Outfit, DM Sans, Playfair, Space Grotesk, Inter, Noto Color Emoji)
-        working-directory: social-carousel
+        working-directory: skills/social-carousel
         run: make fonts
 
       - name: Run tests
-        working-directory: social-carousel
+        working-directory: skills/social-carousel
         run: make test
 
       - name: Compute clean version (strip "carousel-" prefix)
@@ -43,7 +43,7 @@ jobs:
           echo "Tag $TAG -> clean version $CLEAN"
 
       - name: Cross-compile binaries (5 platforms, fonts embedded)
-        working-directory: social-carousel
+        working-directory: skills/social-carousel
         run: make build-all VERSION=${{ steps.ver.outputs.clean }}
 
       - name: Package platform ZIPs

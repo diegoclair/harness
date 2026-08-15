@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -111,4 +112,39 @@ func makeVariable(t *testing.T, makefile, name string) string {
 	}
 	t.Fatalf("Makefile has no %s assignment", name)
 	return ""
+}
+
+// A workflow pointing at a path that does not exist fails only once a release
+// is tagged, which is the worst moment to find out.
+func TestWorkflowPathsExist(t *testing.T) {
+	entries, err := os.ReadDir(filepath.Join("..", ".github", "workflows"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	checked := 0
+	for _, e := range entries {
+		body, err := os.ReadFile(filepath.Join("..", ".github", "workflows", e.Name()))
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, line := range strings.Split(string(body), "\n") {
+			line = strings.TrimSpace(line)
+			for _, key := range []string{"working-directory:", "go-version-file:", "cache-dependency-path:"} {
+				if !strings.HasPrefix(line, key) {
+					continue
+				}
+				path := strings.TrimSpace(strings.TrimPrefix(line, key))
+				if path == "" || strings.Contains(path, "$") {
+					continue
+				}
+				checked++
+				if _, err := os.Stat(filepath.Join("..", path)); err != nil {
+					t.Errorf("%s: %s %q does not exist", e.Name(), key, path)
+				}
+			}
+		}
+	}
+	if checked == 0 {
+		t.Error("no workflow paths were checked; the parser stopped matching")
+	}
 }
