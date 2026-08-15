@@ -27,7 +27,7 @@ func init() {
 
 // version is injected at build time via -ldflags "-X main.version=..."
 // Falls back to the source-tree version when not set via ldflags (dev builds).
-var version = "v0.17.0"
+var version = "v0.20.0"
 
 const helpText = `confluence-docs — Confluence ADF toolkit: convert, edit, lint, and publish pages.
 
@@ -45,7 +45,7 @@ USAGE:
   confluence-docs index        VERB [flags]
   confluence-docs check        --title "..." [--type TYPE] [--tags t1,t2] [--threshold 0.7]
   confluence-docs new          TYPE --title "..." [--parent-id ID] [--full-width] [--output FILE]
-  confluence-docs km           SUBCMD [flags]
+  confluence-docs map          [--depth N] [--find TERM] [--children ID] [--type T] [--refresh]
   confluence-docs --version
   confluence-docs --help
 
@@ -63,7 +63,7 @@ COMMANDS:
   index         Manage the Page ID Index table on the Home page.
   check         Fuzzy title search before creating a page. Returns JSON with exists/similar/suggestion.
   new           Generate a markdown template for a new page by doc type (reference/decision/explanation/how-to/capture).
-  km            Knowledge Map: generate and upload the KNOWLEDGE_MAP page (subcommands: generate, classify).
+  map           Structural index of the space: outline, find, children, type filters.
 
 SETUP FLAGS:
   (no flags)              Interactive wizard — prompts for email and API token.
@@ -349,8 +349,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) 
 		return runCheck(args[1:], stdout, stderr)
 	case "new":
 		return runNew(args[1:], stdin, stdout, stderr)
-	case "km":
-		return runKM(args[1:], stdin, stdout, stderr)
+	case "map":
+		return runMap(args[1:], stdout, stderr)
 	case "space":
 		return runSpace(args[1:], stdout, stderr)
 	}

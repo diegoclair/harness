@@ -9,7 +9,7 @@
 - [Smart Link embeds](#smart-link-embeds)
 - [`check` — duplicate detection](#check--duplicate-detection)
 - [`new <type>` — template generator](#new-type--template-generator)
-- [`km` — Knowledge Map generator](#km--knowledge-map-generator)
+- [`map` — structural index of the space](#map--structural-index-of-the-space)
 
 ---
 
@@ -127,74 +127,40 @@ Owner is read from `git config user.email`. Template includes `status: draft`, t
 
 For `decision` type, the template also includes: Alternatives Considered (table), Consequences, and Review date.
 
-## `km` — Knowledge Map generator
+## `map` — structural index of the space
 
-Generates a KNOWLEDGE_MAP page from triage JSON batches produced by subagents, with optional hand-classified baseline overrides.
-
-### Typical workflow
-
-```bash
-# 1. Subagent triage writes batch-*.json into /tmp/km-triage/
-# 2. Consolidate and upload:
-confluence-docs km generate \
-    --input /tmp/km-triage \
-    --baseline /tmp/baseline.json \
-    --target-page-id <KM_PAGE_ID> \
-    --message "regenerate KM after triage" \
-    --full-width
-```
-
-### Dry-run (review before upload)
+Answers "what is in here and where" without reading pages. The index is built
+from the REST API — walking the page tree and reading the `type`/`status` the
+pages already carry — so producing it costs **no model tokens**. It is cached
+locally and read in slices, so a large space never enters the context at once.
 
 ```bash
-# Render to stdout only:
-confluence-docs km generate --input /tmp/km-triage
-
-# Render to file:
-confluence-docs km generate --input /tmp/km-triage --output /tmp/km.md
-
-# Dry-run with target page: shows size but skips upload:
-confluence-docs km generate \
-    --input /tmp/km-triage \
-    --target-page-id <KM_PAGE_ID> \
-    --dry-run
+confluence-docs map --refresh          # rebuild the cache from the API
+confluence-docs map --depth 2          # top two levels of the tree
+confluence-docs map --find "checkout"  # matching branches, ancestors kept
+confluence-docs map --children 164232  # one level under a page
+confluence-docs map --type decision    # only pages of that type
+confluence-docs map --stale 90         # untouched for 90 days
+confluence-docs map --status           # cache age and page count
+confluence-docs map --json             # machine-readable
 ```
 
-### Baseline format (`--baseline FILE`)
+Output is one line per page, indented by depth:
 
-```json
-{
-  "pages": [
-    {"pageId": "185303042", "title": "About the Project", "tipo": "reference", "tags": []},
-    {"pageId": "187695141", "title": "Current Fit Proposal", "tipo": "decision", "tags": ["phase-mvp"]}
-  ]
-}
+```
+164232  Home
+  200441858  KNOWLEDGE_MAP — Mapa do Conhecimento  [reference]
+  185303042  About the project  [reference]
 ```
 
-Baseline entries take precedence over triage (type and title are never overridden). Triage can still **augment** baseline entries — e.g. adding a tag or a real anomaly.
+The cache lives at `~/.cache/confluence-docs/map-<space>.tsv` and refreshes
+itself when older than an hour; `--no-refresh` fails instead of fetching.
+`--root ID` walks from somewhere other than the configured Home and is cached
+separately, so a subtree never replaces the space-wide index.
 
-### Triage batch format (`batch-*.json` files)
+**Metadata coverage.** The tree is always complete. `type`, `status` and the
+last-modified date come from one bulk search, so they are known only for pages
+that carry a `:::properties` block and only within the first 250 results.
+`map --status` reports the coverage, and a filter run against mostly-unknown
+metadata says so rather than looking like "nothing matches".
 
-```json
-[
-  {
-    "pageId": "131676",
-    "title": "Business Model Canvas",
-    "tipo_proposto": "reference",
-    "confidence": "high",
-    "tags_sugeridas": ["bmc", "strategy"],
-    "rationale": "...",
-    "anomalia": null
-  }
-]
-```
-
-### Tag rules applied automatically
-
-- Tags with pejorative substrings (`legacy`, `obsolete`, `outdated`, `pre-pivot`, `post-pivot`, `old`) are removed and replaced by the canonical `phase-archived`.
-- Anomaly strings containing `"pre-pivot"`, `"b2b2c"`, `"post-pivot"`, `"stale-content"`, etc. mark the entry with `phase-archived` but do NOT become real anomalies.
-- Real anomalies (shown in the review section) require: `"borderline"`, `"duplicate"`, or `"outdated-name"` substrings.
-
-### `km classify` (stub)
-
-`confluence-docs km classify --page-id ID` is registered but returns `"not implemented"`. Reserved for future auto-classification via the Confluence REST API.

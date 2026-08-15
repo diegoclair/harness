@@ -775,6 +775,9 @@ type SearchResult struct {
 	Title   string
 	URL     string
 	Excerpt string // plain-text excerpt, HTML highlight tags stripped
+	// LastModified is the ISO-8601 timestamp the search endpoint reports.
+	// Empty when the endpoint omits it.
+	LastModified string
 }
 
 // SearchCQL runs a CQL query via the v1 Confluence search REST endpoint and
@@ -812,10 +815,11 @@ func (c *ConfluenceClient) SearchCQL(cql string, limit int) ([]SearchResult, err
 					WebUI string `json:"webui"`
 				} `json:"_links"`
 			} `json:"content"`
-			Title      string `json:"title"`
-			Excerpt    string `json:"excerpt"`
-			URL        string `json:"url"`
-			EntityType string `json:"entityType"`
+			Title        string `json:"title"`
+			Excerpt      string `json:"excerpt"`
+			URL          string `json:"url"`
+			EntityType   string `json:"entityType"`
+			LastModified string `json:"lastModified"`
 		} `json:"results"`
 	}
 	if err := json.Unmarshal(data, &resp); err != nil {
@@ -842,10 +846,11 @@ func (c *ConfluenceClient) SearchCQL(cql string, limit int) ([]SearchResult, err
 			webui = r.URL
 		}
 		out = append(out, SearchResult{
-			PageID:  pageID,
-			Title:   title,
-			URL:     c.PageURL(webui),
-			Excerpt: stripExcerptHTML(r.Excerpt),
+			PageID:       pageID,
+			Title:        title,
+			URL:          c.PageURL(webui),
+			Excerpt:      stripExcerptHTML(r.Excerpt),
+			LastModified: r.LastModified,
 		})
 	}
 	return out, nil

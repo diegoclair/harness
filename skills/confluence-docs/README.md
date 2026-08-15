@@ -133,9 +133,9 @@ See the [Linear ticket](https://linear.app/team/issue/PSP-12) for full thread.
 ![embed](https://www.youtube.com/watch?v=dQw4w9WgXcQ)
 ```
 
-### Knowledge Map regeneration
+### Space index
 
-`confluence-docs km generate` consumes triage JSON batches (typically produced by subagents) and renders a classified Knowledge Map page using your project's baseline overrides. Idempotent, dry-run capable, supports tag normalization (no more pejorative "obsolete" tags polluting the map).
+`confluence-docs map` builds a structural index of the space straight from the REST API — the page tree plus whatever `type`/`status` the pages already carry. Producing it costs no model tokens, it is cached locally, and it is read in slices (`--depth`, `--find`, `--children`, `--type`) so a large space never has to be loaded at once.
 
 ### Duplicate detection before page creation
 
@@ -155,7 +155,7 @@ See the [Linear ticket](https://linear.app/team/issue/PSP-12) for full thread.
 | **Installing the skill** | [`cli/README.md`](cli/README.md) — install + setup wizard |
 | **Operation gotchas + decision matrix** | [`reference/operations-matrix.md`](reference/operations-matrix.md) |
 | **Editorial patterns for pages** | [`reference/editorial-patterns.md`](reference/editorial-patterns.md) |
-| **CLI features** (full-width, properties, smart links, check, new, km) | [`reference/features.md`](reference/features.md) |
+| **CLI features** (full-width, properties, smart links, check, new, map) | [`reference/features.md`](reference/features.md) |
 | **Configuration / spaces / cache** | [`reference/configuration.md`](reference/configuration.md) |
 | **Canonical doc-type spec** | [`reference/doc-types.md`](reference/doc-types.md) |
 | **Generic workflows (search, read, create, update, delete)** | [`reference/workflows.md`](reference/workflows.md) |

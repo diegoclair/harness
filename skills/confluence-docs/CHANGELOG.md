@@ -1,5 +1,30 @@
 # Changelog — confluence-docs
 
+## v0.20.0 (2026-08-15) — `map` replaces `km`
+
+`km` rendered a Knowledge Map page from triage batches an LLM had to produce by
+classifying every page — spending the tokens the map existed to save. Its
+`classify` half was never implemented, it was not wired into the skill's
+instructions, and it hardcoded one company's taxonomy, rewriting user tags that
+matched it.
+
+`map` builds a structural index of the space from the REST API instead: the page
+tree, plus the `type`/`status`/last-modified the pages already carry. Producing
+it costs no model tokens. It is cached at `~/.cache/confluence-docs/map-<space>.tsv`
+with a 1h TTL and read in slices — `--depth`, `--find` (keeps ancestors so the
+result reads as a tree), `--children`, `--type`, `--stale`, `--status`, `--json` —
+so a large space never has to enter the context at once. `SKILL.md` and
+`reference/workflows.md` now tell an agent when to reach for it, which is what
+`km` never had.
+
+`map --root ID` is cached separately, so a subtree never replaces the space-wide
+index. Metadata coverage is reported rather than assumed: `type`/`status`/date
+are known only for pages carrying a `:::properties` block, within the first 250
+search results, and unknown is never treated as excluded.
+
+**Breaking:** `confluence-docs km` is gone. The KNOWLEDGE_MAP pages it produced
+are untouched; nothing regenerates them any more.
+
 ## v0.17.0 (2026-08-09) — `page create` space-id fixes
 
 ### Fix: `page create` crashed (SIGSEGV) on an invalid `--space-id`

@@ -14,7 +14,7 @@ updated: 2026-05-12
 
 This is the canonical spec for any project using the `confluence-docs` skill. It defines the 5 document types, their required structure, frontmatter fields, naming conventions, cross-linking rules, and anti-patterns.
 
-Projects MAY extend or override this with their own editorial guide (e.g., `docs/standards/EDITORIAL.md`), but the 5 types and frontmatter field names are the contract. The skill reads this file as its authoritative reference — `SKILL.md` and the `km` command derive their behavior from Sections 2–4 here.
+Projects MAY extend or override this with their own editorial guide (e.g., `docs/standards/EDITORIAL.md`), but the 5 types and frontmatter field names are the contract. The skill reads this file as its authoritative reference — `SKILL.md` derives its behavior from Sections 2–4 here.
 
 ---
 
@@ -375,7 +375,7 @@ The only exception: `type: decision` docs that explicitly include `## Supersessi
 
 ## Section 10 — How the Skill Consumes This File
 
-The skill reads `reference/doc-types.md` (this file) as its canonical contract for all page creation and validation operations. No template logic is hardcoded in the skill — all behavior derives from Sections 2, 3, and 4 here. `SKILL.md` and the `km` command derive their defaults and validation rules from these sections.
+The skill reads `reference/doc-types.md` (this file) as its canonical contract for all page creation and validation operations. No template logic is hardcoded in the skill — all behavior derives from Sections 2, 3, and 4 here. `SKILL.md` derives its defaults and validation rules from these sections.
 
 **Subcommands:**
 

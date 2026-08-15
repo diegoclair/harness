@@ -53,7 +53,7 @@ The body below is the entry point — daily use, mental model, common workflows.
 - `reference/doc-types.md` — canonical spec of the 5 doc types (`reference`, `decision`, `explanation`, `how-to`, `capture`), frontmatter contract, **child page title rules**, anti-patterns
 - `reference/operations-matrix.md` — CLI subcommand × constraint × fail mode × workaround. **Read before chaining table/section edits** — captures the gotchas not visible from `--help` (notably: `--match-cell` always matches the first column unless `--match-col` is provided in v0.11+)
 - `reference/editorial-patterns.md` — how pages should be written (Pattern 1: header; 2: Context→Problem→Solution; 3: clarity for outside readers; 4: no process meta-noise)
-- `reference/features.md` — CLI features: full-width pages, `:::properties` macro, Smart Link embeds, `check`, `new`, `km`
+- `reference/features.md` — CLI features: full-width pages, `:::properties` macro, Smart Link embeds, `check`, `new`, `map`
 - `reference/configuration.md` — auth modes (`login` OAuth / `setup` API token), credentials, spaces, cache lifecycle, install check, exit codes
 
 Project-specific routing (your category structure, aliases, templates) lives on the **Confluence Home page**, fetched dynamically — the skill ships zero project-specific data.
@@ -77,6 +77,16 @@ Reads auto-refresh when the cache is missing or older than 1h. Writes to the Hom
 
 **Cost rule of thumb:** cached `home --query/--show` → `page digest` → `page get` → MCP. Escalate only when the cheaper option doesn't carry the answer.
 
+**Unfamiliar or large space?** `confluence-docs map` prints the page tree — id, title, depth, type — built from the API, so it costs no tokens to produce and is read in slices:
+
+```bash
+confluence-docs map --depth 2              # the shape of the space
+confluence-docs map --find "checkout"      # only the matching branches
+confluence-docs map --children <pageId>    # one level down
+```
+
+Reach for it when the Home does not list what you need, when you must know where a page sits in the hierarchy, or before creating a page (to pick the right parent). Never dump the whole tree into context — narrow with `--depth`, `--find` or `--children`.
+
 For the full cache contract and override flags, see `reference/configuration.md` § Home cache lifecycle.
 
 ---
@@ -89,8 +99,9 @@ Resolve a term to a pageId via this ladder; stop at the first plausible match. T
 
 1. **Memory file or current conversation** — if a Claude memory file or the current conversation already has a pageId, **use it directly**. The follow-up `page digest` is self-validating.
 2. **Cached Home** — `confluence-docs home --query "<term>"`. Local, free, fastest after memory. Single term per call.
-3. **CLI search** — `confluence-docs search "<term>" --limit 5`. Used when the term isn't in the Home. Output is TSV (`pageId\ttitle\turl\texcerpt`, ~150 bytes per result). Default CQL filters by your active space; pass `--cql "..."` for full control.
-4. **Confirm and return** — once you have a pageId, `page digest --page-id <id>` to verify before quoting it back.
+3. **Space index** — `confluence-docs map --find "<term>"`. Local and free like the Home, but covers every page in the space rather than only what the Home lists, and shows where each hit sits in the tree.
+4. **CLI search** — `confluence-docs search "<term>" --limit 5`. Used when the term isn't in the Home. Output is TSV (`pageId\ttitle\turl\texcerpt`, ~150 bytes per result). Default CQL filters by your active space; pass `--cql "..."` for full control.
+5. **Confirm and return** — once you have a pageId, `page digest --page-id <id>` to verify before quoting it back.
 
 Fallback (CLI unavailable): `mcp__atlassian__searchConfluenceUsingCql` with the same CQL filter.
 

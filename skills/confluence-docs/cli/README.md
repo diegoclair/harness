@@ -1,6 +1,6 @@
 # confluence-docs
 
-Confluence ADF toolkit and Claude skill. Edits Confluence Cloud pages without destroying macros; consolidates a knowledge base into a classified Knowledge Map; supports `:::properties`, smart links, page labels, and `@mentions`.
+Confluence ADF toolkit and Claude skill. Edits Confluence Cloud pages without destroying macros; indexes a whole space into a navigable tree; supports `:::properties`, smart links, page labels, and `@mentions`.
 
 Designed for any team running a Confluence Cloud space alongside Claude (or any other LLM agent) that maintains docs daily.
 
@@ -89,7 +89,7 @@ Credentials and home cache are preserved across updates.
 | `index` | Manage the Page ID Index table on your project's Home page |
 | `check` | Detect duplicates before creating a page (trigram fuzzy match by title) |
 | `new` | Generate a starter markdown template for one of the five canonical doc types |
-| `km` | Knowledge Map regeneration from triage JSON batches |
+| `map` | Structural index of the space: outline, find, children, type filters |
 
 Run `confluence-docs --help` or `confluence-docs <command> --help` for full flag documentation.
 

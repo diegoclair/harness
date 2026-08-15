@@ -45,9 +45,9 @@ In every new session, Claude queries the cache directly — the CLI handles fres
 
 ---
 
-## Knowledge Map (cross-cutting index by type)
+## Space index (structure, not topic)
 
-If your project uses the `confluence-docs km` command, there is a second navigation entry point in addition to the Home: the **KNOWLEDGE_MAP page**, which indexes pages by **doc type** (`reference` / `decision` / `explanation` / `how-to` / `capture`) instead of by topic area.
+`confluence-docs map` is a second navigation entry point alongside the Home. The Home answers "where does this topic live"; the index answers "what exists and where does it sit" — the page tree, built from the API at no token cost, filterable by doc type (`reference` / `decision` / `explanation` / `how-to` / `capture`) where pages carry one.
 
 When the agent needs to "find all decisions" or "find all how-to guides", the KM is the right entry point. When it needs "find pages about partners" or "where do I put a new competitor analysis", the Home is the right entry point. The two indexes are complementary.
 

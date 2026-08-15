@@ -17,7 +17,7 @@ This file defines deterministic flows for the universal actions the agent perfor
 - [Workflow 4 — Update an existing page](#workflow-4--update-an-existing-page)
 - [Workflow 5 — Status](#workflow-5--status)
 - [Workflow 6 — Delete (soft) a page](#workflow-6--delete-soft-a-page)
-- [Workflow 7 — Regenerate the Knowledge Map](#workflow-7--regenerate-the-knowledge-map)
+- [Workflow 7 — Find your way around a space](#workflow-7--find-your-way-around-a-space)
 - [Cross-cutting execution rules](#cross-cutting-execution-rules)
 
 ---
@@ -110,7 +110,7 @@ Never fetch the full ADF body just to read a single section.
    ```
    `--space-id` defaults to the active space from config; pass it to override (accepts either a numeric ID or a space key).
 8. **If this is a `:::properties` page**, the storage path is auto-detected; tags from the frontmatter are also applied as real Confluence labels on the created page. Owner / reviewer `@mentions` are resolved to user mention chips.
-9. **Register in the KNOWLEDGE_MAP** (if your project uses one) in the same turn, under the section matching the type. Otherwise the page becomes orphaned.
+9. **Register the page in your project's index** (if it maintains one) in the same turn, under the section matching the type. Otherwise the page becomes orphaned.
 10. **If the parent has a summary table**, update it via `page apply --table-add-row "Heading" --row "col1|col2|..."` so the new entry shows up there too.
 
 ---
@@ -175,22 +175,21 @@ Soft delete — Confluence trash is restorable. **Always confirm with the user**
 
 ---
 
-## Workflow 7 — Regenerate the Knowledge Map
+## Workflow 7 — Find your way around a space
 
-If your project uses `km` to maintain a KNOWLEDGE_MAP page (recommended), regenerate after major edits:
+When the Home does not answer "where is X", or before creating a page (to pick
+the right parent), read the structural index instead of searching page by page.
+It is built from the REST API, so it costs no model tokens to produce.
 
 ```
-confluence-docs km generate \
-    --input /path/to/triage/json/dir \
-    [--baseline baseline.json] \
-    --target-page-id <KM_PAGE_ID> \
-    --full-width \
-    --message "..."
+confluence-docs map --depth 2              # the shape of the space
+confluence-docs map --find "<term>"        # matching branches, ancestors kept
+confluence-docs map --children <pageId>    # one level down
+confluence-docs map --type decision        # where pages carry a type
 ```
 
-See `doc-types.md` for the canonical 5 types and `cmd_km.go` source for the JSON formats.
-
----
+Read it in slices. Never dump the whole tree into context — narrow with
+`--depth`, `--find` or `--children` first.
 
 ## Cross-cutting execution rules
 
