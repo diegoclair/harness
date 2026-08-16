@@ -63,6 +63,30 @@ alone and why, in the same breath as what you fixed. **"I brought it to zero" is
 not a result to be proud of** — "I fixed eleven, and these four are right as
 they are, here is why" is.
 
+## Proof scales with what the change can break
+
+A green build proves the code compiles, never that it behaves the same. Match
+the evidence to the class of change:
+
+| Change | What proves it |
+|---|---|
+| A comment | The build. Nothing else can move. |
+| A rename, an extracted constant | Build plus a grep that every call site moved. |
+| **A refactor that renders** | **Diff the artifact.** Build the commit before and the commit after, normalise chunk hashes, and diff the generated HTML. Identical output is the only claim worth making. |
+| A route, a query, a migration | The artifact plus the real request or the real rows. |
+
+This is not theory. Collapsing six page layouts into one helper produced
+byte-identical HTML on ten of twelve pages — and on the eleventh it silently
+dropped a `robots` directive that exactly one of the six carried. The build was
+green, the types checked, the copy was asserted identical string by string, and
+the regression was still there. Only the rendered diff found it.
+
+Two habits follow. **An extraction script must assert it consumed every key it
+found, not only the ones you expected** — the drop happened because the script
+read four fields and the sixth file had five. And **when the diff shows a change
+you did not intend, stop and explain it before shipping**; a difference you
+cannot account for is a bug you have not found yet.
+
 ## The three rules of using it
 
 1. **Errors are fixed in the same delivery.** Not deferred, not baselined. The
