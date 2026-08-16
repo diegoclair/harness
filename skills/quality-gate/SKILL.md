@@ -35,6 +35,34 @@ quality-gate explain CMT-02 # why a rule exists and how to satisfy it
 Exit 0 clean, 1 new errors, 2 configuration failure. **Warnings never fail the
 run** — they are reported to the user, never silently suppressed.
 
+## Zero is not the goal — read this before fixing anything
+
+**A finding is a question, not a task.** The gate points at a place worth a
+second look; whether the code should change is a judgment it cannot make. An
+agent that treats the report as a checklist and drives it to zero will delete
+real information and call it progress.
+
+Three shapes come up constantly, and all three are *correct as they are*:
+
+- **A long comment that is a decision.** "Rejecting was a real incident — once a
+  chat crossed the old cap every further message failed" is not padding. Cut the
+  catalogue that repeats the code; keep the incident, the spec reference, the
+  reason a guard exists. When a rewrite would cost information, say so and leave
+  it — a `quality-gate:allow` with the reason is the honest ending.
+- **Duplication that should stay duplicated.** Two bounded contexts that must
+  not import each other will mirror code, and that is the price of the
+  separation, not a defect. Two components that merely look alike today may be
+  meant to diverge tomorrow. **No codebase is, or should be, 100% free of
+  duplication** — the question is always "is this one abstraction, accidentally
+  written twice, or two things that happen to rhyme?"
+- **A warning that is a fair answer.** Most CPX findings are one long rule
+  expressed linearly. Splitting it to satisfy a number produces worse code.
+
+So: before changing anything, open the code and decide. Report what you left
+alone and why, in the same breath as what you fixed. **"I brought it to zero" is
+not a result to be proud of** — "I fixed eleven, and these four are right as
+they are, here is why" is.
+
 ## The three rules of using it
 
 1. **Errors are fixed in the same delivery.** Not deferred, not baselined. The
