@@ -41,7 +41,6 @@ func TestProbeFiresEveryRule(t *testing.T) {
 	got := hits(runProbe(t, "testdata/probe"))
 
 	for _, want := range []string{
-		"CMT-01@service/verbose.go:3",
 		"CMT-02@service/probe.go:19",
 		"CMT-04@service/probe.go:21",
 		"CMT-05@service/probe.go:23",

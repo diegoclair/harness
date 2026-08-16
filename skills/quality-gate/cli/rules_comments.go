@@ -27,7 +27,11 @@ func checkComment(cfg *Config, f *File, c Comment, add func(Finding)) {
 	if commentedOutCode(c.Lines) {
 		emit("CMT-06", "commented-out code — delete it, git remembers")
 	}
-	if budget := cfg.budget(c.Pos); budget > 0 && c.Span() > budget {
+	// Scoped to the delivery, like CMT-03. On committed code the long comments
+	// are the ones that survived review — decisions and incidents, measured at
+	// 20 of 30 exactly one line over — so length there measures wrapping. On the
+	// lines a change adds, a wall of comment is still a wall.
+	if budget := cfg.budget(c.Pos); budget > 0 && c.Span() > budget && f.isAdded(c.Line) {
 		emit("CMT-01", fmt.Sprintf("comment block is %d lines; the budget for a %s comment is %d",
 			c.Span(), c.Pos, budget))
 	}
@@ -164,10 +168,11 @@ var constraintMarkers = []string{
 	"must", "never", "only", "always", "at most", "at least", "cannot", "can't",
 	"required", "optional", "absent", "empty", "zero", "unset", "nil", "null",
 	"undefined", "omitted", "means",
-	"default", "fallback", "fall back", "falls back", "not", "immutable",
+	"default", "defaults", "fallback", "fall back", "falls back", "not", "immutable",
 	"once", "max", "min", "limit", "unrecoverable", "read-only", "write-only",
 	"ignored", "overrides", "precedence", "nullable", "sentinel", "per",
 	"neither", "nor", "non", "excludes", "excluding", "derived", "computed",
+	"when", "up to", "≥", "≤", ">=", "<=",
 	"no", "without", "filled", "even", "unless", "except", "beyond", "all-time",
 	// format
 	"rfc", "e.164", "iso", "format", "lowercase", "uppercase", "slug", "digits",
@@ -179,7 +184,9 @@ var constraintMarkers = []string{
 }
 
 // A path, placeholder or numeric range is a format even with no marker word.
-var formatLiteralRe = regexp.MustCompile(`/[a-z_:<{][\w:<>{}$/-]*|<[a-z][\w-]*>|\$\{[^}]+\}|\b\d+\s*[-–]\s*\d+\b`)
+// A path, placeholder, numeric range or date/time token is a format even with
+// no marker word: `YYYY-MM-DD` on a field is the ideal declaration comment.
+var formatLiteralRe = regexp.MustCompile(`/[a-z_:<{][\w:<>{}$/-]*|<[a-z][\w-]*>|\$\{[^}]+\}|\b\d+\s*[-–]\s*\d+\b|\b(yyyy|hh|mm|dd|ss)\b[-:/]`)
 
 // isSectionLabel spots the short noun phrase that groups a run of declarations
 // ("// Instagram Showcase.") rather than describing the one below it. It says
@@ -225,7 +232,7 @@ func isSectionLabel(c Comment) bool {
 var descriptiveVerbs = map[string]bool{
 	"was": true, "hold": true, "carry": true,
 	"mean": true, "represent": true, "count": true, "address": true,
-	"return": true, "contain": true, "store": true, "keep": true, "point": true,
+	"return": true, "contain": true, "store": true, "keep": true,
 }
 
 // A numeric range is a constraint the name cannot carry: `0–5 short options`
@@ -367,9 +374,14 @@ func commentedOutCode(lines []string) bool {
 // A trailing semicolon alone is not code: English prose uses one too. It only
 // counts alongside the shape of a statement — short, with a call or an
 // assignment in it.
+// A prose clause closes a parenthetical the same way a call closes its
+// arguments — "(not a tablet);". Only a call shape, an identifier glued to its
+// paren, tells them apart.
 func looksLikeStatement(l string) bool {
-	return strings.HasSuffix(l, ");") || assignmentRe.MatchString(l)
+	return (strings.HasSuffix(l, ");") && callShapeRe.MatchString(l)) || assignmentRe.MatchString(l)
 }
+
+var callShapeRe = regexp.MustCompile(`\w\(`)
 
 var assignmentRe = regexp.MustCompile(`\w\s*=[^=]`)
 

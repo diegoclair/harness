@@ -14,7 +14,6 @@ func TestProbeWebFiresEveryRule(t *testing.T) {
 	got := hits(runProbe(t, probeWeb))
 
 	for _, want := range []string{
-		"CMT-01@src/features/agenda/BigDoc.tsx:1",
 		"CMT-02@src/features/agenda/CommentProbe.tsx:21",
 		"CMT-04@src/features/agenda/CommentProbe.tsx:23",
 		"CMT-05@src/features/agenda/CommentProbe.tsx:25",

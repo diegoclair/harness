@@ -138,6 +138,8 @@ func TestCommentedOutCode(t *testing.T) {
 		{"POST /provider/profile/instagram/ — add instagram post { url }"},
 		{"slots. Text is computed server-side (working hours minus bookings/blocks);"},
 		{"@returns {Promise<void>}"},
+		{"mobile renders narrower so the shell reads as a tall phone (not a tablet);"},
+		{"failures arrive as the HTTP error body (apperr JSON envelope);"},
 	}
 	for _, lines := range prose {
 		if commentedOutCode(lines) {
@@ -231,5 +233,39 @@ func TestBodyCommentIsAskedAboutOnlyWhenTheDeliveryAddedIt(t *testing.T) {
 func TestNotEnglishIgnoresNonLatinLetters(t *testing.T) {
 	if reason, ok := notEnglish("0..π → fan upward/outward"); ok {
 		t.Errorf("maths notation read as Portuguese (%s)", reason)
+	}
+}
+
+// The budget asks about the comment a delivery writes, not about the ones that
+// already survived review.
+func TestBudgetAppliesToTheDeliveryOnly(t *testing.T) {
+	long := Comment{
+		Line: 10, EndLine: 16, Pos: PosFunc, Target: "Charge",
+		Lines: []string{"a", "b", "c", "d", "e", "f", "g"}, Text: "a b c d e f g",
+	}
+	run := func(added []lineRange) (found bool) {
+		f := &File{Path: "x.go", Comments: []Comment{long}, AddedLines: added}
+		checkComments(&Config{}, f, func(fi Finding) {
+			if fi.Rule == "CMT-01" {
+				found = true
+			}
+		})
+		return
+	}
+	if run(nil) {
+		t.Error("a pre-existing comment over budget must stay silent")
+	}
+	if !run([]lineRange{{from: 9, to: 17}}) {
+		t.Error("a comment the delivery added over budget must be reported")
+	}
+}
+
+// A bare format token is the ideal declaration comment; reporting it taught
+// exactly the wrong lesson.
+func TestFormatTokensReadAsConstraints(t *testing.T) {
+	for _, s := range []string{"yyyy-mm-dd.", `pre-fills the pair ("hh:mm").`, "≥ this → three panes."} {
+		if !hasConstraint(s) {
+			t.Errorf("%q states a format or a threshold", s)
+		}
 	}
 }
