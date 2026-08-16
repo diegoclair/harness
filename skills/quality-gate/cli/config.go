@@ -25,18 +25,18 @@ type DenyEdge struct {
 // ones a lint rule cannot express. Rows live in the config because the table
 // belongs to the project, not to the gate.
 type CanonicalRow struct {
-	ID      string   `yaml:"id"`
-	Scope   string   `yaml:"scope"`   // line (default) | element
-	Element string   `yaml:"element"` // element-name pattern, scope: element
-	Match   string   `yaml:"match"`   // context that must be present
-	Forbid  string   `yaml:"forbid"`  // what must not appear
-	Unless  string   `yaml:"unless"`  // presence of this exempts
-	Only    []string `yaml:"only"`    // file globs the row polices, all when empty
-	Except  []string `yaml:"except"`  // file globs the row does not police
-	Message string   `yaml:"message"`
-	Sev     string   `yaml:"severity"` // warn to make the row a question
+	ID          string   `yaml:"id"`
+	Scope       string   `yaml:"scope"` // line (default) | element
+	ElementName string   `yaml:"element_name"`
+	Match       string   `yaml:"match"`  // context that must be present
+	Forbid      string   `yaml:"forbid"` // what must not appear
+	Unless      string   `yaml:"unless"` // presence of this exempts
+	Only        []string `yaml:"only"`   // file globs the row polices, all when empty
+	Except      []string `yaml:"except"` // file globs the row does not police
+	Message     string   `yaml:"message"`
+	Sev         string   `yaml:"severity"` // warn to make the row a question
 
-	elementRe, matchRe, forbidRe, unlessRe *regexp.Regexp
+	elementNameRe, matchRe, forbidRe, unlessRe *regexp.Regexp
 }
 
 type Config struct {
@@ -227,7 +227,7 @@ func (c *Config) compileCanonical() error {
 		for _, p := range []struct {
 			src string
 			dst **regexp.Regexp
-		}{{row.Element, &row.elementRe}, {row.Match, &row.matchRe}, {row.Forbid, &row.forbidRe}, {row.Unless, &row.unlessRe}} {
+		}{{row.ElementName, &row.elementNameRe}, {row.Match, &row.matchRe}, {row.Forbid, &row.forbidRe}, {row.Unless, &row.unlessRe}} {
 			if p.src == "" {
 				continue
 			}

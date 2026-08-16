@@ -656,3 +656,11 @@ own name and its members, and that is naming the contract, not narrating it.
 
 A budget of `0` in config means no cap — that is how a position opts out of
 CMT-01 without opting out of anything else.
+
+## The defect a comment rule cannot see
+
+`Element string // element-name pattern` — the field holds a name pattern, so
+the fix is to call it `ElementName`, and the comment disappears on its own.
+CMT-09 points at the comment; nothing here can see that the defect is the
+identifier, because that needs knowing what the field holds. It is the clearest
+case the phase-2 judge exists for.

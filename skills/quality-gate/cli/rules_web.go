@@ -72,7 +72,7 @@ func checkCanonical(cfg *Config, f *File, add func(Finding)) {
 
 func checkCanonicalElements(cfg *Config, f *File, row *CanonicalRow, add func(Finding)) {
 	for _, el := range f.Elements {
-		if row.elementRe != nil && !row.elementRe.MatchString(el.Name) {
+		if row.elementNameRe != nil && !row.elementNameRe.MatchString(el.Name) {
 			continue
 		}
 		if row.hits(el.Open) {

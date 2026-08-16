@@ -89,7 +89,7 @@ contexts: []
 #       message: "Use design tokens."
 #     - id: drawer-is-app-chrome
 #       scope: element          # match the opening tag, not the source line
-#       element: '^Drawer$'
+#       element_name: '^Drawer$'
 #       forbid: '^<Drawer'
 #       except: ["src/components/ui/Drawer.tsx"]
 #       message: "Drawer is app chrome — use Modal."

@@ -32,7 +32,7 @@ canonical:
 
   - id: drawer-is-app-chrome
     scope: element
-    element: '^Drawer$'
+    element_name: '^Drawer$'
     forbid: '^<Drawer'
     except: ["src/components/ui/Drawer.tsx"]
     message: "Drawer is app chrome, not a dialog primitive — use Modal."
