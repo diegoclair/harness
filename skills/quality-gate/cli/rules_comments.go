@@ -163,6 +163,7 @@ var constraintMarkers = []string{
 	// invariant and zero semantics
 	"must", "never", "only", "always", "at most", "at least", "cannot", "can't",
 	"required", "optional", "absent", "empty", "zero", "unset", "nil", "null",
+	"undefined", "omitted", "means",
 	"default", "fallback", "fall back", "falls back", "not", "immutable",
 	"once", "max", "min", "limit", "unrecoverable", "read-only", "write-only",
 	"ignored", "overrides", "precedence", "nullable", "sentinel", "per",
@@ -196,12 +197,14 @@ func isDivider(c Comment) bool {
 }
 
 func isSectionLabel(c Comment) bool {
+	// A rule/title/rule divider spans three lines by construction, so the span
+	// test below would reject it before it was ever recognised.
+	if isDivider(c) {
+		return true
+	}
 	words := contentWords(c.Text)
 	if c.Span() > 1 || len(words) == 0 || len(words) > 6 {
 		return false
-	}
-	if isDivider(c) {
-		return true
 	}
 	// Go's doc convention opens with the symbol's own name, so a comment whose
 	// first word is the declaration's first word is documenting it, not
@@ -209,8 +212,10 @@ func isSectionLabel(c Comment) bool {
 	if name := splitIdent(c.Target); len(name) > 0 && words[0] == stem(name[0]) {
 		return false
 	}
+	// Only a verb that makes a claim disqualifies a label: 'joined fields' names
+	// a group, and the name-start test above already separates a Go doc from it.
 	for _, w := range words {
-		if descriptiveVerbs[w] || genericVerbs[w] {
+		if descriptiveVerbs[w] {
 			return false
 		}
 	}
