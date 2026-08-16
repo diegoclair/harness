@@ -46,7 +46,7 @@ func checkComment(cfg *Config, f *File, c Comment, add func(Finding)) {
 	}
 	// A quoted marker is being mentioned, not used — this rule's own doc says
 	// "moved from" while describing the bug that phrase caused.
-	if marker, ok := containsWord(quotedRe.ReplaceAllString(text, " "), historyMarkers); ok {
+	if marker, ok := containsWord(quotedRe.ReplaceAllString(text, " "), historyMarkers); ok && !f.IsTest {
 		emit("CMT-05", fmt.Sprintf("comment carries history (%q) — git owns that", marker))
 	}
 
@@ -246,8 +246,9 @@ func hasConstraint(lowerText string) bool {
 // change the status because the response started") — a marker that fires on
 // those trains the reader to ignore the rule.
 var historyMarkers = []string{
-	"previously", "used to be", "we used to", "it used to", "this used to",
-	"was renamed", "refactored", "changed from", "moved from", "deprecated in",
+	"used to be", "we used to", "it used to", "this used to",
+	"previously this", "previously it", "previously we", "previously the",
+	"was renamed", "refactored", "deprecated in",
 }
 
 // accentedWord returns the diacritic that proves the comment is not English. A
@@ -261,7 +262,8 @@ func accentedWord(text string) (string, bool) {
 		return !unicode.IsLetter(r) && r != '\''
 	}) {
 		for _, r := range w {
-			if r > unicode.MaxASCII && unicode.IsLetter(r) {
+			// Latin only: the π in `0..π → fan outward` is maths, not Portuguese.
+			if r > unicode.MaxASCII && unicode.IsLetter(r) && unicode.Is(unicode.Latin, r) {
 				accented = append(accented, string(r))
 				if !unicode.IsUpper([]rune(w)[0]) {
 					capitalisedOnly = false
@@ -329,9 +331,19 @@ func proseLines(lines []string) []string {
 
 func commentedOutCode(lines []string) bool {
 	strong, weak := 0, 0
+	introduced := false
 	for _, l := range proseLines(lines) {
 		l = strings.TrimSpace(l)
 		if l == "" || readsAsProse(l) {
+			continue
+		}
+		// Prose ending in a colon is introducing a sample: what follows is code
+		// to write, not code left behind.
+		if strings.HasSuffix(l, ":") {
+			introduced = true
+			continue
+		}
+		if introduced {
 			continue
 		}
 		switch {
@@ -351,8 +363,10 @@ func commentedOutCode(lines []string) bool {
 // counts alongside the shape of a statement — short, with a call or an
 // assignment in it.
 func looksLikeStatement(l string) bool {
-	return len(strings.Fields(l)) <= 10 && strings.ContainsAny(l, "(=")
+	return strings.HasSuffix(l, ");") || assignmentRe.MatchString(l)
 }
+
+var assignmentRe = regexp.MustCompile(`\w\s*=[^=]`)
 
 // readsAsProse spots the sentence a documentation line is, whatever punctuation
 // it happens to end on. An API line closing on `{ url }` and a sentence closing

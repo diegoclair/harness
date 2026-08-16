@@ -61,6 +61,11 @@ func TestHistoryMarkersIgnorePresentTenseEnglish(t *testing.T) {
 		"a label+color tag used to group cost entries.",
 		"the cdn custom domain used to serve reads.",
 		"records a failure that can no longer change the http status.",
+		// Runtime state, not code history — six of nine findings were these.
+		"fresh url params win over a previously stored bag.",
+		"so a previously expired session does not survive the login.",
+		"the rule's own date and moved from there (spec 00036).",
+		"the stamp is only the net for windows changed from outside.",
 	}
 	history := []string{
 		"previously this was a pointer.",
@@ -219,5 +224,12 @@ func TestBodyCommentIsAskedAboutOnlyWhenTheDeliveryAddedIt(t *testing.T) {
 	got := run([]lineRange{{from: 8, to: 12}})
 	if len(got) != 1 || got[0].Rule != "CMT-03" {
 		t.Errorf("a comment the delivery added must be questioned, got %v", got)
+	}
+}
+
+// A Greek letter in a maths note is not Portuguese.
+func TestNotEnglishIgnoresNonLatinLetters(t *testing.T) {
+	if reason, ok := notEnglish("0..π → fan upward/outward"); ok {
+		t.Errorf("maths notation read as Portuguese (%s)", reason)
 	}
 }
