@@ -1,0 +1,32 @@
+ruleset: go
+module: example.com/probe
+
+layers:
+  domain: ["domain/**"]
+  data: ["data/**"]
+  transport: ["transport/**"]
+  service: ["service"]
+
+deny:
+  - from: domain
+    to: [data, transport]
+    rule: ARC-01
+  - from: transport
+    to: [data]
+    rule: ARC-03
+
+prerequisites: []
+
+forbid:
+  data: ["diegoclair/logger"]
+
+canonical:
+  - id: route-trailing-slash
+    match: 'Route\s+=\s+"'
+    forbid: 'Route\s+=\s+"[^"]*[^/"]"'
+    message: "Every route ends in /."
+  - id: vendor-outside-its-bridge
+    severity: warn
+    forbid: '(?i)\bacmepay\b'
+    except: ["bridges/**"]
+    message: "Name the capability, not the company."

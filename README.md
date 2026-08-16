@@ -33,8 +33,9 @@ Both skills dispatch `unbiased-reviewer`, so it comes along automatically.
 | **`confluence-docs`** | Search, create, classify and update Confluence Cloud pages in natural language. Ships a Go CLI returning page digests and single sections instead of full ADF bodies — far cheaper in tokens than the raw MCP path, which stays as a fallback. |
 | **`jira-tickets`** | Read, create, transition and link Jira issues without burning context. Shares `pkg/atlassian` with `confluence-docs`, so one login covers both. |
 | **`social-carousel`** | Generates Instagram and LinkedIn carousels from a small YAML brief, rendered locally through headless Chrome. Ships design presets, layout templates, and a linter of research-backed rules that blocks a bad render. |
+| **`quality-gate`** | Gates a delivery on what a reviewer otherwise checks by hand: comments that narrate behavior instead of stating purpose, declarations described instead of constrained, blocks that already exist elsewhere in the repo, functions holding two rules, and domain logic leaking into a handler or a query. Baseline-frozen, so it blocks new violations without demanding a clean repo. |
 
-These three drive a Go CLI, so installing them also puts a binary on your PATH.
+These four drive a Go CLI, so installing them also puts a binary on your PATH.
 
 ## Install
 

@@ -199,16 +199,32 @@ func TestUntarSkipsNonRegularEntries(t *testing.T) {
 func fixtureTree(t *testing.T) string {
 	t.Helper()
 	root := t.TempDir()
-	mustWrite(t, filepath.Join(root, "skills", "dev-loop", "SKILL.md"), "---\nname: dev-loop\n---\nloop body\n")
-	mustWrite(t, filepath.Join(root, "skills", "dev-loop", "reference", "notes.md"), "notes\n")
-	mustWrite(t, filepath.Join(root, "skills", "implementation-plan", "SKILL.md"), "---\nname: implementation-plan\n---\nplan body\n")
-	mustWrite(t, filepath.Join(root, "agents", "unbiased-reviewer.md"), "---\nname: unbiased-reviewer\n---\nreviewer body\n")
-	// The catalogued skills that drive a CLI: cli/ is what routes them to the
-	// release payload, so the tree must carry it for the fixture to be honest.
-	for _, name := range []string{"confluence-docs", "jira-tickets", "social-carousel"} {
-		mustWrite(t, filepath.Join(root, "skills", name, "SKILL.md"), "---\nname: "+name+"\n---\ntree body\n")
-		mustWrite(t, filepath.Join(root, "skills", name, "cli", "main.go"), "package main\n")
+	// Derived from the catalog: a new artifact must not need this fixture
+	// edited by hand, or it silently stops being covered.
+	// Bodies the assertions below identify artifacts by; anything else is
+	// generic, so a new catalog entry needs no fixture edit.
+	bodies := map[string]string{
+		"dev-loop":            "loop body",
+		"implementation-plan": "plan body",
+		"unbiased-reviewer":   "reviewer body",
 	}
+	for _, a := range catalog {
+		body := bodies[a.Name]
+		if body == "" {
+			body = "tree body"
+		}
+		if a.Kind == KindAgent {
+			mustWrite(t, filepath.Join(root, "agents", a.Name+".md"), "---\nname: "+a.Name+"\n---\n"+body+"\n")
+			continue
+		}
+		mustWrite(t, filepath.Join(root, "skills", a.Name, "SKILL.md"), "---\nname: "+a.Name+"\n---\n"+body+"\n")
+		// cli/ is what routes a skill to the release payload, so the fixture
+		// carries it for exactly the skills that ship a binary.
+		if a.TagPrefix != "" {
+			mustWrite(t, filepath.Join(root, "skills", a.Name, "cli", "main.go"), "package main\n")
+		}
+	}
+	mustWrite(t, filepath.Join(root, "skills", "dev-loop", "reference", "notes.md"), "notes\n")
 	return root
 }
 

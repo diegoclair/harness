@@ -63,9 +63,7 @@ func serveReleases(t *testing.T) {
 		skill := skillFromURL(r.URL.Path)
 		if strings.Contains(r.URL.Path, "/releases") && !strings.Contains(r.URL.Path, "/download/") {
 			w.Header().Set("Content-Type", "application/json")
-			io.WriteString(w, `[{"tag_name":"confluence-v1.0.0","draft":false,"prerelease":false},`+
-				`{"tag_name":"jira-v1.0.0","draft":false,"prerelease":false},`+
-				`{"tag_name":"carousel-v1.0.0","draft":false,"prerelease":false}]`)
+			io.WriteString(w, releaseListJSON())
 			return
 		}
 		if skill == "" {
@@ -81,8 +79,29 @@ func serveReleases(t *testing.T) {
 	httpClient = &http.Client{Transport: rewriteTo(srv.URL)}
 }
 
+// releaseListJSON offers one release per catalogued binary skill, so adding a
+// skill does not silently drop it from the fake registry.
+func releaseListJSON() string {
+	var tags []string
+	for _, a := range binarySkillNames() {
+		art, _ := findArtifact(a)
+		tags = append(tags, `{"tag_name":"`+art.TagPrefix+`1.0.0","draft":false,"prerelease":false}`)
+	}
+	return "[" + strings.Join(tags, ",") + "]"
+}
+
+func binarySkillNames() []string {
+	var out []string
+	for _, a := range catalog {
+		if a.Kind == KindSkill && a.TagPrefix != "" {
+			out = append(out, a.Name)
+		}
+	}
+	return out
+}
+
 func skillFromURL(path string) string {
-	for _, name := range []string{"confluence-docs", "jira-tickets", "social-carousel"} {
+	for _, name := range binarySkillNames() {
 		if strings.Contains(path, name+"-") {
 			return name
 		}

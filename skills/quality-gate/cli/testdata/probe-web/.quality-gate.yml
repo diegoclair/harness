@@ -1,0 +1,40 @@
+ruleset: web
+
+aliases:
+  "@/": "src/"
+
+layers:
+  features:   ["src/features/*"]
+  components: ["src/components/**"]
+  lib:        ["src/lib/**"]
+  services:   ["src/services/**"]
+
+contexts: ["src/features/*"]
+context_rule: ARC-10
+
+deny:
+  - from: components
+    to: [features]
+    rule: ARC-11
+  - from: lib
+    to: [features]
+    rule: ARC-11
+
+heuristics:
+  http_layers: [services]
+  component_layers: [features, components]
+
+canonical:
+  - id: no-raw-hex
+    match: 'className|style='
+    forbid: '#[0-9a-fA-F]{6}\b'
+    message: "Use design tokens, not raw hex."
+
+  - id: drawer-is-app-chrome
+    scope: element
+    element: '^Drawer$'
+    forbid: '^<Drawer'
+    except: ["src/components/ui/Drawer.tsx"]
+    message: "Drawer is app chrome, not a dialog primitive — use Modal."
+
+prerequisites: []

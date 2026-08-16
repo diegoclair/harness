@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -193,7 +194,7 @@ func TestWildcardsCombineAsAUnion(t *testing.T) {
 
 	// The same batch carries skills that drive a binary: one pipeline has to
 	// serve both without the caller distinguishing them.
-	for _, name := range []string{"confluence-docs", "jira-tickets", "social-carousel"} {
+	for _, name := range binarySkillNames() {
 		if _, err := os.Stat(filepath.Join(home, ".claude", "skills", name, "bin", name)); err != nil {
 			t.Errorf("%s should have been installed with its binary: %v", name, err)
 		}
@@ -262,7 +263,8 @@ func TestAFailedArtifactIsReportedAndChangesTheExitCode(t *testing.T) {
 	if code != exitErr {
 		t.Errorf("exit = %d, want %d", code, exitErr)
 	}
-	if !strings.Contains(stderr, "1 of 6 artifact(s) failed") {
+	want := fmt.Sprintf("1 of %d artifact(s) failed", len(catalog))
+	if !strings.Contains(stderr, want) {
 		t.Errorf("stderr should summarise the failures, got %q", stderr)
 	}
 	// The others still install: one bad artifact does not abort the batch.

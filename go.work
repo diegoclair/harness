@@ -6,5 +6,6 @@ use (
 	./pkg/release
 	./skills/confluence-docs/cli
 	./skills/jira-tickets/cli
+	./skills/quality-gate/cli
 	./skills/social-carousel/cli
 )

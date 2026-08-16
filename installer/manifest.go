@@ -76,6 +76,13 @@ var catalog = []Artifact{
 		TagPrefix: "carousel-v",
 		Summary:   "Generate Instagram and LinkedIn carousels from a YAML brief",
 	},
+	{
+		Name:       "quality-gate",
+		Kind:       KindSkill,
+		TagPrefix:  "gate-v",
+		Summary:    "Gate a delivery on comments, duplication, complexity and layer boundaries",
+		VersionEnv: "QUALITY_GATE_VERSION",
+	},
 }
 
 func findArtifact(name string) (Artifact, bool) {

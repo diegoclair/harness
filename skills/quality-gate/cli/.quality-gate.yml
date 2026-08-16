@@ -1,0 +1,9 @@
+ruleset: go
+module: github.com/diegoclair/harness/skills/quality-gate/cli
+
+prerequisites:
+  - "gofmt -l ."
+  - "go vet ./..."
+
+exclude:
+  - "testdata/**"
