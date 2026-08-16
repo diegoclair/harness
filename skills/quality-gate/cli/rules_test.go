@@ -238,13 +238,16 @@ func TestNotEnglishIgnoresNonLatinLetters(t *testing.T) {
 
 // The budget asks about the comment a delivery writes, not about the ones that
 // already survived review.
-func TestBudgetAppliesToTheDeliveryOnly(t *testing.T) {
-	long := Comment{
-		Line: 10, EndLine: 16, Pos: PosFunc, Target: "Charge",
-		Lines: []string{"a", "b", "c", "d", "e", "f", "g"}, Text: "a b c d e f g",
+func TestBudgetToleratesAWrapButNotAStory(t *testing.T) {
+	block := func(n int) Comment {
+		lines := make([]string, n)
+		for i := range lines {
+			lines[i] = "a line of real reasoning"
+		}
+		return Comment{Line: 10, EndLine: 9 + n, Pos: PosFunc, Target: "Charge", Lines: lines, Text: "prose"}
 	}
-	run := func(added []lineRange) (found bool) {
-		f := &File{Path: "x.go", Comments: []Comment{long}, AddedLines: added}
+	run := func(c Comment) (found bool) {
+		f := &File{Path: "x.go", Comments: []Comment{c}}
 		checkComments(&Config{}, f, func(fi Finding) {
 			if fi.Rule == "CMT-01" {
 				found = true
@@ -252,11 +255,12 @@ func TestBudgetAppliesToTheDeliveryOnly(t *testing.T) {
 		})
 		return
 	}
-	if run(nil) {
-		t.Error("a pre-existing comment over budget must stay silent")
+	// Budget 6: eight lines is a wrap, nine is a story.
+	if run(block(8)) {
+		t.Error("two lines over budget is wrapping, not a comment to cut")
 	}
-	if !run([]lineRange{{from: 9, to: 17}}) {
-		t.Error("a comment the delivery added over budget must be reported")
+	if !run(block(9)) {
+		t.Error("a block clearly past its budget must be reported")
 	}
 }
 

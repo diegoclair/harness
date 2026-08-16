@@ -86,6 +86,11 @@ var defaultThresholds = map[string]float64{
 	"comments.budget.decl":      3,
 	"comments.budget.trailing":  1,
 	"comments.budget.orphan":    5,
+	// The budget is the target; the tolerance is what keeps the rule off a wrap.
+	// Measured across the four repos: 72 of 120 findings were one or two lines
+	// over and carried real content, while everything at three or more had fat
+	// to cut — including a 36-line design doc parked in a source file.
+	"comments.budget_tolerance": 2,
 	"comments.diff_ratio":       0.15,
 	"comments.overlap_ratio":    0.6,
 	"dup.min_tokens":            80,

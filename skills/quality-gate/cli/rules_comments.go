@@ -27,12 +27,11 @@ func checkComment(cfg *Config, f *File, c Comment, add func(Finding)) {
 	if commentedOutCode(c.Lines) {
 		emit("CMT-06", "commented-out code — delete it, git remembers")
 	}
-	// Scoped to the delivery, like CMT-03. On committed code the long comments
-	// are the ones that survived review — decisions and incidents, measured at
-	// 20 of 30 exactly one line over — so length there measures wrapping. On the
-	// lines a change adds, a wall of comment is still a wall.
-	if budget := cfg.budget(c.Pos); budget > 0 && c.Span() > budget && f.isAdded(c.Line) {
-		emit("CMT-01", fmt.Sprintf("comment block is %d lines; the budget for a %s comment is %d",
+	// One line over a budget is a wrap, not a decision to write less. The rule
+	// speaks when the block is clearly past its target.
+	budget := cfg.budget(c.Pos)
+	if tolerance := int(cfg.threshold("comments.budget_tolerance")); budget > 0 && c.Span() > budget+tolerance {
+		emit("CMT-01", fmt.Sprintf("comment block is %d lines; the budget for a %s comment is %d — it should fit",
 			c.Span(), c.Pos, budget))
 	}
 

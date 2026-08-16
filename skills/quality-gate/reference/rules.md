@@ -111,6 +111,21 @@ Two independent detectors, either one fires:
 Rewrite as purpose: *why* this exists, *what constraint* it satisfies, *what
 gotcha* in an external API forced it.
 
+### CMT-01 — the budget, and the tolerance on it
+
+A block is reported when it runs **more than two lines** past its budget. The
+budget is the target; the tolerance is what keeps the rule off a line wrap,
+which is gofmt's decision and not the author's.
+
+Measured across the four Lybel repos before the tolerance existed: 120 findings,
+of which 72 were one or two lines over and every sampled one carried a spec
+reference or a recorded incident. At three lines over and beyond, all 48 had fat
+to cut — up to a 36-line design document parked in a middleware's header, with
+its own "Goal:" and "Strategy:" headings.
+
+So the axis works, it just cannot speak at +1: "it fits in three and it is in
+five" is a real defect, and "it wrapped" is not.
+
 ### CMT-03 — comment inside a function body
 
 **Scoped to the delivery's own hunks.** Asked about every body comment a repo
