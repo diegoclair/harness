@@ -14,7 +14,10 @@ const directivePrefix = "quality-gate:"
 var directiveRe = regexp.MustCompile(`^quality-gate:allow\s+([A-Z]+-\d+)\s*(?:—|--)?\s*(.*)$`)
 
 type suppression struct {
-	Rule   string
+	Rule string
+	// Reach starts at the end of the comment group, not at the directive: a
+	// reason spanning two lines would otherwise run out before the code, and in
+	// JSX the directive often cannot sit adjacent to the line it excuses.
 	Line   int
 	Reason string
 }
@@ -88,7 +91,7 @@ func collectSuppressions(cfg *Config, f *File, add func(Finding)) []suppression 
 				})
 				continue
 			}
-			out = append(out, suppression{Rule: rule, Line: c.Line + i, Reason: reason})
+			out = append(out, suppression{Rule: rule, Line: c.EndLine, Reason: reason})
 		}
 	}
 	return out

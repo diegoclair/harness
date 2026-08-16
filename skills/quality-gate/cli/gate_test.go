@@ -192,3 +192,20 @@ func TestPruneDropsOrphansAndFreezesNothing(t *testing.T) {
 		t.Error("prune must not freeze a violation that arrived since the baseline")
 	}
 }
+
+// A directive whose reason wraps must still reach the code below it: in JSX the
+// comment cannot sit adjacent to the attribute it excuses.
+func TestSuppressionReachesPastAWrappedReason(t *testing.T) {
+	root := copyTree(t, "testdata/probe")
+	body := "package service\n\n" +
+		"// quality-gate:allow CMT-04 — the vendor's own docs are quoted here, and\n" +
+		"// translating them would send the reader looking for labels that do not exist\n" +
+		"// Comentário em português que a diretiva precisa alcançar.\n" +
+		"func Reached() {}\n"
+	if err := os.WriteFile(filepath.Join(root, "service", "reach.go"), []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if hits(runProbe(t, root))["CMT-04@service/reach.go:5"] {
+		t.Error("the directive must reach the comment below its own wrapped reason")
+	}
+}
