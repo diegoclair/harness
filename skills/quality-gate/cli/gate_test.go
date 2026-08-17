@@ -209,3 +209,28 @@ func TestSuppressionReachesPastAWrappedReason(t *testing.T) {
 		t.Error("the directive must reach the comment below its own wrapped reason")
 	}
 }
+
+// The flagged comment usually sits inside the directive's own group, below the
+// reason — and in JSX the directive cannot sit adjacent to the code at all. One
+// anchor cannot serve both, so the reach spans the group and what follows it.
+func TestSuppressionCoversItsGroupAndWhatFollows(t *testing.T) {
+	root := copyTree(t, "testdata/probe")
+	body := "package service\n\n" +
+		"// quality-gate:allow CMT-04 — the vendor's own labels are quoted below and\n" +
+		"// translating them would send the reader looking for menus that do not exist\n" +
+		"// Comentário em português dentro do mesmo bloco.\n" +
+		"func Inside() {}\n\n" +
+		"// quality-gate:allow CMT-04 — same reason, wrapped across two lines so the\n" +
+		"// anchor cannot simply be the directive's own line\n" +
+		"//\n" +
+		"// Comentário em português no bloco seguinte.\n" +
+		"func Below() {}\n"
+	if err := os.WriteFile(filepath.Join(root, "service", "reach.go"), []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, line := range []int{5, 11} {
+		if hits(runProbe(t, root))[fmt.Sprintf("CMT-04@service/reach.go:%d", line)] {
+			t.Errorf("the directive must reach line %d", line)
+		}
+	}
+}

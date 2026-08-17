@@ -15,11 +15,12 @@ var directiveRe = regexp.MustCompile(`^quality-gate:allow\s+([A-Z]+-\d+)\s*(?:â€
 
 type suppression struct {
 	Rule string
-	// Reach starts at the end of the comment group, not at the directive: a
-	// reason spanning two lines would otherwise run out before the code, and in
-	// JSX the directive often cannot sit adjacent to the line it excuses.
-	Line   int
-	Reason string
+	// A directive covers its own comment group and the lines just after it. Both
+	// ends matter: the flagged comment often sits inside the group, below the
+	// reason, and in JSX the directive cannot sit adjacent to the code at all.
+	Line    int
+	EndLine int
+	Reason  string
 }
 
 func isDirectiveLine(l string) bool {
@@ -91,18 +92,18 @@ func collectSuppressions(cfg *Config, f *File, add func(Finding)) []suppression 
 				})
 				continue
 			}
-			out = append(out, suppression{Rule: rule, Line: c.EndLine, Reason: reason})
+			out = append(out, suppression{Rule: rule, Line: c.Line + i, EndLine: c.EndLine, Reason: reason})
 		}
 	}
 	return out
 }
 
-// suppressed reports whether a directive covers a finding. A directive speaks
-// for its own line and the two below it, which is the construct it sits on.
+// suppressed reports whether a directive covers a finding: its own comment
+// group, plus the two lines after it â€” the construct it sits on.
 func suppressed(sups []suppression, f Finding) bool {
 	const reach = 2
 	for _, s := range sups {
-		if s.Rule == f.Rule && f.Line >= s.Line && f.Line <= s.Line+reach {
+		if s.Rule == f.Rule && f.Line >= s.Line && f.Line <= s.EndLine+reach {
 			return true
 		}
 	}
