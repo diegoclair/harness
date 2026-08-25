@@ -77,6 +77,11 @@ var catalog = []Artifact{
 		Summary:   "Generate Instagram and LinkedIn carousels from a YAML brief",
 	},
 	{
+		Name:    "business-ai-first",
+		Kind:    KindSkill,
+		Summary: "AI-first company playbook: deliver results, weekly ritual, playbook audit, thinking partner",
+	},
+	{
 		Name:       "quality-gate",
 		Kind:       KindSkill,
 		TagPrefix:  "gate-v",
