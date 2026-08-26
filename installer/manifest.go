@@ -82,6 +82,11 @@ var catalog = []Artifact{
 		Summary: "AI-first company playbook: deliver results, weekly ritual, playbook audit, thinking partner",
 	},
 	{
+		Name:    "landing-seo-geo",
+		Kind:    KindSkill,
+		Summary: "SEO + GEO for a static landing: audit, metadata/JSON-LD, content pages, sourced claims, indexing",
+	},
+	{
 		Name:       "quality-gate",
 		Kind:       KindSkill,
 		TagPrefix:  "gate-v",

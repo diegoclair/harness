@@ -34,9 +34,10 @@ Both skills dispatch `unbiased-reviewer`, so it comes along automatically.
 | **`jira-tickets`** | Read, create, transition and link Jira issues without burning context. Shares `pkg/atlassian` with `confluence-docs`, so one login covers both. |
 | **`social-carousel`** | Generates Instagram and LinkedIn carousels from a small YAML brief, rendered locally through headless Chrome. Ships design presets, layout templates, and a linter of research-backed rules that blocks a bad render. |
 | **`business-ai-first`** | Company playbook for an AI-first product (0 → US$ 100M ARR): the AI executes the work and delivers the result, the human only confirms; plans are quotas of work; margin is a product decision; the founder builds the decision system. Runs a weekly ritual (stage → bottleneck → hypothesis → disconfirm → repeat), audits the five playbooks, and ships references (service-as-software, 2025–26 AI-first economics, Astella Napkin, YC cases). Acts as a thinking partner that tries to refute a hypothesis before documenting it. |
+| **`landing-seo-geo`** | Makes a small product site rank on Google/Bing and get cited by ChatGPT, Gemini, Perplexity and AI Overviews. Audit → metadata/JSON-LD/robots/sitemap/llms.txt → answer-first content pages (per segment, entity, comparison) → a link and read date on every third-party claim → publish and index (Search Console, Bing Webmaster import, IndexNow via Cloudflare Crawler Hints) → measurement panel. Ships what worked, what was a myth, and the Next.js static-export gotchas. |
 | **`quality-gate`** | Gates a delivery on what a reviewer otherwise checks by hand: comments that narrate behavior instead of stating purpose, declarations described instead of constrained, blocks that already exist elsewhere in the repo, functions holding two rules, and domain logic leaking into a handler or a query. Baseline-frozen, so it blocks new violations without demanding a clean repo. |
 
-`confluence-docs`, `jira-tickets`, `social-carousel` and `quality-gate` drive a Go CLI, so installing them also puts a binary on your PATH. `business-ai-first` is Markdown only.
+`confluence-docs`, `jira-tickets`, `social-carousel` and `quality-gate` drive a Go CLI, so installing them also puts a binary on your PATH. `business-ai-first` and `landing-seo-geo` are Markdown only.
 
 ## Install
 
