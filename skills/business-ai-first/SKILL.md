@@ -139,7 +139,10 @@ Sierra, Harvey em assento; Lovable e Cursor migraram pra crédito/token por perd
 heavy users); gatilho: se >70% dos clientes ficam no plano de uso, a definição de "resultado" está
 cara demais de auditar — simplificar a unidade antes de insistir.
 
-**Copy/landing:** cada bloco descreve entrega, não capacidade · nenhum número sem `medido` · a
+**Copy/landing:** cada bloco descreve entrega, não capacidade · nenhum número sem `medido` · **nenhum
+compromisso público que dependa do que não se controla** (teto de reajuste, "publicamos todo mês",
+SLA) — promessa quebrada custa mais pra quem prometeu do que a ausência custa pra quem nunca
+prometeu; o número entra quando medido, com o método do lado, e a cadência não é promessa · a
 tese da categoria com o nome do founder (autoridade), não o pitch da feature.
 
 **Serviço / onboarding / entrega manual:** custo e horas desta entrega vs. a anterior (tem que
