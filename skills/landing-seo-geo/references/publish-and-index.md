@@ -30,8 +30,11 @@ alternative when DNS is not at hand.
    the verification; **it did not bring the sitemaps** in practice. If the button does not show, add a site
    manually first.
 3. **Sitemaps → Submit sitemap**: XML only. An HTML page submitted there stays "Processing" and turns into an
-   error (it happened). A single page to index goes through **IndexNow** (main menu); in new accounts
-   the old "URL Submission" no longer exists and "Configuration" only has Crawl Control and Block URLs.
+   error (it happened). A single page to index goes through **IndexNow** (main menu) or the URL
+   Submission screen, which is no longer in the sidebar of new accounts ("Configuration" only shows
+   Crawl Control and Block URLs) but still answers by direct link:
+   `https://www.bing.com/webmasters/submiturl?siteUrl=https://<site>/` (Bing's own welcome e-mail
+   points there).
 4. The site dropdown at the top is a selector, not "add site".
 5. Menus worth knowing: **AI Performance (beta)** = citations on Copilot/ChatGPT (free GEO
    measurement); **Site Scan** = Bing's technical audit (run after a few days of crawling);
