@@ -1,5 +1,18 @@
 # Publish and index (what makes everything else exist)
 
+## Domain pre-flight (before choosing or launching on a domain)
+
+```bash
+curl -s https://rdap.verisign.com/com/v1/domain/<DOMAIN> | grep -o '"eventAction":"[^"]*","eventDate":"[^"]*"'
+curl -s "https://web.archive.org/cdx/search/cdx?url=<domain>&output=txt&fl=timestamp,statuscode&collapse=timestamp:6&limit=60"
+```
+
+Then search `<brand>` and `site:<domain>` and read the titles. A registration date of days ago on
+a domain with Wayback captures going back years means the index still holds the previous owner's
+site; the brand query will return that title (and paths that now 404) for weeks, and nothing
+manual shortens it. Knowing it on day 1 sets the expectation and moves the effort to off-site
+anchors (`geo.md` § "Indexed but unknown") instead of to more schema.
+
 ## Deploy (Cloudflare Workers Assets, static export)
 
 `wrangler.jsonc` with `assets.directory: "./out"` and `not_found_handling: "404-page"`.
@@ -16,6 +29,11 @@ curl -s -o /dev/null -w '%{http_code}\n' https://<site>/llms.txt
 curl -sI https://<site>/nao-existe | head -1          # 404
 curl -s -o /dev/null -w '%{http_code} %{redirect_url}\n' https://www.<site>   # 301 to root
 ```
+
+Workers Assets normalizes the trailing slash with a **307**, not a 301 (`/page` → `/page/`).
+A temporary redirect does not consolidate signals; every internal link and the sitemap must
+already use the canonical form with the slash, and a `public/_redirects` file (one `301` rule per
+page) is the fix when external links arrive without it.
 
 ## Google Search Console
 

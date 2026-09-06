@@ -22,6 +22,54 @@ check on the niche's queries.
 6. **Clear entity**: an "X is ..." sentence above the fold or in the footer, a `/o-que-e-a-x` page,
    Organization with `sameAs` when profiles exist (empty is worse than absent).
 
+## Indexed but unknown: why "o que é a X" still returns "I don't know" (5 Sep 2026)
+
+Learned on a new brand, 13 days after launch, with sitemap processed in Search Console, all AI bots
+answering 200, JSON-LD and `llms.txt` live, and the Gemini app still answering "I don't know".
+Ranked causes, each verifiable:
+
+1. **The Gemini app is not a search product.** Default answer comes from training data; Search
+   grounding is selective, gated by a relevance prediction score (Google AI docs,
+   https://ai.google.dev/gemini-api/docs/google-search, read 5 Sep 2026). A brand token that looks
+   like a surname scores low, so an indexed page is never fetched. Expect Bing-backed assistants
+   (ChatGPT search, Copilot) and Perplexity first, AI Mode next, the Gemini app last (needs a
+   model refresh or a mention that raises the score).
+2. **Re-registered domain, old identity still in an index.** Google (John Mueller, Search Engine
+   Journal, 30 Sep 2025, https://www.searchenginejournal.com/google-explains-expired-domains-and-ranking-issues/557283/):
+   "it takes a lot of time for the old state of a domain to be shaken off ... nothing manual that
+   you can / need to do". Symptom: the brand query returns the previous owner's title and paths
+   that now 404. Check each index separately: in that case, 13 days in, Google already served only
+   the new pages (`site:` clean, all URLs indexed) while the Bing-side index, the one behind
+   ChatGPT and Copilot, still served the old affiliate site. A search tool's results are one
+   index, not "the web".
+3. **Zero third-party mentions.** One self-owned source has nothing to corroborate; the citation
+   comes from the mentions plan below, not from more markup.
+4. **Name collision.** A brand string that is also a surname, a UK company, a musician and a
+   GitHub handle is not read as a brand query. The definition sentence ("X é a IA que...") and the
+   off-site anchors with the identical name + URL are what disambiguate.
+5. **No Knowledge Graph node.** Wikidata only after two independent references exist (an item
+   with self-references only gets deleted).
+
+Order of work: confirm the index state (checks below) → off-site anchors with identical name,
+description and URL (LinkedIn company page, Crunchbase, Google Business Profile, GitHub org,
+Product Hunt), all listed in `Organization.sameAs` → three independent pt-BR mentions → Wikidata →
+Bing Webmaster + IndexNow. Measure the brand query monthly for the first non-owned result.
+
+Checks (exact):
+
+| Check | Query / URL | Failure looks like |
+|---|---|---|
+| In the index at all | `site:<domain>` on google.com.br | 0 results, or the old titles |
+| Old state still served | `site:<domain>/<old-path>` | any hit |
+| Per-URL truth | Search Console → URL Inspection → Test live URL | Discovered/Crawled, currently not indexed |
+| Coverage | Search Console → Pages report | "sitemap processed" is not "indexed" |
+| Brand SERP | `<brand>`, `<brand> ia`, `o que é a <brand>`, incognito, pt-BR | site absent or below the collisions |
+| Grounding proof | ask Gemini `site:<domain> o que é a <brand>` | answers with the URL, not without it: entity gap, not content |
+| Bing side | `site:<domain>` on bing.com; Bing Webmaster → AI Performance | no impressions = ChatGPT/Copilot cannot cite |
+
+Not measured, do not budget on: "Wikidata makes you 3× more eligible", "72% vs 14%", "100% of
+cited tools are on G2/Capterra"; these circulate only in agency blogs without a reachable study.
+
 ## Myths (do not spend time waiting for an effect)
 
 - `llms.txt`: Google does not use it (on record); logs show GPTBot/ClaudeBot/PerplexityBot almost

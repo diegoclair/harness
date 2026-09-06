@@ -27,11 +27,28 @@ and the order that avoids rework. Each reference says where the lesson was learn
 - **One URL ranks for one topic.** The home covers the brand; "AI for X" needs a page whose
   title, h1 and first paragraph are about X. A page promising an integration that does not exist
   ("AI for Shopee" with Shopee under construction) does not rank and breaks the communication rule.
+- **An indexed site can still get "I don't know" from an assistant, and the markup is not the
+  cause.** The Gemini app answers from training data first and only grounds on Search above a
+  relevance threshold; a fresh brand name that reads like a surname rarely crosses it. A
+  re-registered domain keeps its *old* identity in the index for weeks (Google: "it takes time for
+  the old state to be shaken off", nothing manual fixes it). Zero third-party mentions means
+  nothing to corroborate. Diagnose in that order before touching schema. Details and the
+  checks in `references/geo.md` § "Indexed but unknown".
+- **Check the domain's previous life BEFORE launching on it** (RDAP registration date, Wayback,
+  `site:` searches for old paths). Learned the hard way on a new brand: two weeks after launch Google was
+  already clean, but the Bing-side index (ChatGPT, Copilot) still served the previous owner's
+  affiliate site for the brand query. Check each index, not one search tool. Procedure in
+  `references/publish-and-index.md` § "Domain pre-flight".
 - **Every claim about a platform, competitor or market has a link and a read date.** Without a
   link, it leaves the page. The rule was imposed by Diego and caught a false sentence ("no hub
   publishes its sync interval") before going live. Details in `references/sources-and-competitors.md`.
 
 ## Process (in order; skipping a step is what creates rework)
+
+### 0. Domain pre-flight (5 min, before anything else)
+
+`references/publish-and-index.md` § "Domain pre-flight". A domain with a previous life carries it
+into the index; knowing that on day 1 changes what "indexing time has passed" means.
 
 ### 1. Audit before touching anything
 
