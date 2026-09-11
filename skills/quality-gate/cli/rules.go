@@ -34,7 +34,7 @@ type Finding struct {
 
 var catalog = map[string]Rule{
 	"CMT-01": {"CMT-01", SevError, "both", "comment block longer than the budget for its position",
-		"A comment's budget scales with the reader's distance from the code: package 15 lines, type 10, func doc 5, inside a body 2, on a declaration 2. Cut it, or move the prose to the package doc where a reader who has not opened the file will find it."},
+		"A comment's budget scales with the reader's distance from the code: package 15 lines, func doc 6, inside a body 3, on a declaration 3, on a struct field or interface method 1 with no tolerance — a member's name is its documentation. Cut it, or move the prose to the package doc where a reader who has not opened the file will find it."},
 	"CMT-02": {"CMT-02", SevError, "both", "comment narrates the code below instead of stating its purpose",
 		"Behavior changes and the comment rots into a lie; purpose survives the refactor. Say why this exists, what constraint it satisfies, or what external gotcha forced it — never what the next lines do."},
 	"CMT-03": {"CMT-03", SevWarn, "both", "comment inside a function body",
@@ -51,6 +51,8 @@ var catalog = map[string]Rule{
 		"A wall of comments no single rule flags. Reported at delivery level with the worst files named."},
 	"CMT-09": {"CMT-09", SevWarn, "both", "declaration described instead of constrained",
 		"A field, constant or enum member is already named. The only comment it earns carries a constraint the name cannot: a unit, an invariant, a format, an external contract, a contrast with a sibling, or a spec reference."},
+	"CMT-10": {"CMT-10", SevWarn, "go", "comment on a struct field or an interface method",
+		"A member speaks through its name, so a comment beside it is the rare case where the name cannot carry a constraint. Each one is reported to stay visible and earn its place; if it describes, rename the member instead. Past one line it is CMT-01, an error."},
 
 	"DUP-01": {"DUP-01", SevError, "both", "block already exists elsewhere in the repo",
 		"Reported against the whole repo, not just the diff: the finding that matters is that this block already exists. Import the original instead."},
@@ -98,6 +100,9 @@ var catalog = map[string]Rule{
 		"One solved problem, one component. The rows are the project's canonical table, declared in .quality-gate.yml so the table has one home; what eslint can already express is not repeated here."},
 	"ARC-14": {"ARC-14", SevWarn, "web", "business rule computed inside a component",
 		"Date arithmetic, money arithmetic or a state derived inline. A component renders what it is given; the rule belongs in a hook, a service, or the backend that already owns it. Heuristic by design, hence warn."},
+
+	"NAM-01": {"NAM-01", SevError, "go", "name reads like a pure value but the function does I/O",
+		"`profileOf(ctx, id)` promises a pure, total computation, so the reader of the call cannot tell it goes to a database or a vendor and can fail. A verb names the cost: read, load, fetch, Get. The signature is the proof — a context.Context in, or an error out."},
 
 	"GATE-01": {"GATE-01", SevError, "both", "suppression without a reason",
 		"`quality-gate:allow RULE — reason`. The reason is the point: it is the review comment the next reader needs."},

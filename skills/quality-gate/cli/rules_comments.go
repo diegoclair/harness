@@ -12,9 +12,27 @@ func checkComments(cfg *Config, f *File, add func(Finding)) {
 		// A directive above the comment it excuses lands in the same group;
 		// stripping instead of skipping keeps the rest of it under the rules.
 		if stripped, ok := withoutDirectives(c); ok {
-			checkComment(cfg, f, stripped, add)
+			found := 0
+			checkComment(cfg, f, stripped, func(fi Finding) { found++; add(fi) })
+			if found == 0 {
+				checkMemberComment(cfg, f, stripped, add)
+			}
 		}
 	}
+}
+
+// A member comment is rare by design, so each one is reported to stay visible;
+// one already reported for something worse needs no second finding.
+func checkMemberComment(cfg *Config, f *File, c Comment, add func(Finding)) {
+	if c.Pos != PosField && c.Pos != PosMethod {
+		return
+	}
+	add(Finding{
+		Rule: "CMT-10", Sev: severityOf(cfg, "CMT-10"), File: f.Path, Line: c.Line,
+		Message: fmt.Sprintf("comment on %s — a member speaks through its name; keep it only for a constraint the name cannot carry",
+			quoteTarget(c.Target)),
+		Signature: signature("CMT-10", f.Path, c.Text, c.Target),
+	})
 }
 
 func checkComment(cfg *Config, f *File, c Comment, add func(Finding)) {
@@ -30,7 +48,7 @@ func checkComment(cfg *Config, f *File, c Comment, add func(Finding)) {
 	// One line over a budget is a wrap, not a decision to write less. The rule
 	// speaks when the block is clearly past its target.
 	budget := cfg.budget(c.Pos)
-	if tolerance := int(cfg.threshold("comments.budget_tolerance")); budget > 0 && c.Span() > budget+tolerance {
+	if tolerance := cfg.budgetTolerance(c.Pos); budget > 0 && c.Span() > budget+tolerance {
 		emit("CMT-01", fmt.Sprintf("comment block is %d lines; the budget for a %s comment is %d — it should fit",
 			c.Span(), c.Pos, budget))
 	}
@@ -59,7 +77,7 @@ func checkComment(cfg *Config, f *File, c Comment, add func(Finding)) {
 	switch {
 	case isSectionLabel(c):
 		described = false
-	case c.Pos == PosDecl:
+	case c.Pos == PosDecl || c.Pos == PosField:
 		// On a declaration CMT-09 is the whole question, and a second go from
 		// the narration detector punished a constraint for naming its field.
 		if hasConstraint(text) {
@@ -113,7 +131,7 @@ func narratesBehavior(cfg *Config, c Comment) string {
 		// case where the promise is only the name spelled out.
 		return ""
 	}
-	contract := c.Pos == PosInterface || c.Pos == PosType
+	contract := c.Pos == PosInterface || c.Pos == PosType || c.Pos == PosMethod
 	words := contentWords(c.Text)
 	if len(words) < 3 {
 		return ""

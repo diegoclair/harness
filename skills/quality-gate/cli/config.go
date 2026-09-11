@@ -50,8 +50,7 @@ type Config struct {
 	Forbid   map[string][]string `yaml:"forbid"`
 	Contexts []string            `yaml:"contexts"`
 
-	// Isolated units are the project's, so the rule a broken isolation reports
-	// is declared with them — the same reason a deny edge carries its own ID.
+	// Declared with the isolated units it guards, as a deny edge carries its own ID.
 	ContextRule string `yaml:"context_rule"`
 
 	// Import prefixes a bundler resolves, so `@/lib/x` reaches a layer pattern.
@@ -84,6 +83,8 @@ var defaultThresholds = map[string]float64{
 	"comments.budget.func":      6,
 	"comments.budget.body":      3,
 	"comments.budget.decl":      3,
+	"comments.budget.field":     1,
+	"comments.budget.method":    1,
 	"comments.budget.trailing":  1,
 	"comments.budget.orphan":    5,
 	// The budget is the target; the tolerance is what keeps the rule off a wrap.
@@ -91,18 +92,21 @@ var defaultThresholds = map[string]float64{
 	// over and carried real content, while everything at three or more had fat
 	// to cut — including a 36-line design doc parked in a source file.
 	"comments.budget_tolerance": 2,
-	"comments.diff_ratio":       0.15,
-	"comments.overlap_ratio":    0.6,
-	"dup.min_tokens":            80,
-	"dup.min_tokens_shape":      200,
-	"cpx.cyclomatic":            15,
-	"cpx.lines_cyclomatic":      8,
-	"cpx.depth":                 4,
-	"cpx.lines":                 120,
-	"cpx.params":                6,
-	"cpx.component_lines":       250,
-	"cpx.component_hooks":       10,
-	"dup.min_jsx_nodes":         12,
+	// A member's name is the documentation; a second line is never a wrap.
+	"comments.budget_tolerance.field":  0,
+	"comments.budget_tolerance.method": 0,
+	"comments.diff_ratio":              0.15,
+	"comments.overlap_ratio":           0.6,
+	"dup.min_tokens":                   80,
+	"dup.min_tokens_shape":             200,
+	"cpx.cyclomatic":                   15,
+	"cpx.lines_cyclomatic":             8,
+	"cpx.depth":                        4,
+	"cpx.lines":                        120,
+	"cpx.params":                       6,
+	"cpx.component_lines":              250,
+	"cpx.component_hooks":              10,
+	"dup.min_jsx_nodes":                12,
 }
 
 func (c *Config) threshold(key string) float64 {
@@ -120,6 +124,17 @@ func (c *Config) threshold(key string) float64 {
 // CMT-01 without opting out of the rest.
 func (c *Config) budget(pos CommentPos) int {
 	return int(c.threshold("comments.budget." + string(pos)))
+}
+
+func (c *Config) budgetTolerance(pos CommentPos) int {
+	key := "comments.budget_tolerance." + string(pos)
+	if v, ok := c.Thresholds[key]; ok {
+		return int(v)
+	}
+	if v, ok := defaultThresholds[key]; ok {
+		return int(v)
+	}
+	return int(c.threshold("comments.budget_tolerance"))
 }
 
 // loadConfig walks up from dir looking for the config file, and treats the

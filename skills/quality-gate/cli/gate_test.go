@@ -47,8 +47,10 @@ func TestProbeFiresEveryRule(t *testing.T) {
 		"CMT-06@service/probe.go:23",
 		"CMT-07@service/probe.go:28",
 		"CMT-09@service/probe.go:8",
+		"CMT-10@service/probe.go:10",
 		"CPX-02@service/verbose.go:10",
 		"CPX-04@service/verbose.go:10",
+		"NAM-01@service/naming.go:5",
 		"DUP-01@data/first.go:5",
 		"ARC-01@domain/rule.go:3",
 		"ARC-03@transport/handler.go:4",
@@ -68,8 +70,8 @@ func TestProbeLeavesGoodCommentsAlone(t *testing.T) {
 	res := runProbe(t, "testdata/probe")
 	for _, f := range res.Findings {
 		switch {
-		case f.File == "service/probe.go" && f.Line == 10:
-			t.Errorf("CMT-09 fired on a field comment carrying a unit and an invariant: %s", f.Message)
+		case f.File == "service/probe.go" && f.Line == 10 && f.Rule != "CMT-10":
+			t.Errorf("%s fired on a field comment carrying a unit and an invariant: %s", f.Rule, f.Message)
 		case f.File == "service/probe.go" && f.Line == 5 && strings.HasPrefix(f.Rule, "CMT"):
 			t.Errorf("a type doc within budget was reported: %s %s", f.Rule, f.Message)
 		case f.File == "transport/router.go" && f.Line == 8:
@@ -131,6 +133,19 @@ func TestSuppressionNeedsAReason(t *testing.T) {
 	if got["CMT-04@service/sup.go:8"] {
 		t.Error("a suppression with a reason must silence its rule")
 	}
+}
+
+func parseGoSource(t *testing.T, src string) *File {
+	t.Helper()
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "x.go"), []byte(src), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	f, err := parseGo(root, "x.go")
+	if err != nil {
+		t.Fatalf("parseGo: %v", err)
+	}
+	return f
 }
 
 func copyTree(t *testing.T, src string) string {

@@ -53,6 +53,7 @@ A suppression without a reason is itself an error (`GATE-01`).
 | CMT-07 | warn | both | Doc comment that only restates the symbol name |
 | CMT-08 | warn | both | Delivery whose added comment ratio exceeds the budget |
 | CMT-09 | warn | both | Comment on a declaration that describes instead of constraining |
+| CMT-10 | warn | go | Any comment on a struct field or an interface method that no other rule reported |
 
 ### CMT-01 — block over budget
 
@@ -65,7 +66,9 @@ Budget by position, in lines (`comments.budget` in config):
 | Type, struct, const block | none | Same reason. The docs that run long here are decisions with no other home (a spec reference, a CGNAT rationale), and length was catching those, never a wall of words. |
 | Function / method doc | 6 | The signature already carries most of it. |
 | Inside a function body | 3 | The code is one line away. |
-| Declaration: struct field, const, enum member | 3 | Constraint only — see CMT-09. Two lines because a real constraint often wraps at 80 columns; the wrap is formatting, not a second thought. |
+| Declaration: const, var, enum member | 3 | Constraint only — see CMT-09. Two lines because a real constraint often wraps at 80 columns; the wrap is formatting, not a second thought. |
+| Go struct field (`field`) | 1, no tolerance | A member speaks through its name; the rare comment it earns is one constraint. Above or trailing, same position. |
+| Go interface method (`method`) | 1, no tolerance | Same reason: the method name and signature are the contract. A comment that narrates what the method does is the case this exists for. |
 | Trailing (same line as code) | 1 | Structural. |
 
 Position is resolved from the AST (Go) or the scanner's brace depth (web), not
@@ -78,15 +81,15 @@ about a comment syntax rather than about a comment.
 Web positions: `package` is a file-leading doc followed by a blank line or an
 import; `type` is above an `interface`/`type`/`enum`/`class`; `func` is above a
 function, a const arrow-function, a class method **or a function-typed member of
-a type** — that last one is the web's interface method, and it earns the
-function budget for the same reason Go's does; `decl` is a data member of a
+a type** — that last one is the web's interface method, which unlike Go's
+still earns the function budget; `decl` is a data member of a
 type, an object or an enum; `body` is anything inside a function, JSX included.
 A module-scope `const`/`let`/`var` is none of those and takes the orphan budget:
 it is not a member, so CMT-09 never asks it for a constraint.
 
 ### CMT-02 — behavior narration
 
-**Scope: body, trailing, declaration and orphan comments only.** A package, type
+**Scope: body, trailing, declaration, member and orphan comments only.** A package, type
 or function doc legitimately states what the thing promises — that is what a
 contract is. Applying narration detection there floods the report; the narrower
 CMT-07 covers the case where the promise is only the name spelled out.
@@ -125,6 +128,20 @@ its own "Goal:" and "Strategy:" headings.
 
 So the axis works, it just cannot speak at +1: "it fits in three and it is in
 five" is a real defect, and "it wrapped" is not.
+
+Members are the exception (`comments.budget_tolerance.field` and `.method`,
+both 0): on a struct field or an interface method a second line is never a wrap,
+it is the name failing to say something. Two lines there is an error.
+
+### CMT-10 — comment on a member
+
+A struct field or an interface method speaks through its name, so a comment
+beside one is **rare by design** — kept only for a constraint the name cannot
+carry. Every such comment is reported as `warn` so it stays visible and has to
+earn its place; if it describes, rename the member. A comment already reported
+by another CMT rule (CMT-01 past one line, CMT-09 described instead of
+constrained) is not reported twice. Go only: the web front-end still places a
+type member at `decl` or `func`.
 
 ### CMT-03 — comment inside a function body
 
@@ -428,6 +445,23 @@ rendering, and treating it as a decision reported every `.filter()` in the repo.
 
 ---
 
+## NAM — names
+
+| ID | Sev | Ruleset | Detects |
+|---|---|---|---|
+| NAM-01 | error | go | Function or method named `…Of` whose signature takes a `context.Context` or returns an `error` |
+
+`profileOf(ctx, id)` promises a pure, total computation: the reader of the call
+cannot tell it goes to a database or a vendor and can fail. A verb names the
+cost — `read…`, `load…`, `fetch…`, `Get…`.
+
+`Of` counts only as the final camelCase word, so `Proof` and `Thereof` are not
+it; exported and unexported alike. The signature is the proof, which is why this
+is a lint: whether a name is merely *opaque* stays with the reviewer (see
+Non-goals).
+
+---
+
 ## GATE — the gate about the gate
 
 | ID | Sev | Detects |
@@ -450,7 +484,8 @@ Rules that will **not** be added, recorded so nobody adds them later:
 - Any style rule a formatter already owns (`gofmt`, Prettier).
 - Rules requiring semantic judgment — "is this abstraction right", "does this
   name lie", "should these two components be one". Those belong to the phase-2
-  judge, not to a linter pretending it can decide them.
+  judge, not to a linter pretending it can decide them. NAM-01 is the one slice
+  of "does this name lie" a signature settles without judgment.
 
 ## Backlog — not now
 
@@ -630,7 +665,7 @@ Each change was a defect, not a threshold nudge:
 
 ## Budgets are per position, and the positions are measured
 
-`interface`, `type`, `func`, `decl`, `body`, `trailing` and `package` each carry
+`interface`, `type`, `func`, `method`, `decl`, `field`, `body`, `trailing` and `package` each carry
 their own budget, because they are read at different distances. The numbers are
 not chosen by taste — this is the distribution across the Lybel repos when they
 were set:
@@ -650,7 +685,8 @@ never the failure mode on a contract — so the cap came off, and CMT-02 carries
 the rule that matters: **a contract may be as long as it needs, but it may not
 describe behavior.**
 
-On those positions CMT-02 runs its opener detector only. The overlap detector is
+On those positions, and on a Go interface method, CMT-02 runs its opener
+detector only. The overlap detector is
 meaningless there: a doc for `AgendaSettingsRepo` naturally repeats the type's
 own name and its members, and that is naming the contract, not narrating it.
 

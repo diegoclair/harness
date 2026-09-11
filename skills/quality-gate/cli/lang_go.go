@@ -154,20 +154,19 @@ func typePosOf(t ast.Expr) CommentPos {
 	return PosType
 }
 
-// registerFields places struct fields at declaration distance and interface
-// methods at function distance: a method is a contract and earns the prose a
-// field does not.
+// A field and an interface method both speak through their names, so a comment
+// beside either is a member comment wherever it sits, above or trailing.
 func registerFields(t ast.Expr, register func(*ast.CommentGroup, CommentPos, string)) {
 	switch t := t.(type) {
 	case *ast.StructType:
 		for _, fld := range fieldList(t.Fields) {
-			register(fld.Doc, PosDecl, fieldName(fld))
-			register(fld.Comment, PosTrailing, fieldName(fld))
+			register(fld.Doc, PosField, fieldName(fld))
+			register(fld.Comment, PosField, fieldName(fld))
 		}
 	case *ast.InterfaceType:
 		for _, m := range fieldList(t.Methods) {
-			register(m.Doc, PosFunc, fieldName(m))
-			register(m.Comment, PosTrailing, fieldName(m))
+			register(m.Doc, PosMethod, fieldName(m))
+			register(m.Comment, PosMethod, fieldName(m))
 		}
 	}
 }
@@ -272,12 +271,14 @@ func collectGoDecls(af *ast.File, f *File, line func(token.Pos) int) {
 			continue
 		}
 		f.Funcs = append(f.Funcs, Func{
-			Name:       fd.Name.Name,
-			Line:       line(fd.Pos()),
-			EndLine:    line(fd.End()),
-			Cyclomatic: cyclomatic(fd.Body),
-			MaxDepth:   maxDepth(fd.Body),
-			Params:     countParams(fd),
+			Name:         fd.Name.Name,
+			Line:         line(fd.Pos()),
+			EndLine:      line(fd.End()),
+			Cyclomatic:   cyclomatic(fd.Body),
+			MaxDepth:     maxDepth(fd.Body),
+			Params:       countParams(fd),
+			TakesContext: takesContext(fd),
+			ReturnsError: returnsError(fd),
 		})
 	}
 
@@ -407,6 +408,24 @@ func countParams(fd *ast.FuncDecl) int {
 		n += len(p.Names)
 	}
 	return n
+}
+
+func takesContext(fd *ast.FuncDecl) bool {
+	for _, p := range fieldList(fd.Type.Params) {
+		if isContext(p.Type) {
+			return true
+		}
+	}
+	return false
+}
+
+func returnsError(fd *ast.FuncDecl) bool {
+	for _, r := range fieldList(fd.Type.Results) {
+		if id, ok := r.Type.(*ast.Ident); ok && id.Name == "error" {
+			return true
+		}
+	}
+	return false
 }
 
 func isContext(e ast.Expr) bool {

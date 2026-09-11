@@ -125,6 +125,9 @@ adapter, transport reaching for a repository, one bounded context importing
 another) is an error, and the two heuristics (ARC-05, ARC-06) flag a domain rule
 that drifted into a query or a handler. When ARC-05 fires, the fix is almost
 always to move the decision up into the service and let the query return rows.
+NAM-01 flags a pure-sounding `…Of` name on a function whose signature does I/O
+(a `context.Context` in or an `error` out); the fix is a verb that names the
+cost.
 
 **Frontend (ts/tsx).** Shipped. The comment, duplication and complexity rules
 are language-neutral and now run on `.ts`/`.tsx`/`.js`/`.jsx` too, plus six

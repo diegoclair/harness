@@ -13,11 +13,11 @@ const directivePrefix = "quality-gate:"
 // the reason is the point and a keyboard should not stand in its way.
 var directiveRe = regexp.MustCompile(`^quality-gate:allow\s+([A-Z]+-\d+)\s*(?:—|--)?\s*(.*)$`)
 
+// A directive covers its own comment group and the lines just after it. Both
+// ends matter: the flagged comment often sits inside the group, below the
+// reason, and in JSX the directive cannot sit adjacent to the code at all.
 type suppression struct {
-	Rule string
-	// A directive covers its own comment group and the lines just after it. Both
-	// ends matter: the flagged comment often sits inside the group, below the
-	// reason, and in JSX the directive cannot sit adjacent to the code at all.
+	Rule    string
 	Line    int
 	EndLine int
 	Reason  string

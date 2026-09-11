@@ -22,6 +22,8 @@ const (
 	PosInterface CommentPos = "interface"
 	PosFunc      CommentPos = "func"
 	PosDecl      CommentPos = "decl"
+	PosField     CommentPos = "field"
+	PosMethod    CommentPos = "method"
 	PosBody      CommentPos = "body"
 	PosTrailing  CommentPos = "trailing"
 	PosOrphan    CommentPos = "orphan"
@@ -81,10 +83,13 @@ type Func struct {
 	MaxDepth   int
 	Params     int
 
-	// Web only: a function that renders markup is measured against the
-	// component budget rather than the plain function one.
+	// Web only: a component is measured against the component budget, not the function one.
 	Hooks     int
 	Component bool
+
+	// Go only: the signature's admission of I/O, which the name can contradict.
+	TakesContext bool
+	ReturnsError bool
 }
 
 // Element is one markup element's opening tag, attributes included, so a rule
@@ -186,8 +191,7 @@ type File struct {
 	SrcLines []string
 	IsTest   bool
 
-	// SrcLines with every comment blanked, so a rule matching on source never
-	// fires on prose. Nil when the front-end cannot produce it.
+	// Comments blanked so a source-matching rule never fires on prose; nil when unavailable.
 	CodeLines []string
 
 	Comments []Comment
