@@ -1,0 +1,78 @@
+name: Release quality-gate
+
+on:
+  push:
+    tags:
+      - 'gate-v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: skills/quality-gate/cli/go.mod
+          cache: true
+          cache-dependency-path: skills/quality-gate/cli/go.sum
+
+      - name: Run tests
+        working-directory: skills/quality-gate/cli
+        run: go test -count=1 ./...
+
+      - name: Compute clean version (strip "gate-" prefix)
+        id: ver
+        run: |
+          set -euo pipefail
+          TAG="${{ github.ref_name }}"
+          CLEAN="${TAG#gate-}"
+          echo "tag=$TAG"     >> "$GITHUB_OUTPUT"
+          echo "clean=$CLEAN" >> "$GITHUB_OUTPUT"
+
+      - name: Cross-compile and package platform ZIPs
+        run: |
+          set -euo pipefail
+          mkdir -p release-assets
+
+          # platform : GOOS : GOARCH : binary name in the ZIP
+          entries=(
+            "darwin-amd64:darwin:amd64:quality-gate"
+            "darwin-arm64:darwin:arm64:quality-gate"
+            "linux-amd64:linux:amd64:quality-gate"
+            "linux-arm64:linux:arm64:quality-gate"
+            "windows-amd64:windows:amd64:quality-gate.exe"
+          )
+
+          for entry in "${entries[@]}"; do
+            IFS=':' read -r platform goos goarch bin <<< "$entry"
+            stage="$(mktemp -d)"
+
+            cp skills/quality-gate/SKILL.md "$stage/SKILL.md"
+            cp -r skills/quality-gate/reference "$stage/reference"
+
+            mkdir -p "$stage/bin"
+            (cd skills/quality-gate/cli && CGO_ENABLED=0 GOOS="$goos" GOARCH="$goarch" \
+              go build -trimpath -ldflags "-s -w -X main.version=${{ steps.ver.outputs.clean }}" \
+              -o "$stage/bin/$bin" .)
+            chmod +x "$stage/bin/$bin"
+
+            (cd "$stage" && zip -r "$GITHUB_WORKSPACE/release-assets/quality-gate-$platform.zip" . -q)
+            rm -rf "$stage"
+          done
+
+          ls -lh release-assets/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v3
+        with:
+          name: ${{ steps.ver.outputs.tag }}
+          files: release-assets/*.zip
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          # The installer resolves the latest gate-v* release by prefix; the repo's
+          # "latest" slot belongs to another skill.
+          make_latest: false
