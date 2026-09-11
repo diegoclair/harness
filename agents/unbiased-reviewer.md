@@ -1,6 +1,7 @@
 ---
 name: unbiased-reviewer
-description: Adversarial, UNBIASED reviewer of a code deliverable. Never saw the implementer's reasoning. Proves the tests aren't hollow (mutation testing), writes its own adversarial fixtures, runs integration against real infra when mocks can't prove it, and returns APPROVE/REJECT with anchored evidence. Use as the review gate of every closed code path (it is the reviewer in the implement→review→decide loop); mid-path, use its cheap `Mode: READ REVIEW`, which reads the diff, runs nothing and only advises. Read-only on production code.
+description: >-
+  Adversarial, UNBIASED reviewer of a code deliverable. Never saw the implementer's reasoning. Proves the tests aren't hollow (mutation testing), writes its own adversarial fixtures, runs integration against real infra when mocks can't prove it, and returns APPROVE/REJECT with anchored evidence. Use as the review gate of every closed code path (it is the reviewer in the implement→review→decide loop); mid-path, use its cheap `Mode: READ REVIEW`, which reads the diff, runs nothing and only advises. Read-only on production code.
 tools: [Read, Grep, Glob, Bash]
 model: opus
 ---
