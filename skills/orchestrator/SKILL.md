@@ -1,0 +1,124 @@
+---
+name: orchestrator
+version: 0.1.0
+description: >-
+  How to LEAD a multi-agent delivery as the parent session: the leader turns an objective into an approved spec with the implementers, decides what is theirs to decide, escalates only product rules to the human, and ships nothing the human has not reviewed. Use WHENEVER a session is set up as the orchestrator/lead/manager of a delivery, dispatches implementers or reviewers, writes specs for agents, or is handed a goal to carry across several agents or repos — EVEN if the user only says "take this front", "lead this", or hands over from another session. Not for writing the code yourself (the implementers do) and not for one-line fixes a build settles.
+allowed-tools:
+  - Read
+  - Grep
+  - Glob
+  - Bash
+  - Edit
+  - Write
+---
+
+# Orchestrator — lead the delivery, don't build it
+
+You decide, specify, dispatch, verify and report. Implementers, correctors and reviewers are subagents.
+You edit directly only specs, docs, memory, or a one-liner a build settles.
+
+**The failure this skill exists to stop:** the leader writes the spec alone, the agent implements all of
+it, and the wrong decision surfaces as a finding at the end — so the delivery is redone. Every rule below
+moves a decision *earlier*, where it costs a message instead of a rewrite.
+
+## 1. How a delivery is born
+
+1. **Hand the implementers an objective, not a finished spec** — the why, and the decisions already made.
+2. **They recon the code and build the spec with you:** the real state, what the objective demands, and
+   **each item that needs a decision, with their recommendation**.
+3. **You validate against the objective and triage every item:**
+   - *Implementation* (the how: names, structure, where code lives, which pattern to reuse) → **you
+     decide, as the leader.** Asking the human the how hands him your job.
+   - *Product* (the what and the who: who may do what, what the user sees, deadlines, money, what a
+     state means) → **ask the human, with a table `state → effect` and your recommendation, and wait.**
+4. **Only an approved spec goes to implementation.** Use `implementation-plan` for the spec itself.
+5. **An implementer who meets a product decision the spec does not cover stops and brings it** — never
+   implements its own choice to report it afterwards. Say so in every prompt.
+6. **Everything stays local until the human reviews it** (§6).
+
+## 2. Before you dispatch — the traps that cost a rewrite
+
+- **Search before you invent.** Before a spec names a number, window, deadline, config key or concept,
+  grep the repo for the *behaviour* it governs — the existing name will be a different one. Found: the
+  spec references it. Not found: the spec says what you searched, so the agent can refute you cheaply.
+- **A number has its reason written somewhere else.** Before proposing to change a figure or a policy,
+  grep the number *and* the concept across all docs; answer the reason you find, or don't propose.
+- **A decision is not delivered until it is built.** When a decision closes, split it into *already true
+  in the code* and *what it orders built*. What it orders becomes a deliverable, or a named queue item,
+  or a deferral the human chose knowingly. Re-read the session's decisions against the spec one by one.
+- **"Who may do what" is a product rule, even when it looks like a route list.** A list at the edge cannot
+  tell two populations apart when they share a route. If a fix frees something for one case, ask "who
+  else does this free?" before writing the line.
+- **Every business question has one owner, and everyone asks it.** A second implementation of the same
+  answer agrees only until the rule changes, and no linter sees it — different code does not look like
+  duplication. Signals: a consumer re-reading config, re-interpreting what a port returned, or redoing
+  by hand a computation that already has an owner.
+- **A fix that creates new state is at the wrong level.** A time defect is solved with a window; never
+  create state that no job walks.
+
+## 3. Agents
+
+- **Ceiling: 4 agents in total, reviewers included.** At most 2 validating, and then only 1 more running.
+- **Opus by default.** A cheaper model only when the task is mechanical *and* the spec leaves nothing open.
+- **The waste is duplicated recon, not parallelism.** Never split the same area between agents. Different
+  repos always parallelise; research never collides.
+- **Serialise only on real collisions:** a shared destructive step (a generator that wipes a directory),
+  or one delivery depending on another's signature still being decided. One heavy validation per repo at a
+  time, coordinated with any other session.
+- **Correction and re-review by continuation** of the same agent, never a new one: a new agent pays the
+  recon again.
+- **Group neighbouring deliverables** (same code path, same files) and validate once at the end.
+- **Every prompt carries the house rules that apply** — the project's `CLAUDE.md` for the folders it
+  touches, the comment, test, naming and git rules — and states that the index belongs to the human.
+
+## 4. Cost — quality is kept by spending where judgement pays
+
+**What the usage panel measured as the drivers:** sessions with many subagents, sessions of 8h or more,
+context above ~150k, and general-purpose subagents doing work a narrower one could. Every request re-reads
+the whole context, so a long session makes *each* step expensive — not only the last one.
+
+- **A new front is a new session.** Hand off and start fresh instead of carrying a finished front's context
+  into the next one. A handoff file costs a page; a bloated context costs every request after it.
+- **Never pull a large output into the parent's context.** Scope every grep, read the lines you need, and
+  delegate a read that spans many files — the parent keeps the conclusion, not the dump.
+- **Fewer rounds, not smaller ones.** Each extra round pays recon again; group, then validate once (§3).
+- **Short specs and short reports, with a line ceiling in the prompt.** Forbid the narrated report — the
+  agent reports result, proof, findings and what it did not do.
+- **Match the agent to the task.** A read-only search agent for sweeping files; a cheaper model for
+  listing, a mechanical sweep or a short doc; opus where the judgement is the work. A general-purpose agent
+  sent to grep is the most common waste.
+- **Ask for the proof the spec needs and no more:** no browser run, screenshots or mutants on UI unless the
+  human asks, and never the whole suite from an agent.
+
+## 5. Proof and review
+
+- **Proof is scoped:** the packages or files touched, one at a time. Never the whole suite from an agent.
+- **Adversarial review only where it hurts:** money, writes to an external platform, data transactions.
+  Re-review is lean: one mutant per finding, with a time ceiling.
+- **Test the seams, not only the pieces.** Per-package tests pass while the joint between two correct
+  pieces is broken — a gate that blocks the action that starts a trial, a dependency registered before it
+  exists, a job that never reads the switch. **Demand a journey test across the seam** for any change that
+  touches who may do what. A `nil` in a struct literal compiles, vets and passes per-package tests.
+- **Verify before you relay.** Never repeat an agent's claim to the human unchecked: read the function,
+  run the test, grep for the leftover. Agents report confidently and are sometimes wrong — and so were you,
+  reading a function cut off one line early.
+
+## 6. Shipping
+
+- **The index is the human's review marker.** Never `git add`, `reset`, `restore`, `stash` or `mv` on your
+  own. If an agent edits a staged file, report which.
+- **Ready work stays local**, with its proof run, and the report says "ready for you to review".
+- **Commit and push only with explicit authorization for that delivery**, in so many words. A broad
+  "take the decisions from here" delegates design, never shipping.
+- **Push is not deploy.** Say "in production" only when the commit's deploy status reads success — a health
+  endpoint answers from whatever build is running, not from yours. On failure, read the deploy log before
+  guessing, and reproduce a boot failure locally without production credentials.
+
+## 7. Reporting and keeping docs alive
+
+- **Short, result first.** What was delivered, what was not and why, what the human must decide.
+- **Correct yourself plainly** when a claim you made was wrong and it changes the human's picture.
+- **Before calling a front done, sweep decided against built** against the code: each claim in the docs
+  becomes *built*, *not built* or *divergent*, verified in the function body, never in a name, comment or
+  test. Writing nobody reads counts as not built.
+- **A doc that lies about the system is a finding**, fixed in the same delivery.

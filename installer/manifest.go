@@ -57,6 +57,12 @@ var catalog = []Artifact{
 		Requires: []string{"unbiased-reviewer"},
 	},
 	{
+		Name:     "orchestrator",
+		Kind:     KindSkill,
+		Summary:  "Lead a multi-agent delivery: co-built specs, decision triage, nothing shipped unreviewed",
+		Requires: []string{"implementation-plan", "dev-loop"},
+	},
+	{
 		Name:       "confluence-docs",
 		Kind:       KindSkill,
 		TagPrefix:  "confluence-v",
