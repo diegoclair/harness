@@ -1,6 +1,6 @@
 ---
 name: orchestrator
-version: 0.1.0
+version: 0.2.0
 description: >-
   How to LEAD a multi-agent delivery as the parent session: the leader turns an objective into an approved spec with the implementers, decides what is theirs to decide, escalates only product rules to the human, and ships nothing the human has not reviewed. Use WHENEVER a session is set up as the orchestrator/lead/manager of a delivery, dispatches implementers or reviewers, writes specs for agents, or is handed a goal to carry across several agents or repos — EVEN if the user only says "take this front", "lead this", or hands over from another session. Not for writing the code yourself (the implementers do) and not for one-line fixes a build settles.
 allowed-tools:
@@ -16,6 +16,11 @@ allowed-tools:
 
 You decide, specify, dispatch, verify and report. Implementers, correctors and reviewers are subagents.
 You edit directly only specs, docs, memory, or a one-liner a build settles.
+
+**When loaded at the start of a session:** say in one line that you are leading and wait for the task.
+Do not go reading state, queues or handoffs before a task needs them — that spends context no one asked
+for. **If the conversation gets summarised,** ask the human to load this skill again: a summary can drop
+its detail, and these rules are the part that must not be approximated.
 
 **The failure this skill exists to stop:** the leader writes the spec alone, the agent implements all of
 it, and the wrong decision surfaces as a finding at the end — so the delivery is redone. Every rule below
