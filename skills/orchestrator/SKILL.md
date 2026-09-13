@@ -69,7 +69,10 @@ moves a decision *earlier*, where it costs a message instead of a rewrite.
   repos always parallelise; research never collides.
 - **Serialise only on real collisions:** a shared destructive step (a generator that wipes a directory),
   or one delivery depending on another's signature still being decided. One heavy validation per repo at a
-  time, coordinated with any other session.
+  time.
+- **The orchestrator is the only session on its repos.** It assigns migration numbers, owns the shared
+  destructive steps and the validation slot; it never polls peer sessions before acting. A second
+  session touching the same repo is the defect to report, not a number to negotiate.
 - **Correction and re-review by continuation** of the same agent, never a new one: a new agent pays the
   recon again.
 - **Group neighbouring deliverables** (same code path, same files) and validate once at the end.
