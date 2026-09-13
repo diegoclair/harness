@@ -1,6 +1,6 @@
 ---
 name: orchestrator
-version: 0.2.0
+version: 0.4.0
 description: >-
   How to LEAD a multi-agent delivery as the parent session: the leader turns an objective into an approved spec with the implementers, decides what is theirs to decide, escalates only product rules to the human, and ships nothing the human has not reviewed. Use WHENEVER a session is set up as the orchestrator/lead/manager of a delivery, dispatches implementers or reviewers, writes specs for agents, or is handed a goal to carry across several agents or repos — EVEN if the user only says "take this front", "lead this", or hands over from another session. Not for writing the code yourself (the implementers do) and not for one-line fixes a build settles.
 allowed-tools:
@@ -73,8 +73,11 @@ moves a decision *earlier*, where it costs a message instead of a rewrite.
 - **Correction and re-review by continuation** of the same agent, never a new one: a new agent pays the
   recon again.
 - **Group neighbouring deliverables** (same code path, same files) and validate once at the end.
-- **Every prompt carries the house rules that apply** — the project's `CLAUDE.md` for the folders it
-  touches, the comment, test, naming and git rules — and states that the index belongs to the human.
+- **Dispatch `implementer` to build and `unbiased-reviewer` to judge.** The house rules — git index,
+  comments, tests, naming, search before creating, one owner, stopping on product decisions — are built
+  into those agents, so the prompt carries only what is particular to this delivery: the objective or the
+  approved spec, the files in scope, and what is forbidden to touch. Re-pasting the rules into a prompt
+  gives them a second owner.
 
 ## 4. Cost — quality is kept by spending where judgement pays
 
@@ -92,12 +95,14 @@ the whole context, so a long session makes *each* step expensive — not only th
 - **Match the agent to the task.** A read-only search agent for sweeping files; a cheaper model for
   listing, a mechanical sweep or a short doc; opus where the judgement is the work. A general-purpose agent
   sent to grep is the most common waste.
-- **Ask for the proof the spec needs and no more:** no browser run, screenshots or mutants on UI unless the
-  human asks, and never the whole suite from an agent.
+- **Cheap proof is fast proof, never thinner proof.** What costs is the wide run repeated after every small
+  fix, a whole run forced serial, and heavy tools spread across a diff. The `implementer` agent closes with
+  one pass over the blast radius; ask for more only when the risk asks for it.
 
 ## 5. Proof and review
 
-- **Proof is scoped:** the packages or files touched, one at a time. Never the whole suite from an agent.
+- **Proof covers what changed and the existing behaviour that depends on it**, closed with one pass over the
+  blast radius — not a narrow run that only shows the new code works, and not the whole suite repeated.
 - **Adversarial review only where it hurts:** money, writes to an external platform, data transactions.
   Re-review is lean: one mutant per finding, with a time ceiling.
 - **Test the seams, not only the pieces.** Per-package tests pass while the joint between two correct

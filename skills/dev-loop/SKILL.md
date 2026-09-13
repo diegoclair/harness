@@ -82,5 +82,8 @@ The implementer delivers and the reviewer confirms, but **you run the gates once
 
 ## Parameters
 
+- **Subagent types:** the implementer and the corrector are the **`implementer`** agent, which carries the
+  house rules and stops on product decisions; the reviewer is `unbiased-reviewer`. The prompt carries only
+  the mini-spec, the files in scope and the test-run budget above.
 - **Subagent model:** `opus` by default (implementer, reviewer, corrector) — it's where quality matters. Pass `model: opus` explicitly when dispatching if the orchestrator runs on a different model (a subagent inherits the parent's model).
 - **Scale to the request:** a small-but-non-trivial feature = 1 path, 1 gate. A large feature = several deliverables grouped into a few paths, each gated once when it closes — not one gate per deliverable. For long multi-wave orchestration (all-night, per-wave gate, RUN-LOG, doc syncing), that's the scope of a separate orchestration skill — dev-loop is the unit it reuses.

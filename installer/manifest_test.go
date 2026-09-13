@@ -95,11 +95,13 @@ func TestResolveRequiresPullsInDependencies(t *testing.T) {
 	if err != nil {
 		t.Fatalf("resolveRequires: %v", err)
 	}
-	if len(added) != 1 || added[0] != "unbiased-reviewer" {
-		t.Errorf("added = %v, want [unbiased-reviewer]", added)
+	if len(added) != 2 || !containsString(added, "implementer") || !containsString(added, "unbiased-reviewer") {
+		t.Errorf("added = %v, want [implementer unbiased-reviewer]", added)
 	}
-	if !containsName(got, "unbiased-reviewer") {
-		t.Errorf("selection %v is missing the required agent", names(got))
+	for _, want := range []string{"implementer", "unbiased-reviewer"} {
+		if !containsName(got, want) {
+			t.Errorf("selection %v is missing the required agent %q", names(got), want)
+		}
 	}
 	if got[0].Name != "dev-loop" {
 		t.Errorf("original selection should stay first, got %v", names(got))
@@ -108,17 +110,18 @@ func TestResolveRequiresPullsInDependencies(t *testing.T) {
 
 func TestResolveRequiresIsIdempotent(t *testing.T) {
 	devLoop, _ := findArtifact("dev-loop")
+	implementer, _ := findArtifact("implementer")
 	reviewer, _ := findArtifact("unbiased-reviewer")
 
-	got, added, err := resolveRequires([]Artifact{devLoop, reviewer})
+	got, added, err := resolveRequires([]Artifact{devLoop, implementer, reviewer})
 	if err != nil {
 		t.Fatalf("resolveRequires: %v", err)
 	}
 	if len(added) != 0 {
 		t.Errorf("added = %v, want none when the dependency is already selected", added)
 	}
-	if len(got) != 2 {
-		t.Errorf("selection = %v, want 2 entries with no duplicate", names(got))
+	if len(got) != 3 {
+		t.Errorf("selection = %v, want 3 entries with no duplicate", names(got))
 	}
 }
 
@@ -179,20 +182,28 @@ func TestSkillsDeclareTheAgentsTheyDispatch(t *testing.T) {
 // A dependency can itself have dependencies; expanding only the original
 // selection would leave the chain half-installed.
 func TestResolveRequiresIsTransitive(t *testing.T) {
-	// dev-loop already requires unbiased-reviewer, so requiring dev-loop makes
-	// a real two-hop chain.
+	// dev-loop requires its agents, so requiring dev-loop makes a real two-hop chain.
 	meta := Artifact{Name: "meta-skill", Kind: KindSkill, Requires: []string{"dev-loop"}}
 
 	got, added, err := resolveRequires([]Artifact{meta})
 	if err != nil {
 		t.Fatalf("resolveRequires: %v", err)
 	}
-	for _, want := range []string{"dev-loop", "unbiased-reviewer"} {
+	for _, want := range []string{"dev-loop", "implementer", "unbiased-reviewer"} {
 		if !containsName(got, want) {
 			t.Errorf("selection %v is missing %q from the dependency chain", names(got), want)
 		}
 	}
-	if len(added) != 2 {
+	if len(added) != 3 {
 		t.Errorf("added = %v, want both hops reported", added)
 	}
+}
+
+func containsString(list []string, want string) bool {
+	for _, s := range list {
+		if s == want {
+			return true
+		}
+	}
+	return false
 }
