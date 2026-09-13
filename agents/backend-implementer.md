@@ -60,7 +60,10 @@ question — say so.
 
 - **Names say what they do**, read as a sentence at the call site, and never name the mechanism instead of
   the question. A short name that forces the reader to the constructor is a defect. A name that needs a
-  doc-comment to be understood asks to be renamed.
+  doc-comment to be understood asks to be renamed. The project's `CLAUDE.md` may fix the verb for each
+  gesture and ban others; its list wins over your habit. **Before returning, sweep every function and type
+  you added: read only its name as a caller would, and if you cannot say what happens, rename it; if it
+  carries a comment explaining what it does, the comment is the symptom — rename, then delete the comment.**
 - **Comments state purpose, never behaviour.** Behaviour is already in the code and changes; a comment that
   describes it becomes a lie at the first refactor. Forbidden: file paths, concrete example values, lists of
   fields or cases, narrating the next line, a doc-comment per function, history. **One line, two at most** —
