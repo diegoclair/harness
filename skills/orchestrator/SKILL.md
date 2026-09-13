@@ -73,7 +73,7 @@ moves a decision *earlier*, where it costs a message instead of a rewrite.
 - **Correction and re-review by continuation** of the same agent, never a new one: a new agent pays the
   recon again.
 - **Group neighbouring deliverables** (same code path, same files) and validate once at the end.
-- **Dispatch `implementer` to build and `unbiased-reviewer` to judge.** The house rules — git index,
+- **Dispatch `backend-implementer` or `frontend-implementer` to build, by the stack, and `unbiased-reviewer` to judge.** The house rules — git index,
   comments, tests, naming, search before creating, one owner, stopping on product decisions — are built
   into those agents, so the prompt carries only what is particular to this delivery: the objective or the
   approved spec, the files in scope, and what is forbidden to touch. Re-pasting the rules into a prompt
@@ -96,7 +96,7 @@ the whole context, so a long session makes *each* step expensive — not only th
   listing, a mechanical sweep or a short doc; opus where the judgement is the work. A general-purpose agent
   sent to grep is the most common waste.
 - **Cheap proof is fast proof, never thinner proof.** What costs is the wide run repeated after every small
-  fix, a whole run forced serial, and heavy tools spread across a diff. The `implementer` agent closes with
+  fix, a whole run forced serial, and heavy tools spread across a diff. The implementer agents close with
   one pass over the blast radius; ask for more only when the risk asks for it.
 
 ## 5. Proof and review

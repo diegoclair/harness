@@ -95,10 +95,10 @@ func TestResolveRequiresPullsInDependencies(t *testing.T) {
 	if err != nil {
 		t.Fatalf("resolveRequires: %v", err)
 	}
-	if len(added) != 2 || !containsString(added, "implementer") || !containsString(added, "unbiased-reviewer") {
-		t.Errorf("added = %v, want [implementer unbiased-reviewer]", added)
+	if len(added) != 3 || !containsString(added, "backend-implementer") || !containsString(added, "frontend-implementer") || !containsString(added, "unbiased-reviewer") {
+		t.Errorf("added = %v, want [backend-implementer frontend-implementer unbiased-reviewer]", added)
 	}
-	for _, want := range []string{"implementer", "unbiased-reviewer"} {
+	for _, want := range []string{"backend-implementer", "frontend-implementer", "unbiased-reviewer"} {
 		if !containsName(got, want) {
 			t.Errorf("selection %v is missing the required agent %q", names(got), want)
 		}
@@ -110,18 +110,19 @@ func TestResolveRequiresPullsInDependencies(t *testing.T) {
 
 func TestResolveRequiresIsIdempotent(t *testing.T) {
 	devLoop, _ := findArtifact("dev-loop")
-	implementer, _ := findArtifact("implementer")
+	backend, _ := findArtifact("backend-implementer")
+	frontend, _ := findArtifact("frontend-implementer")
 	reviewer, _ := findArtifact("unbiased-reviewer")
 
-	got, added, err := resolveRequires([]Artifact{devLoop, implementer, reviewer})
+	got, added, err := resolveRequires([]Artifact{devLoop, backend, frontend, reviewer})
 	if err != nil {
 		t.Fatalf("resolveRequires: %v", err)
 	}
 	if len(added) != 0 {
 		t.Errorf("added = %v, want none when the dependency is already selected", added)
 	}
-	if len(got) != 3 {
-		t.Errorf("selection = %v, want 3 entries with no duplicate", names(got))
+	if len(got) != 4 {
+		t.Errorf("selection = %v, want 4 entries with no duplicate", names(got))
 	}
 }
 
@@ -189,12 +190,12 @@ func TestResolveRequiresIsTransitive(t *testing.T) {
 	if err != nil {
 		t.Fatalf("resolveRequires: %v", err)
 	}
-	for _, want := range []string{"dev-loop", "implementer", "unbiased-reviewer"} {
+	for _, want := range []string{"dev-loop", "backend-implementer", "frontend-implementer", "unbiased-reviewer"} {
 		if !containsName(got, want) {
 			t.Errorf("selection %v is missing %q from the dependency chain", names(got), want)
 		}
 	}
-	if len(added) != 3 {
+	if len(added) != 4 {
 		t.Errorf("added = %v, want both hops reported", added)
 	}
 }

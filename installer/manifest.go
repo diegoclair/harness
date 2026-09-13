@@ -45,15 +45,20 @@ var catalog = []Artifact{
 		Summary: "Adversarial reviewer: mutation testing, own fixtures, APPROVE/REJECT with evidence",
 	},
 	{
-		Name:    "implementer",
+		Name:    "backend-implementer",
 		Kind:    KindAgent,
-		Summary: "Implements under a spec with the house rules built in, and stops on product decisions",
+		Summary: "Implements backend code with responsibilities in their layer, and stops on product decisions",
+	},
+	{
+		Name:    "frontend-implementer",
+		Kind:    KindAgent,
+		Summary: "Implements frontend code with the right layers and components, and stops on product decisions",
 	},
 	{
 		Name:     "dev-loop",
 		Kind:     KindSkill,
 		Summary:  "Build a non-trivial feature through implement -> unbiased review -> decide",
-		Requires: []string{"implementer", "unbiased-reviewer"},
+		Requires: []string{"backend-implementer", "frontend-implementer", "unbiased-reviewer"},
 	},
 	{
 		Name:     "implementation-plan",
@@ -65,7 +70,7 @@ var catalog = []Artifact{
 		Name:     "orchestrator",
 		Kind:     KindSkill,
 		Summary:  "Lead a multi-agent delivery: co-built specs, decision triage, nothing shipped unreviewed",
-		Requires: []string{"implementation-plan", "dev-loop", "implementer", "unbiased-reviewer"},
+		Requires: []string{"implementation-plan", "dev-loop", "backend-implementer", "frontend-implementer", "unbiased-reviewer"},
 	},
 	{
 		Name:       "confluence-docs",
