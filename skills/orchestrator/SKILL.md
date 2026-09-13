@@ -60,6 +60,12 @@ moves a decision *earlier*, where it costs a message instead of a rewrite.
   by hand a computation that already has an owner.
 - **A fix that creates new state is at the wrong level.** A time defect is solved with a window; never
   create state that no job walks.
+- **You are the architect: draw the new piece before copying a shape.** A spec that says "like X" is a
+  spec that inherited X's axis: one vendor or many, one caller or many, one owner or per-tenant, a row
+  that is written once or appended forever. Before approving, name the axis the new piece lives on and
+  check the analogy holds there — a bridge that serves one role through many vendors is not shaped like
+  a bridge that speaks to one company, however alike the folders look. Write the shape (packages, who
+  knows what, where state lives, what a swap costs) in the spec; the implementer builds it, not derives it.
 
 ## 3. Agents
 
