@@ -1,6 +1,6 @@
 ---
 name: orchestrator
-version: 0.4.0
+version: 0.5.0
 description: >-
   How to LEAD a multi-agent delivery as the parent session: the leader turns an objective into an approved spec with the implementers, decides what is theirs to decide, escalates only product rules to the human, and ships nothing the human has not reviewed. Use WHENEVER a session is set up as the orchestrator/lead/manager of a delivery, dispatches implementers or reviewers, writes specs for agents, or is handed a goal to carry across several agents or repos — EVEN if the user only says "take this front", "lead this", or hands over from another session. Not for writing the code yourself (the implementers do) and not for one-line fixes a build settles.
 allowed-tools:
@@ -36,6 +36,9 @@ moves a decision *earlier*, where it costs a message instead of a rewrite.
      decide, as the leader.** Asking the human the how hands him your job.
    - *Product* (the what and the who: who may do what, what the user sees, deadlines, money, what a
      state means) → **ask the human, with a table `state → effect` and your recommendation, and wait.**
+   - **All the product questions go in one message, at the start**, each with your recommendation. After
+     that you keep moving on premises marked `ASSUMED`, each isolated at a single switch point, so one
+     answer later changes one place. A prompt pass, a paid run worth cents, a test adjustment: decide and go.
 4. **Only an approved spec goes to implementation.** Use `implementation-plan` for the spec itself.
 5. **An implementer who meets a product decision the spec does not cover stops and brings it** — never
    implements its own choice to report it afterwards. Say so in every prompt.
@@ -60,6 +63,13 @@ moves a decision *earlier*, where it costs a message instead of a rewrite.
   by hand a computation that already has an owner.
 - **A fix that creates new state is at the wrong level.** A time defect is solved with a window; never
   create state that no job walks.
+- **A numeric fuse in config that stops a flow is the wrong answer.** What a run may cost is the
+  customer's call, so the limit lives in how the thing is built (what it may ask for, how far it fans
+  out), not in a knob that blows silently and leaves the feature off with nobody told.
+- **A notice states what happened, never what was scheduled.** An announcement that something will go
+  out becomes a lie the moment the job decides otherwise, so the message goes after the fact. Any
+  delivery that sends (e-mail, message) comes back with a cadence table, `trigger → worst case per
+  customer per month`, one send per customer per event, grouped.
 - **You are the architect: draw the new piece before copying a shape.** A spec that says "like X" is a
   spec that inherited X's axis: one vendor or many, one caller or many, one owner or per-tenant, a row
   that is written once or appended forever. Before approving, name the axis the new piece lives on and
@@ -79,6 +89,12 @@ moves a decision *earlier*, where it costs a message instead of a rewrite.
 - **The orchestrator is the only session on its repos.** It assigns migration numbers, owns the shared
   destructive steps and the validation slot; it never polls peer sessions before acting. A second
   session touching the same repo is the defect to report, not a number to negotiate.
+- **One migration per wave.** Agents number their own while they build; before the review you fold the
+  wave into a single migration with the next number. A migration tool refuses a number below the last
+  one applied, so a wave that ships three files can be unrunnable in the next environment.
+- **A sibling session on the other artifacts gets the contract, not the code.** Hand it over with
+  `SendMessage`, and use `ListAgents` to find the live id when a socket goes stale. The screens are
+  theirs; the backend and the contract between you stay yours.
 - **Correction and re-review by continuation** of the same agent, never a new one: a new agent pays the
   recon again.
 - **Group neighbouring deliverables** (same code path, same files) and validate once at the end.
@@ -120,7 +136,9 @@ the whole context, so a long session makes *each* step expensive — not only th
   touches who may do what. A `nil` in a struct literal compiles, vets and passes per-package tests.
 - **Verify before you relay.** Never repeat an agent's claim to the human unchecked: read the function,
   run the test, grep for the leftover. Agents report confidently and are sometimes wrong — and so were you,
-  reading a function cut off one line early.
+  reading a function cut off one line early. **On a backend delivery, run the two architecture greps
+  yourself before relaying:** concrete infrastructure imported inside the domain, and a vendor's word
+  inside the shared code. A "sweep done" in an agent's report is a claim, not a result.
 
 ## 6. Shipping
 
@@ -140,4 +158,7 @@ the whole context, so a long session makes *each* step expensive — not only th
 - **Before calling a front done, sweep decided against built** against the code: each claim in the docs
   becomes *built*, *not built* or *divergent*, verified in the function body, never in a name, comment or
   test. Writing nobody reads counts as not built.
+- **Close a wave by checklist, not by feeling:** that sweep written to a scratch file outside the repo,
+  the project's doc generation, lint, tests and the quality gate run whole rather than scoped, the
+  roadmap docs updated, the memory recorded. Whatever you skipped, name it in the report.
 - **A doc that lies about the system is a finding**, fixed in the same delivery.

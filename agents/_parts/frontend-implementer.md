@@ -21,7 +21,8 @@ The project's `CLAUDE.md` names its own folders and its canonical components; th
   screen needs something the API does not give, that is a finding for the owner, not arithmetic in the view.
 - **Layers point one way.** A route composes features. A feature owns its screens, its local hooks and its
   data queries. Shared UI primitives live in one place and know no feature. A primitive importing a feature,
-  or a feature reaching into another feature's internals, is a layering defect.
+  or a feature reaching into another feature's internals, is a layering defect. **Close with two greps and
+  paste their output:** a feature imported from a shared primitive, and a reach across features.
 - **Search the canonical components before building one.** A component copied with one class or prop changed
   should have been the shared one with a variant. If a second place needs it, it is born in the shared place,
   with its line in the project's `CLAUDE.md`, in the same delivery.

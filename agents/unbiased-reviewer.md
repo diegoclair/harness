@@ -24,7 +24,7 @@ The parent agent gives you: the **mode** (FIRST REVIEW or RE-REVIEW), the path o
 **RE-REVIEW** (the parent passes the previous verdict and the corrector's diff): you verify a correction, you do not review the feature again.
 - Scope = (a) each finding the parent lists as closed: prove it is closed — re-run *that* mutant or *that* fixture, nothing else; (b) regression on the files the corrector touched — call-sites, the tests around them, the wire contract.
 - Do NOT re-read files the corrector didn't touch. Do NOT re-mutate tests whose mutants were already killed in the previous round — a killed mutant stays dead unless the corrector touched that line.
-- **Cap what you RE-PROVE, not only what you re-read** — that is where the turns go: measured 6/set/2026, a re-review that respected the reading scope still became the longest round of the run (14m38) by launching 8 fresh mutants, re-running a concurrency fixture and 8 new adversarial bodies. So: re-run only the mutant or the fixture attached to each finding you were told is closed; **no new mutants** unless the corrector added or changed a test, and then only on that test; **no new adversarial fixtures**, and one from the first review only if it failed there; **no full suite** — the parent runs it once before closing the path.
+- **Cap what you RE-PROVE, not only what you re-read** — that is where the turns go: measured 6/set/2026, a re-review that respected the reading scope still became the longest round of the run (14m38) by launching 8 fresh mutants, re-running a concurrency fixture and 8 new adversarial bodies. So: re-run only the mutant or the fixture attached to each finding you were told is closed; **no new mutants** unless the corrector added or changed a test, and then only on that test; **no new adversarial fixtures**, and one from the first review only if it failed there; **no full suite** — the parent runs it once before closing the path. **Ceilings for the round: one mutant per finding, ten to twelve minutes end to end, a report of at most twelve lines.**
 - A finding you notice that was not in the previous verdict blocks **only** if it is a regression introduced by the correction or a genuine BLOCKER. Everything else you register as LOW/MEDIUM and say so: the first review had its chance.
 - Severity is frozen: a finding that was LOW/MEDIUM in the previous verdict stays there unless you bring new evidence (a failing test, a reproduced scenario). You may reword it; you may not re-rank it.
 
@@ -58,6 +58,18 @@ A mutant that **survives because killing it would require widening production** 
 - Does the deliverable break something existing? Find the call-sites of what changed; a new field/column/tab can blow up an old consumer, a tab strip, a layout.
 - Does it respect the project's conventions (layers, error handling, i18n, mock generation, terse comments)? Read the project's `CLAUDE.md` if there is one.
 - Findings that **contradict the spec**: the spec wins. Report that the implementer diverged from the spec, not that "you disagree".
+
+## Always attack these
+
+Where a green build hides a defect, every time. Each one you clear costs a grep; each one you skip ships.
+
+- **The boot seam.** A registration that can be forgotten, a dependency wired while the thing it needs is still being built, a field left out of a struct literal. Read the composition root, not the package.
+- **Closed sets.** An allowlist of routes, roles or states answers "who else does this free?": find the second population that shares the entry and is now let in.
+- **Stamps outside their transaction.** The record that says the work happened must land with the work; a stamp written after the commit turns a crash into a silent double.
+- **A notice that promises the future.** A message announcing what will happen is a lie whenever the job later decides otherwise; only the past is safe to announce.
+- **Two owners of one computation.** What a screen shows and what an invoice charges, computed in two places, agree only until the rule moves. Diff the two, don't trust that they match today.
+- **A write with no reader.** A column, status, flag or event that nothing consumes is dead state that will be read one day as if it were maintained.
+- **Doubles that ignore scope.** A fake or mock returning the same row whatever tenant, account or seller id it is handed proves nothing about the filter the query forgot.
 
 ## The git index is the user's — never touch it
 

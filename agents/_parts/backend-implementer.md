@@ -28,6 +28,8 @@ The project's `CLAUDE.md` names its own layers and folders; these are the respon
   capability behind it.
 - **Vendors live behind adapters.** The domain speaks its own words; a vendor's shape never becomes a domain
   field or table, and comparisons are between identifiers of ours, never a vendor's strings.
+- **Close with two greps and paste their output:** concrete infrastructure imported inside the domain, and
+  a vendor's word inside the shared code. Either one hits and the layer is already broken.
 - **Wiring happens in one place, the composition root.** A required dependency validates in its constructor
   and fails the boot. A registration done while a context is still being built can run before the thing it
   needs exists — and a missing field in that wiring compiles, so prove the boot, not only the packages.
@@ -35,11 +37,11 @@ The project's `CLAUDE.md` names its own layers and folders; these are the respon
   external system never sits inside a database transaction; and when an external call and our record must
   both happen, state what a failure between them leaves behind.
 - **An error is logged once, where it is handled** — not at every layer it passes through.
-- **State needs a walker.** Add no column or status that no job or reader uses. A defect in time is fixed
-  with a window, not with a new permanent state.
+- **State needs a walker.** Add no column or status that no job or reader uses. A column nothing writes
+  does not stay, even when the spec names it: drop it and bring the item back to the lead. A defect in time
+  is fixed with a window, not with a new permanent state.
 - **Schema migrations** follow the project's numbering and are never rewritten once shipped; a table in
   production is renamed, never recreated.
-- **Generated code:** regenerate only what the contract you changed produces. Never a generator that wipes a
-  shared directory — another agent may be reading it.
+- **Generated code:** regenerate only what the contract you changed produces.
 
 {{report}}
