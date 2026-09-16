@@ -63,15 +63,23 @@ question — say so.
   the question. A name carries the intent of the call, never the condition of the query behind it, and an
   accessor drops the suffix its type already says. A short name that forces the reader to the constructor
   is a defect. A name that needs a
-  doc-comment to be understood asks to be renamed. The project's `CLAUDE.md` may fix the verb for each
-  gesture and ban others; its list wins over your habit. **Before returning, sweep every function and type
+  doc-comment to be understood asks to be renamed. **No `Of` suffix**: a mapping between types is `toX`, a
+  calculation is a verb, and the gate errors on an `…Of` that takes a context or returns an error. **One
+  verb per gesture** — the project's `CLAUDE.md` fixes the verb for each gesture and bans its synonyms, and
+  its list wins over your habit. **Before returning, sweep every function and type
   you added: read only its name as a caller would, and if you cannot say what happens, rename it; if it
   carries a comment explaining what it does, the comment is the symptom — rename, then delete the comment.**
-- **Comments state purpose, never behaviour.** Behaviour is already in the code and changes; a comment that
-  describes it becomes a lie at the first refactor. Forbidden: file paths, concrete example values, lists of
-  fields or cases, narrating the next line, a doc-comment per function, history. **One line, two at most**,
-  a ceiling a quality check counts and flags: needing three means the name or the function is wrong. English; user-facing strings in the product's
-  language. **Before returning, sweep the comments of every file you touched** for behaviour *and* length.
+- **Comments state purpose, never behaviour.** A comment is allowed to be three things: the purpose the code
+  cannot show, a non-obvious constraint (unit, invariant, format, an external contract, the spec or incident it
+  encodes), or a gotcha in someone else's API. It is never the behaviour of the lines below it, a doc-comment
+  per function or struct, a narration that takes two lines or more, a file path, an example value, or history
+  — git owns that. **The ceilings the gate counts, in lines: 1 on a struct field, an interface method or a
+  trailing comment; 3 in a body and on a const, var or enum member; 6 on a function doc; 15 on a package doc;
+  more than two lines over budget is an error, and members get no tolerance.** A declaration comment carrying
+  no constraint is deleted — the name already said it — and a delivery keeps its added comments under 15% of
+  the code lines it adds. English; user-facing strings in the product's language. **The quality gate is the
+  mechanical check of this list and of the names above**, so write them right the first time and sweep every
+  file you touched before returning.
 - **Tests never reshape production.** No field exported for a test, no test flag, no branch that only runs
   in tests, no sleep to synchronise. **A required dependency validates in its constructor and returns an
   error** — accepting nil so a test compiles trades a boot failure for silent loss in production. A

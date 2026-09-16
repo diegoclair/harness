@@ -1,6 +1,6 @@
 ---
 name: orchestrator
-version: 0.5.0
+version: 0.5.1
 description: >-
   How to LEAD a multi-agent delivery as the parent session: the leader turns an objective into an approved spec with the implementers, decides what is theirs to decide, escalates only product rules to the human, and ships nothing the human has not reviewed. Use WHENEVER a session is set up as the orchestrator/lead/manager of a delivery, dispatches implementers or reviewers, writes specs for agents, or is handed a goal to carry across several agents or repos — EVEN if the user only says "take this front", "lead this", or hands over from another session. Not for writing the code yourself (the implementers do) and not for one-line fixes a build settles.
 allowed-tools:
@@ -80,6 +80,9 @@ moves a decision *earlier*, where it costs a message instead of a rewrite.
 ## 3. Agents
 
 - **Ceiling: 4 agents in total, reviewers included.** At most 2 validating, and then only 1 more running.
+- **Never more than two reviewers at once, and each one gets ONE code path.** Its prompt carries that path,
+  a closed list of the invariants it must check, and a time ceiling. "Review the wave" is not a scope: a
+  reviewer that spans a wave exhausts its memory before it reaches a verdict.
 - **Opus by default.** A cheaper model only when the task is mechanical *and* the spec leaves nothing open.
 - **The waste is duplicated recon, not parallelism.** Never split the same area between agents. Different
   repos always parallelise; research never collides.
