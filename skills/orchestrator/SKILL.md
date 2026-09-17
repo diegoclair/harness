@@ -1,6 +1,6 @@
 ---
 name: orchestrator
-version: 0.5.1
+version: 0.6.0
 description: >-
   How to LEAD a multi-agent delivery as the parent session: the leader turns an objective into an approved spec with the implementers, decides what is theirs to decide, escalates only product rules to the human, and ships nothing the human has not reviewed. Use WHENEVER a session is set up as the orchestrator/lead/manager of a delivery, dispatches implementers or reviewers, writes specs for agents, or is handed a goal to carry across several agents or repos — EVEN if the user only says "take this front", "lead this", or hands over from another session. Not for writing the code yourself (the implementers do) and not for one-line fixes a build settles.
 allowed-tools:
@@ -83,7 +83,9 @@ moves a decision *earlier*, where it costs a message instead of a rewrite.
 - **Never more than two reviewers at once, and each one gets ONE code path.** Its prompt carries that path,
   a closed list of the invariants it must check, and a time ceiling. "Review the wave" is not a scope: a
   reviewer that spans a wave exhausts its memory before it reaches a verdict.
-- **Opus by default.** A cheaper model only when the task is mechanical *and* the spec leaves nothing open.
+- **Sonnet builds, opus judges.** Implementers and correctors run on sonnet; the reviewer and the lead keep
+  opus, because the gate is what holds quality. Pass `model: opus` to an implementer only when the spec
+  leaves a shape open — and first try closing that shape in the spec.
 - **The waste is duplicated recon, not parallelism.** Never split the same area between agents. Different
   repos always parallelise; research never collides.
 - **Serialise only on real collisions:** a shared destructive step (a generator that wipes a directory),
@@ -120,9 +122,12 @@ the whole context, so a long session makes *each* step expensive — not only th
 - **Fewer rounds, not smaller ones.** Each extra round pays recon again; group, then validate once (§3).
 - **Short specs and short reports, with a line ceiling in the prompt.** Forbid the narrated report — the
   agent reports result, proof, findings and what it did not do.
-- **Match the agent to the task.** A read-only search agent for sweeping files; a cheaper model for
-  listing, a mechanical sweep or a short doc; opus where the judgement is the work. A general-purpose agent
+- **Match the agent to the task.** A read-only search agent for sweeping files; haiku for listing, a
+  mechanical sweep or a short doc; sonnet to build; opus where the judgement is the work. A general-purpose agent
   sent to grep is the most common waste.
+- **An image is the most expensive proof.** A screenshot in an agent's context is re-read on every request
+  after it. Browser proof is measured in text, with one screenshot per width at the end; never ask for a
+  screenshot per state, and never pull an agent's screenshots into your own context to check them.
 - **Cheap proof is fast proof, never thinner proof.** What costs is the wide run repeated after every small
   fix, a whole run forced serial, and heavy tools spread across a diff. The implementer agents close with
   one pass over the blast radius; ask for more only when the risk asks for it.

@@ -1,6 +1,6 @@
 ---
 name: dev-loop
-version: 0.3.0
+version: 0.4.0
 description: >-
   IMPLEMENTS (builds/refactors) a NON-trivial code feature with a built-in quality gate — the loop fresh-implementer → unbiased-reviewer (the `unbiased-reviewer` agent, with mutation testing) → the parent decides → [corrector→re-review], with the gate fired once per code path rather than per micro-deliverable. Use WHENEVER the task is to WRITE non-trivial code: a change spanning multiple files, new logic with state or concurrency, a feature with regression risk, or when the user wants the implementation done with rigor / doesn't trust "it compiled" alone — EVEN if they don't say "loop", "review" or "gate". Also when you (Claude) are about to implement a large feature yourself and a second unbiased pair of eyes is worth it. Do NOT use for: one-liners, renames, copy tweaks, 1:1 mechanical edits; and NOT for reviewing existing code, a PR, or a diff (that is the `unbiased-reviewer` agent on its own — this skill BUILDS, the review is only its inner gate). Proven on a 23-deliverable run, 0 final rejects.
 allowed-tools:
@@ -40,7 +40,7 @@ Split the feature into deliverables for IMPLEMENTATION, in dependency order — 
 
 1. **Mini-spec, if there isn't one.** If the feature arrived without a spec, write a short mini-spec BEFORE coding: gap → what to deliver → **verifiable exit criterion** (a command/assertion that proves done) → what's out of scope. Save it to disk (the subagent rereads it from there — survives context compaction).
 
-2. **Dispatch the IMPLEMENTER**, one per deliverable, in dependency order (fresh subagent, `model: opus` by default). It reads the mini-spec from disk, codes ONLY this deliverable, and leaves the static gates green before returning. It returns a short summary of what changed + the files touched.
+2. **Dispatch the IMPLEMENTER**, one per deliverable, in dependency order (fresh subagent, `model: sonnet` by default). It reads the mini-spec from disk, codes ONLY this deliverable, and leaves the static gates green before returning. It returns a short summary of what changed + the files touched.
 
 3. **Between deliverables of the same path, the static gates are the proof.** When you want a second pair of eyes before the path grows on a wrong foundation, dispatch a **READ REVIEW** — the `unbiased-reviewer` with `Mode: READ REVIEW`, which reads the spec and the diff and **runs nothing**: no mutant, no fixture, no suite. It returns findings as advice, with no verdict; you or the next implementer decide what to take. Cheap by construction — it catches a wrong direction early, it never replaces the gate.
 
@@ -85,5 +85,5 @@ The implementer delivers and the reviewer confirms, but **you run the gates once
 - **Subagent types:** the implementer and the corrector are **`backend-implementer`** or
   **`frontend-implementer`**, by the stack of the repo — each carries the house rules and stops on product decisions; the reviewer is `unbiased-reviewer`. The prompt carries only
   the mini-spec, the files in scope and the test-run budget above.
-- **Subagent model:** `opus` by default (implementer, reviewer, corrector) — it's where quality matters. Pass `model: opus` explicitly when dispatching if the orchestrator runs on a different model (a subagent inherits the parent's model).
+- **Subagent model:** `sonnet` for the implementer and the corrector, `opus` for the reviewer — the gate is where quality is held, so it is where the expensive model pays. Pass `model` explicitly when dispatching; an implementer goes to `opus` only when the mini-spec leaves a shape open.
 - **Scale to the request:** a small-but-non-trivial feature = 1 path, 1 gate. A large feature = several deliverables grouped into a few paths, each gated once when it closes — not one gate per deliverable. For long multi-wave orchestration (all-night, per-wave gate, RUN-LOG, doc syncing), that's the scope of a separate orchestration skill — dev-loop is the unit it reuses.
