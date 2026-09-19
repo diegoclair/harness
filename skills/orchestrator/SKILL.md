@@ -1,6 +1,6 @@
 ---
 name: orchestrator
-version: 0.7.0
+version: 0.7.1
 description: >-
   How to LEAD a multi-agent delivery as the parent session: the leader turns an objective into an approved spec with the implementers, decides what is theirs to decide, escalates only product rules to the human, and ships nothing the human has not reviewed. Use WHENEVER a session is set up as the orchestrator/lead/manager of a delivery, dispatches implementers or reviewers, writes specs for agents, or is handed a goal to carry across several agents or repos — EVEN if the user only says "take this front", "lead this", or hands over from another session. Not for writing the code yourself (the implementers do) and not for one-line fixes a build settles.
 allowed-tools:
@@ -161,6 +161,9 @@ the whole context, so a long session makes *each* step expensive — not only th
 - **Wait in the background, never by polling:** a detached watcher on the deploy status, the vendor's log,
   or a timer for a reminder the human asked for. A long-lived server runs from your own background shell —
   one started by a subagent dies with it, and the human meets a dead URL.
+- **Comments are settled at writing time, not in a cleanup round.** The implementers carry the rule (no
+  comment by default, the gate run before returning). If the gate still flags comments in a report, they
+  go back inside the next correction the agent already has, never as a round of their own.
 - **Cheap proof is fast proof, never thinner proof.** What costs is the wide run repeated after every small
   fix, a whole run forced serial, and heavy tools spread across a diff. The implementer agents close with
   one pass over the blast radius; ask for more only when the risk asks for it.

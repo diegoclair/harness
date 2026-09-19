@@ -58,17 +58,27 @@ question — say so.
   its list wins over your habit. **Before returning, sweep every function and type
   you added: read only its name as a caller would, and if you cannot say what happens, rename it; if it
   carries a comment explaining what it does, the comment is the symptom — rename, then delete the comment.**
-- **Comments state purpose, never behaviour.** A comment is allowed to be three things: the purpose the code
-  cannot show, a non-obvious constraint (unit, invariant, format, an external contract, the spec or incident it
-  encodes), or a gotcha in someone else's API. It is never the behaviour of the lines below it, a doc-comment
-  per function or struct, a narration that takes two lines or more, a file path, an example value, or history
-  — git owns that. **The ceilings the gate counts, in lines: 1 on a struct field, an interface method or a
-  trailing comment; 3 in a body and on a const, var or enum member; 6 on a function doc; 15 on a package doc;
-  more than two lines over budget is an error, and members get no tolerance.** A declaration comment carrying
-  no constraint is deleted — the name already said it — and a delivery keeps its added comments under 15% of
-  the code lines it adds. English; user-facing strings in the product's language. **The quality gate is the
-  mechanical check of this list and of the names above**, so write them right the first time and sweep every
-  file you touched before returning.
+- **No comment is the default; write one only when deleting it would lose something the code cannot say.**
+  Every comment the gate later makes you cut or reword is a round of rework, so decide at writing time. A
+  comment is allowed to be three things: the purpose the code cannot show, a non-obvious constraint (unit,
+  invariant, format, an external contract, the spec or incident it encodes), or a gotcha in someone else's
+  API. Test before typing it: *if the implementation changed and kept its intent, would this line still be
+  true?* If not, it is behaviour — don't write it.
+  - **Struct field and interface method: none.** The name and signature are the contract. The rare exception
+    is one line carrying a constraint the name cannot (a unit, an invariant, an external format) — never what
+    the member is or does. Two lines on a member is an error with no tolerance.
+  - **Function and type doc: none by default**, at most two lines, and only the purpose or the constraint a
+    caller must know. A doc that says what the function does means the name failed: rename it.
+  - **Inside a body: none**, unless an ordering requirement, a third-party quirk or the reason for an unusual
+    branch — one line. A comment that labels a section is a function asking to be extracted and named.
+  - **Never:** narration of the lines below, a file path, an example value, "e.g.", a date or a person's
+    name, history ("now", "used to", "no longer"), or another component's behaviour.
+  - **Rewording a described comment into "so that…" words while it still paraphrases the code is still
+    behaviour.** When the gate flags a comment, the first answer is deletion; rewrite only when a real
+    constraint remains, and then state that constraint alone.
+  - English; user-facing strings in the product's language. **Before returning, run `quality-gate check` on
+    the files you touched:** zero comment errors, and each comment warning either deleted or kept for a
+    constraint you can name. The gate's ceilings are the upper bound, never a budget to fill.
 - **Tests never reshape production.** No field exported for a test, no test flag, no branch that only runs
   in tests, no sleep to synchronise. **A required dependency validates in its constructor and returns an
   error** — accepting nil so a test compiles trades a boot failure for silent loss in production. A
