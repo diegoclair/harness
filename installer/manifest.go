@@ -103,6 +103,11 @@ var catalog = []Artifact{
 		Summary: "SEO + GEO for a static landing: audit, metadata/JSON-LD, content pages, sourced claims, indexing",
 	},
 	{
+		Name:    "ui-ux",
+		Kind:    KindSkill,
+		Summary: "Design rounds, studio-grade scroll motion, review loop and cheap proof for pages that must hold attention",
+	},
+	{
 		Name:       "quality-gate",
 		Kind:       KindSkill,
 		TagPrefix:  "gate-v",

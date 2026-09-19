@@ -1,0 +1,147 @@
+{
+  "viewports": "390x844,1024x768,1440x900,1440x1211,1920x1080",
+  "emptyBands": {
+    "sections": "main > section:not(.yes), main > div, .yes .ruler",
+    "surfaces": [
+      "phone",
+      "win",
+      "rn-row",
+      "tier",
+      "price-panel",
+      "cfg",
+      "ask",
+      "thumb-k",
+      "track",
+      "mk",
+      "rn-btn",
+      "n-cta",
+      "rn-input",
+      "rn-textarea",
+      "th",
+      "panel",
+      "card",
+      "portrait",
+      "stock",
+      "hist"
+    ],
+    "limit": 64,
+    "allow": {
+      "section.hero": 140,
+      "section.s6": 88
+    },
+    "allowWhy": {
+      "section.hero": "approved first screen: the breath between the invitation and the lit panel",
+      "section.s6": "pinned block: 24px pin offset plus the block's own 64px padding"
+    }
+  },
+  "restFlat": {
+    "centre": ".stage",
+    "chains": [
+      ".hero-scene .win",
+      ".hero-scene .phone",
+      ".hero-scene .tg-ans",
+      ".hero-scene .w-title"
+    ],
+    "stopAt": "section",
+    "waitMs": 10000
+  },
+  "loops": {
+    "stateClass": "^s-",
+    "items": [
+      {
+        "name": "hero",
+        "selector": ".hero-scene",
+        "scrollTo": ".stage",
+        "cycleMs": 13300
+      },
+      {
+        "name": "card 1",
+        "selector": ".card:nth-of-type(1) [data-loop]",
+        "scrollTo": ".card:nth-of-type(1)",
+        "block": "start",
+        "cycleMs": 8350
+      },
+      {
+        "name": "card 3",
+        "selector": ".card:nth-of-type(3) [data-loop]",
+        "scrollTo": ".card:nth-of-type(3)",
+        "block": "start",
+        "cycleMs": 6000,
+        "hover": ".card:nth-of-type(3)"
+      },
+      {
+        "name": "stock hub",
+        "selector": ".stock-scene",
+        "cycleMs": 8400
+      }
+    ]
+  },
+  "finalState": {
+    "scope": "main",
+    "firstScreen": [
+      "h1",
+      ".hero .act .n-cta"
+    ],
+    "allowHidden": [
+      ".scr-q",
+      ".t-new",
+      ".f-new",
+      ".k-before",
+      ".n-before",
+      ".g-q",
+      ".tap",
+      ".tg-keys",
+      ".cap",
+      ".desk-cap",
+      ".dcap",
+      ".cfg",
+      ".pair-wa",
+      ".r-read",
+      ".pair-tabs",
+      ".s6-after",
+      ".tick"
+    ]
+  },
+  "neutral": {
+    "scrollTo": ".stage",
+    "waitMs": 4600,
+    "maxSaturation": 2,
+    "surfaces": [
+      "body",
+      ".card",
+      ".ph-screen",
+      ".tg-bubble",
+      ".tg-head",
+      ".phone",
+      ".win",
+      ".win-side",
+      ".panel",
+      ".portrait",
+      ".hub-core",
+      ".hub-mp",
+      ".wa-phone .ph-screen",
+      ".price-panel",
+      "footer"
+    ],
+    "lights": [
+      {
+        "light": ".stage-in>.panel",
+        "objects": ".stage-in>.devs"
+      }
+    ],
+    "opaque": [
+      ".hero-scene .phone"
+    ]
+  },
+  "clipped": {
+    "tolerance": 1,
+    "ignore": []
+  },
+  "fold": {
+    "selector": ".fold",
+    "var": "--f",
+    "step": 20,
+    "maxJump": 0.1,
+    "minRunway": 300
+  }
+}
