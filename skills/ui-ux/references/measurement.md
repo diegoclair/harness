@@ -22,6 +22,7 @@ Rednev landing's, with the reason written next to every allowance.
 | `neutral-and-light` | A warm-tinted dark read brown; a glow layer passed in front of the phone ("behind glass"). | Every listed surface has saturation ≤ `maxSaturation`%; each light's z-index is below its objects; each listed object has opacity 1. |
 | `clipped` | A window mock wider than its card on a phone cut the text on the right; page `scrollWidth` saw nothing because the card clipped it. | No text or image is partly inside and partly outside an `overflow: hidden/clip` ancestor (1px tolerance), in JS and reduced-motion runs, measured in drawn space so a scaled or tilted device is not misread. An ellipsis counts as an intended cut. |
 | `fold-sampler` | A fold smooth on desktop was an instant swap on a phone ("it even startles"). | Progress read from `var` on `selector` runs 0→1 over ≥ `minRunway` px, never moves more than `maxJump` per `step` px, and reads the same scrolling down and up. |
+| `contrast` | The light body of the reading pages inherited the dark floor's white ink: whole chapters invisible, and type-check, clipped and final-state passed. | Every visible text node's color against its effective (alpha-composited) ancestor background meets WCAG — 4.5, or 3 for ≥24px or ≥18.66px bold. Known gap: a background painted by a sibling element instead of an ancestor, such as a color layer growing behind a title, is not seen. |
 
 ## Reading a FAIL
 

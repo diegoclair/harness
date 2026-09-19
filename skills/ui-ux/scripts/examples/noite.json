@@ -139,6 +139,21 @@
     "tolerance": 1,
     "ignore": []
   },
+  "contrast": {
+    "scope": "body",
+    "ignore": [
+      ".phone",
+      ".win",
+      "[class*=phone]",
+      "[class*=tg-]"
+    ],
+    "ignoreWhy": {
+      ".phone": "phone mock frame: its screen is a mock UI, not the page's own text",
+      ".win": "browser window mock: chrome and content belong to the mock, not the page",
+      "[class*=phone]": "other phone mock variants share this class fragment",
+      "[class*=tg-]": "Telegram bubble mock: its contrast is the messenger's own design, not ours"
+    }
+  },
   "fold": {
     "selector": ".fold",
     "var": "--f",

@@ -114,8 +114,19 @@ for the parameters that passed review.
 - **Use the bundled suite instead of writing checks from scratch**: `scripts/*.mjs` (Playwright, one JSON
   config per page) cover empty bands, rest-state transforms (blur), loops running, final state without
   JS / reduced motion, saturation-0 surfaces + light z-order, **clipped content inside overflow-hidden
-  boxes** (page-level scrollWidth misses it) and fold runway. Read `references/measurement.md` for how to
-  run and configure them, and start the config from `scripts/examples/noite.json`.
+  boxes** (page-level scrollWidth misses it), fold runway and **contrast of every text node against its
+  real ground**. Read `references/measurement.md` for how to run and configure them, and start the config
+  from `scripts/examples/noite.json`.
+- **Text in the DOM is not text on screen.** A written title was present, selectable and invisible (split
+  words forced to `display:block`); a light reading body inherited white ink ("letters that turned white").
+  Both passed a text diff, `clipped` and `final-state`. Measure what renders: each word's width and opacity
+  after the scene's last step and again in cycle 2, and `contrast` on every page.
+- **A port from the lab to the repo regresses the same ways every time**: a mobile value leaking as the
+  base, a specificity rule left behind, a sticky offset that ignored the real header, a token the light
+  variant never redefined (color inherits resolved). Compare the build to the lab **per element**
+  (boundingBox of each piece of a row), not per section height.
+- **The lead's final look is a few screenshots, read once.** Eight passing scripts still let through ten
+  defects the human saw in one review; a handful of images at the end costs less than that round.
 - Long-lived preview servers run from the orchestrating session, not from a subagent (they die with it).
 
 ## Working with the human and agents
