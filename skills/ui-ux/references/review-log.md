@@ -27,3 +27,4 @@ Chronological, Rednev landing, 18–19 Sep 2026. Each line is a real complaint (
 | "That card broke on mobile" | content clipped inside overflow-hidden | clipped-content check in the suite |
 | "The swap on mobile startles" | fold runway ~190px | mobile runway ≥ 300px, no progress jumps |
 | Founder block "terrible" (CV line, narrow text) | bio instead of story; weak layout | signed note, founder-card layout (`trust-and-founder.md`) |
+| "More like a shadow" → flattened 50% + 30° skew: "horrible" | wordplay made illegible | a brand wordplay must stay legible; "shadow-like" = softness (opacity, blur, fade), not distortion |

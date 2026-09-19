@@ -36,13 +36,14 @@ work, and motion there has to earn its place on every visit, not once.
    acceptance criteria only measure those steps; never substitute them. Inventing criteria ("≥200px",
    "centred pin") and swapping them each round cost four wasted rounds here.
 6. **Side effect → revert to the last approved state**, don't stack a fix on a fix.
+   **Same piece rejected twice, or the human hedges ("not sure", "maybe")** → stop iterating in series:
+   build 2–3 variants side by side on one comparison page and let them pick by looking.
 7. Lab approved → handoff doc + technical note → build in the real repo (a new session).
 
 ## Motion: the rules
 
 Before building a 3D hero, card stack, pinned fold, colour turn or hub scene, read `references/motion.md`
 for the parameters that passed review.
-
 
 - **Background and transition effects follow the scroll and go back** ("beautiful effects have a reason:
   they go and come back, they are not timed"). Light intensity, tilt, folds, colour turns: all a function
@@ -75,7 +76,7 @@ for the parameters that passed review.
   **Semantic colour stays** (green = a good event like "sold"/"sent"; amber/red = attention).
 - **Real product UI, rebuilt as live HTML** inside the devices (not screenshots, not illustrations), so it
   can move and stays sharp. Real third-party marks (the actual logo of each service shown), never a
-generic letter.
+  generic letter.
 - **Text on a coloured ground goes in a solid panel**, never loose; internal notes (sources, file names)
   never render — keep them as HTML comments.
 - **Like-for-like comparisons**: a "WhatsApp vs Telegram" contrast shows both chat *lists*, not a list vs
