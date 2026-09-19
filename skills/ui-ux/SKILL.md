@@ -124,7 +124,8 @@ for the parameters that passed review.
 - **A port from the lab to the repo regresses the same ways every time**: a mobile value leaking as the
   base, a specificity rule left behind, a sticky offset that ignored the real header, a token the light
   variant never redefined (color inherits resolved). Compare the build to the lab **per element**
-  (boundingBox of each piece of a row), not per section height.
+  (boundingBox of each piece of a row), not per section height. **The repo never names the lab**: a
+  comment or agent doc pointing at a lab file is a dead link on any other clone; it says why, not where from.
 - **The lead's final look is a few screenshots, read once.** Eight passing scripts still let through ten
   defects the human saw in one review; a handful of images at the end costs less than that round.
 - Long-lived preview servers run from the orchestrating session, not from a subagent (they die with it).
