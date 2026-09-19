@@ -10,8 +10,8 @@ description: >-
 Born from the Rednev landing rewrite (18–19 Sep 2026): the old page was rejected as "not enchanting,
 a lot to read"; after one divergent round and ~15 small review loops the new one was called "a leap,
 in line with what I expected". What is here is what **worked**, what was **rejected and why**, and the
-order that avoids redoing work. `references/review-log.md` holds each rejection and the rule it produced;
-read it when a new complaint sounds familiar, because the fix may already exist.
+order that avoids redoing work. Rules quote the complaint that produced them, so a familiar complaint
+leads straight to its fix.
 
 **Scope.** A landing or marketing page gets the whole method: stage, motion, choreography. An app screen
 takes the visual rules, the copy rules and the proof, not scroll choreography — people come to a screen to
@@ -85,6 +85,11 @@ for the parameters that passed review.
   the same identity (dark header/footer/opening/CTA bands, light body, ~68ch). No white bands inside the
   stage page.
 - **Brand name in running text is plain text**; the coloured wordmark is a signature (header, footer, close).
+  A wordplay on the name stays legible: the simplest encoding wins (an accent on part of the word) and
+  needs no explanation, never a distortion ("more like a shadow" means softness — opacity, blur, fade —
+  and a skewed name was "horrible").
+- **A notice is born from the object it speaks for**, never a chip floating between objects ("lost in the
+  middle"). Shadows are tight contact shadows; a wide halo reads as "too much".
 - Anti-AI-look, forbidden: purple-blue gradients, glass blobs, sparkles icons, emoji decoration, 3D mascots,
   a punchline in every block, everything moving at once.
 
@@ -93,7 +98,8 @@ for the parameters that passed review.
 - Promise only what the promise table allows; an "in testing" badge must be consistent across every
   section that shows the same thing (price list included).
 - **A count of what we do reads as the limit of what we do** ("Three jobs that arrive done", cards numbered
-  01/02/03). Examples are presented as examples ("see how the work arrives"), unnumbered.
+  01/02/03). Examples are presented as examples ("see how the work arrives"), unnumbered, and show the
+  customer's common case — an unusual setup makes the reader think "that's not me".
 - A price section sells with a **grouped, rich list of built work** (grouped by the job each item does),
   not 4 basic bullets that make the price look high.
 - Trust without customers: a **signed founder note** (`references/trust-and-founder.md`), first person, the
@@ -112,9 +118,18 @@ for the parameters that passed review.
   run and configure them, and start the config from `scripts/examples/noite.json`.
 - Long-lived preview servers run from the orchestrating session, not from a subagent (they die with it).
 
-## Working with agents
+## Working with the human and agents
+
+A question the human asks twice gets the answer first, alone, then the reasons — the first time it was
+buried in a long reply.
 
 Dispatch itself follows the `orchestrator` skill; what is specific to a design round:
 one design agent carries the whole round by continuation; switch only near ~70% context and at a natural
 seam, after it writes a technical note + copies its tools out of the scratchpad. Every follow-up is a
 numbered minimal delta with "change nothing else" and a 1–8 line report ceiling.
+
+## Adding a lesson
+
+A new lesson becomes a rule in the section it belongs to, quoting the complaint that produced it; when it
+contradicts a rule, replace that rule. Parameters of a pattern go to `references/motion.md`. No log of
+rejections: a rule read only after the complaint repeats is a rule applied too late.
