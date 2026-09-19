@@ -99,7 +99,9 @@
       ".r-read",
       ".pair-tabs",
       ".s6-after",
-      ".tick"
+      ".tick",
+      ".pair-fig figcaption b",
+      ".win-side"
     ]
   },
   "neutral": {
