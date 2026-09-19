@@ -1,6 +1,6 @@
 ---
 name: orchestrator
-version: 0.6.0
+version: 0.7.0
 description: >-
   How to LEAD a multi-agent delivery as the parent session: the leader turns an objective into an approved spec with the implementers, decides what is theirs to decide, escalates only product rules to the human, and ships nothing the human has not reviewed. Use WHENEVER a session is set up as the orchestrator/lead/manager of a delivery, dispatches implementers or reviewers, writes specs for agents, or is handed a goal to carry across several agents or repos — EVEN if the user only says "take this front", "lead this", or hands over from another session. Not for writing the code yourself (the implementers do) and not for one-line fixes a build settles.
 allowed-tools:
@@ -43,6 +43,16 @@ moves a decision *earlier*, where it costs a message instead of a rewrite.
 5. **An implementer who meets a product decision the spec does not cover stops and brings it** — never
    implements its own choice to report it afterwards. Say so in every prompt.
 6. **Everything stays local until the human reviews it** (§6).
+7. **A finding that reopens the design goes to the human before any correction is dispatched.** A bug is
+   yours to route; a reviewer's REJECT that changes what the thing does, or a redesign you thought of
+   yourself, is a new decision. Dispatching correction after correction on a design nobody approved is
+   the costliest waste there is: the whole round is redone when the human reads it.
+8. **When the human redirects, stop the running agent at once** and let it report its state in a few
+   lines; resume it with the new approved spec, never with a trail of patch messages on the old one.
+9. **When the human describes the behaviour in steps, the spec is those steps, numbered and literal.**
+   Your own acceptance criteria only measure them; inventing and swapping criteria of your own breaks the
+   previous state on every round. On a side effect, go back to the last approved state instead of stacking
+   a fix on top.
 
 ## 2. Before you dispatch — the traps that cost a rewrite
 
@@ -100,8 +110,19 @@ moves a decision *earlier*, where it costs a message instead of a rewrite.
 - **A sibling session on the other artifacts gets the contract, not the code.** Hand it over with
   `SendMessage`, and use `ListAgents` to find the live id when a socket goes stale. The screens are
   theirs; the backend and the contract between you stay yours.
-- **Correction and re-review by continuation** of the same agent, never a new one: a new agent pays the
-  recon again.
+- **Continuation is the default, for every follow-up in an area** — correction, re-review and the next
+  task alike go by `SendMessage` to the agent that already read that area; a new agent pays the recon
+  again. Spawn fresh only for a different area or repo, for the unbiased reviewer, or when the old design
+  would bias the work (then it gets only the approved spec, plus what to remove).
+- **Retire an agent at a natural seam, around two-thirds of its context** — read `subagent_tokens` in each
+  task notification as the gauge. Before retiring it, have it write the handoff: a short technical note
+  (structure and traps) and its measurement scripts moved out of the scratchpad, so the successor starts
+  near empty and needs no recon.
+- **The brief lives on disk; the message carries the delta.** "Read X, then do Y", and every follow-up is a
+  numbered minimal delta that also names what does not change. Pre-decide the implementation choices in
+  the message so the agent doesn't stop to ask.
+- **A contract crosses to the session that owns the other tree**, never your own agent into a tree someone
+  else has mid-edit: it avoids the collision and the duplicated recon.
 - **Group neighbouring deliverables** (same code path, same files) and validate once at the end.
 - **Dispatch `backend-implementer` or `frontend-implementer` to build, by the stack, and `unbiased-reviewer` to judge.** The house rules — git index,
   comments, tests, naming, search before creating, one owner, stopping on product decisions — are built
@@ -128,6 +149,18 @@ the whole context, so a long session makes *each* step expensive — not only th
 - **An image is the most expensive proof.** A screenshot in an agent's context is re-read on every request
   after it. Browser proof is measured in text, with one screenshot per width at the end; never ask for a
   screenshot per state, and never pull an agent's screenshots into your own context to check them.
+- **Image budget per task: zero reads unless visual judgement is the work** (then at most a handful). The
+  agent saves screenshots and proves in text — bounding boxes, computed style, overflow — and never reads
+  them back.
+- **A visual complaint becomes a reusable measurement script**, re-run on every change, so the human stops
+  finding regressions one by one. Measure the failure the human sees (content clipped inside a card), not
+  the easiest proxy (page overflow).
+- **Do yourself what costs less than a brief:** docs and decision records, memory, one-line fixes, commits
+  once authorised. A read-only "is X built?" sweep goes to a search agent with a short report, and you
+  spot-check two lines of it.
+- **Wait in the background, never by polling:** a detached watcher on the deploy status, the vendor's log,
+  or a timer for a reminder the human asked for. A long-lived server runs from your own background shell —
+  one started by a subagent dies with it, and the human meets a dead URL.
 - **Cheap proof is fast proof, never thinner proof.** What costs is the wide run repeated after every small
   fix, a whole run forced serial, and heavy tools spread across a diff. The implementer agents close with
   one pass over the blast radius; ask for more only when the risk asks for it.
@@ -162,6 +195,8 @@ the whole context, so a long session makes *each* step expensive — not only th
 ## 7. Reporting and keeping docs alive
 
 - **Short, result first.** What was delivered, what was not and why, what the human must decide.
+- **With several agents running, the human hears only three things:** a decision that is theirs, work ready
+  for their review, and a result from production. Progress narration buries the question they must answer.
 - **Correct yourself plainly** when a claim you made was wrong and it changes the human's picture.
 - **Before calling a front done, sweep decided against built** against the code: each claim in the docs
   becomes *built*, *not built* or *divergent*, verified in the function body, never in a name, comment or
