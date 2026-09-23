@@ -60,7 +60,7 @@ A mutant that **survives because killing it would require widening production** 
 ## Regression + architecture
 
 - Does the deliverable break something existing? Find the call-sites of what changed; a new field/column/tab can blow up an old consumer, a tab strip, a layout.
-- Does it respect the project's conventions (layers, error handling, i18n, mock generation, terse comments)? Read the project's `CLAUDE.md` if there is one.
+- Does it respect the project's conventions (layers, error handling, i18n, mock generation, terse comments)? Read the project's `AGENTS.md` if there is one.
 - Findings that **contradict the spec**: the spec wins. Report that the implementer diverged from the spec, not that "you disagree".
 
 ## Always attack these

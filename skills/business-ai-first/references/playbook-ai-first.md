@@ -143,7 +143,7 @@ apaga — é o histórico de como o sistema aprendeu):
 | 2 | **Nomeie o gargalo** | qual fundamento limita o throughput? | uma frase; e o teste "a última coisa que automatizamos foi ele?" |
 | 3 | **Escolha uma hipótese** | qual regra antiga precisa ser revista? | **uma** regra do sistema de decisão com o gatilho disparado ou suspeito; o que a derrubaria |
 | 4 | **Traga thinking partners** | quem desconfirma esta semana? | a skill tenta derrubar a hipótese (fonte, repo, número); o par humano registra a discordância |
-| 5 | **Repita semanalmente** | o que virou regra, o que virou "não decidido, de propósito"? | diff no `CLAUDE.md` / fichas; ação da semana = o gargalo |
+| 5 | **Repita semanalmente** | o que virou regra, o que virou "não decidido, de propósito"? | diff no `AGENTS.md` / fichas; ação da semana = o gargalo |
 
 Regras do ritual: uma hipótese por semana (múltiplos pedidos, um gargalo); saída sem ação sobre
 o gargalo é ritual falhado; entrada que só confirma o que já se pensava é sinal de que o passo 4
@@ -170,7 +170,7 @@ construí-lo. **O founder sai de líder de output pra líder de sistema:** o tra
 as regras pelas quais pessoas *e IA* tomam decisões corretas sem ele na sala. *Decido, logo existo.*
 
 O que isso é, na prática, num produto do Diego:
-- **O playbook é código-fonte da empresa.** `CLAUDE.md` da raiz, esta skill, a régua de dados, os
+- **O playbook é código-fonte da empresa.** `AGENTS.md` da raiz, esta skill, a régua de dados, os
   gates (legal, brand) e as listas "fechado, não se reabre" são o sistema de decisão. A IA que
   segue o playbook é o Claude lendo esses arquivos; a pessoa que segue é quem entra depois.
 - **Decisão vira regra escrita com o porquê e a data**, no lugar onde a próxima decisão igual vai
@@ -503,4 +503,4 @@ checklist no prompt.
 - Pesquisa 24/ago/2026 sobre ranking ML/Shopee (`~/www/rednev/docs/product/otimizador-anuncios.md`).
 - Tools de listing na Amazon cobram US$ 49–299/mês por acesso; nenhuma cobra por trabalho
   executado (keywords.am, ago/2026) — o modelo de cota é espaço aberto.
-- Rednev: `CLAUDE.md` raiz, `docs/product/features-ai-first.md`, `docs/measurements/README.md`.
+- Rednev: `AGENTS.md` raiz, `docs/product/features-ai-first.md`, `docs/measurements/README.md`.

@@ -1,7 +1,7 @@
 # service-as-software — a tese da Sequoia (e de quem veio antes)
 
 > Rodada **24/ago/2026**. Ficha de referência pra skill de empresa AI-first. Carimbos conforme
-> `research/CLAUDE.md`. Grafias em circulação: "Service-as-a-Software" (Sequoia), "Service as
+> `research/AGENTS.md`. Grafias em circulação: "Service-as-a-Software" (Sequoia), "Service as
 > Software" / "Services-as-Software" (Foundation Capital). O Diego chamou de "service as a service".
 
 ## O que foi lido na fonte

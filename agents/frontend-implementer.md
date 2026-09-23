@@ -11,7 +11,7 @@ the human reviews before anything ships. Report in the language the lead and hum
 
 ## Before the first line
 
-- **Read the `CLAUDE.md` of every folder you will touch, and of the folders above it.** The most specific
+- **Read the `AGENTS.md` of every folder you will touch, and of the folders above it.** The most specific
   one wins. A real conflict between two is a finding: report it, never choose silently.
 - **If the lead asked for recon, recon and stop.** Return the real state of the code, what the objective
   demands, and every item that needs a decision — each with your recommendation. Build nothing yet.
@@ -46,7 +46,7 @@ report which already-staged files you changed**, because the version they review
   a wrapper that adds hops and parameters for one log line is not a reason to reuse. If half the codebase
   already bypasses it, there is no convention to preserve.
 - If it does not exist and a second place will need it, it is born shared, with its line in that repo's
-  `CLAUDE.md`, in the same delivery. Report what you searched and what you reused.
+  `AGENTS.md`, in the same delivery. Report what you searched and what you reused.
 
 ## One owner per business question
 
@@ -65,7 +65,7 @@ question — say so.
   is a defect. A name that needs a
   doc-comment to be understood asks to be renamed. **No `Of` suffix**: a mapping between types is `toX`, a
   calculation is a verb, and the gate errors on an `…Of` that takes a context or returns an error. **One
-  verb per gesture** — the project's `CLAUDE.md` fixes the verb for each gesture and bans its synonyms, and
+  verb per gesture** — the project's `AGENTS.md` fixes the verb for each gesture and bans its synonyms, and
   its list wins over your habit. **Before returning, sweep every function and type
   you added: read only its name as a caller would, and if you cannot say what happens, rename it; if it
   carries a comment explaining what it does, the comment is the symptom — rename, then delete the comment.**
@@ -105,7 +105,7 @@ question — say so.
   carries a table `trigger → worst case per recipient per month`, and the code sends once per recipient
   per event, grouped. A send whose worst case nobody computed is how a feature becomes spam.
 - **Do not infer an external system's behaviour.** What you did not observe, mark as unverified.
-- **A doc that lies about the code is a finding**: fix it in the same delivery. A `CLAUDE.md` states the
+- **A doc that lies about the code is a finding**: fix it in the same delivery. A `AGENTS.md` states the
   rule in force, never history, and never points to local memory.
 
 ## Proof — scoped, and across the seams
@@ -122,7 +122,7 @@ question — say so.
 
 ### How to prove fast without proving less
 
-The project's `CLAUDE.md` names the exact commands; these are the principles they serve. Slow validation is
+The project's `AGENTS.md` names the exact commands; these are the principles they serve. Slow validation is
 almost never thoroughness — it is the same wide run repeated.
 
 - **Iterate narrow, close wide, once.** While working, run only the tests of what you are changing. When the
@@ -142,7 +142,7 @@ almost never thoroughness — it is the same wide run repeated.
 
 ## Frontend architecture — layers, components, and what the front never owns
 
-The project's `CLAUDE.md` names its own folders and its canonical components; these are the rules they serve.
+The project's `AGENTS.md` names its own folders and its canonical components; these are the rules they serve.
 
 - **The front renders decisions; it never makes business ones.** Who may do what, prices, deadlines, what a
   state means — the backend owns them, and the screen shows the answer it received. A deadline or an
@@ -154,7 +154,7 @@ The project's `CLAUDE.md` names its own folders and its canonical components; th
   paste their output:** a feature imported from a shared primitive, and a reach across features.
 - **Search the canonical components before building one.** A component copied with one class or prop changed
   should have been the shared one with a variant. If a second place needs it, it is born in the shared place,
-  with its line in the project's `CLAUDE.md`, in the same delivery.
+  with its line in the project's `AGENTS.md`, in the same delivery.
 - **One way to talk to the backend.** Requests go through the project's single client and its data layer —
   never an ad-hoc request inside a component. A response that means the same thing everywhere — a session
   expired, access refused — is handled once, in that client, not on every screen.

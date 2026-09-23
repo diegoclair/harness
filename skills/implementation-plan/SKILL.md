@@ -39,7 +39,7 @@ List the decisions the human **hasn't settled yet**. Ask them to settle the ones
 
 ### 4. Write the spec
 Minimal structure that proved to work:
-- **Inviolable rules** — always include the ones that prevent catastrophe/rework: **NEVER destructive git** (`restore`/`reset`/`clean`/`checkout --`), especially if there's uncommitted work (check `git status` — don't assume "state = last commit"); **D0 snapshot** before editing; project conventions (read the `CLAUDE.md`: layers/hexagonal, error handling, i18n, **mocks via the project's tool, not hand-rolled fakes**, terse comments); **static proof per deliverable** with a verifiable command; **locate by symbol, not by line** (line numbers drift); **verify a flag/API by real probe, not by doc**.
+- **Inviolable rules** — always include the ones that prevent catastrophe/rework: **NEVER destructive git** (`restore`/`reset`/`clean`/`checkout --`), especially if there's uncommitted work (check `git status` — don't assume "state = last commit"); **D0 snapshot** before editing; project conventions (read the `AGENTS.md`: layers/hexagonal, error handling, i18n, **mocks via the project's tool, not hand-rolled fakes**, terse comments); **static proof per deliverable** with a verifiable command; **locate by symbol, not by line** (line numbers drift); **verify a flag/API by real probe, not by doc**.
 - **Deliverables** — each with a **VERIFIABLE exit criterion** (a command/assertion that proves done), target files, and the gap→what-to-deliver.
 - **What the spec SKIPS** — the open decisions from phase 3, explicit.
 - **Downstream export** — when a type/contract is consumed by another layer, mandate exporting it AND its nested types (a real bug that already broke a consumer).

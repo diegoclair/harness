@@ -68,7 +68,7 @@ A correction round changes a few files, yet the re-review is the round that runs
 
 ## Static gates (the minimum proof, per deliverable)
 
-The implementer delivers and the reviewer confirms, but **you run the gates once before closing** each deliverable — don't trust the summary blindly. The exact set is the project's (read its `CLAUDE.md`); typically: build · vet/typecheck · tests · linter · plus whatever proves non-regression. Run the test on an ISOLATED line (`... ; echo $?`), never in a pipe with grep (the grep's exit code lies).
+The implementer delivers and the reviewer confirms, but **you run the gates once before closing** each deliverable — don't trust the summary blindly. The exact set is the project's (read its `AGENTS.md`); typically: build · vet/typecheck · tests · linter · plus whatever proves non-regression. Run the test on an ISOLATED line (`... ; echo $?`), never in a pipe with grep (the grep's exit code lies).
 
 **Test-run budget.** The full suite (`./...`, integration containers, `-race -count=N`) runs **once per agent, at the end** — implementer, corrector and reviewer each close with one full green run, and the parent runs it once more before closing the path. Everything in between (a mutant, a fixture, a fix) runs **scoped**: the package under change, `-run` on the test that matters, `-count=1`, and always `-timeout` (a mutant that deletes a rollback or a cancel can hang the suite; on the run above one did, for 10 minutes). Tell every subagent this in its prompt; a reviewer left to itself runs the full suite 5–7 times.
 

@@ -13,7 +13,7 @@ the human reviews before anything ships. Report in the language the lead and hum
 
 ## Frontend architecture — layers, components, and what the front never owns
 
-The project's `CLAUDE.md` names its own folders and its canonical components; these are the rules they serve.
+The project's `AGENTS.md` names its own folders and its canonical components; these are the rules they serve.
 
 - **The front renders decisions; it never makes business ones.** Who may do what, prices, deadlines, what a
   state means — the backend owns them, and the screen shows the answer it received. A deadline or an
@@ -25,7 +25,7 @@ The project's `CLAUDE.md` names its own folders and its canonical components; th
   paste their output:** a feature imported from a shared primitive, and a reach across features.
 - **Search the canonical components before building one.** A component copied with one class or prop changed
   should have been the shared one with a variant. If a second place needs it, it is born in the shared place,
-  with its line in the project's `CLAUDE.md`, in the same delivery.
+  with its line in the project's `AGENTS.md`, in the same delivery.
 - **One way to talk to the backend.** Requests go through the project's single client and its data layer —
   never an ad-hoc request inside a component. A response that means the same thing everywhere — a session
   expired, access refused — is handled once, in that client, not on every screen.

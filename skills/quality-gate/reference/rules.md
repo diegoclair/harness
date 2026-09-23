@@ -390,7 +390,7 @@ legitimate, and matching those is pure noise.
 | `severity` | `warn` when the row codifies a judgment call |
 | `scope: element` | match a JSX opening tag instead of a source line (web) |
 
-Lybel's backend rows, all lifted straight out of `backend/CLAUDE.md`: a route
+Lybel's backend rows, all lifted straight out of `backend/AGENTS.md`: a route
 parameter at the end must carry a trailing slash (`error` — the shape that broke
 `customerroute` in May 2026), the same convention on a fixed segment (`warn` —
 consistent, but it cannot bite), a vendor name outside its bridge, and an error

@@ -81,7 +81,7 @@ canonical:
   - id: no-raw-hex
     match: 'className|style='
     forbid: '#[0-9a-fA-F]{6}\b'
-    message: "Use design tokens (bg-primary, text-blocked-strong) — see CLAUDE.md."
+    message: "Use design tokens (bg-primary, text-blocked-strong) — see AGENTS.md."
   - id: drawer-is-app-chrome
     scope: element             # match the opening tag, not the source line
     element: '^Drawer'
@@ -169,9 +169,9 @@ The baseline is committed. It is the honest record of what the repo owes.
 
 ## How it reaches the workflow
 
-1. Each repo's `CLAUDE.md` gains one line in its commands section: run
+1. Each repo's `AGENTS.md` gains one line in its commands section: run
    `quality-gate check` before delivering, next to the existing build gate.
-   `dev-loop` already reads the project's `CLAUDE.md` for its static gates, so
+   `dev-loop` already reads the project's `AGENTS.md` for its static gates, so
    this is all the wiring the loop needs.
 2. `SKILL.md` tells Claude what to do with the output: errors are fixed in the
    same delivery; warnings are reported to the user with the reasoning, never
@@ -185,7 +185,7 @@ The baseline is committed. It is the honest record of what the repo owes.
 |---|---|---|
 | F1 ✅ | Go engine: CMT, DUP, CPX, ARC-01..06 + baseline + CLI | **Done.** `check --all` on `backend/` is baseline-clean, the four ARC locks are verified at zero, and the gate passes its own rules with no baseline (0 errors) |
 | F2 ✅ | Web ruleset: scanner, CMT/DUP/CPX for ts/tsx, ARC-10..14, DUP-03, CPX-05 | **Done.** `check --all` is baseline-clean on `app/`, `landingpage/` and `nexus/`; the Go path is byte-identical to F1; `cli/testdata/probe-web` asserts every web rule at an exact file:line |
-| F3 | Harness packaging: `cli/`, release tag, install hooks, `CLAUDE.md` wiring in the four repos, GitHub Action | `harness install quality-gate` puts a working binary on PATH |
+| F3 | Harness packaging: `cli/`, release tag, install hooks, `AGENTS.md` wiring in the four repos, GitHub Action | `harness install quality-gate` puts a working binary on PATH |
 | F4 | Phase-2 judge: `quality-judge` agent consuming the linter output + the diff, for what a linter cannot decide | out of this scope, planned |
 
 ## Open calls

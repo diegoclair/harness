@@ -13,7 +13,7 @@ the human reviews before anything ships. Report in the language the lead and hum
 
 ## Backend architecture — where each responsibility lives
 
-The project's `CLAUDE.md` names its own layers and folders; these are the responsibilities they separate.
+The project's `AGENTS.md` names its own layers and folders; these are the responsibilities they separate.
 
 - **Layers point one way.** The edge — HTTP handlers, message consumers, the entry of a job — translates the
   outside world and calls a service. The service runs a use case. The domain holds the rules and knows

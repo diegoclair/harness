@@ -145,7 +145,7 @@ Two things to know before arguing with a web finding:
   exactly which ones is written down at the end of
   [reference/rules.md](reference/rules.md). Read that before calling one wrong.
 - **`ARC-13` is the project's table, not the gate's.** A new canonical component
-  ships with its row in the repo's `CLAUDE.md` *and* its row in
+  ships with its row in the repo's `AGENTS.md` *and* its row in
   `.quality-gate.yml`. What eslint already locks is never repeated there — one
   rule, one home.
 
@@ -154,7 +154,7 @@ That is the point of one binary with two rulesets rather than two tools.
 
 ## The project's own written rules
 
-A repo's `CLAUDE.md` usually carries rules no general linter knows: which layer
+A repo's `AGENTS.md` usually carries rules no general linter knows: which layer
 may import what, a route convention, a vendor name that must not leak. Those
 belong in `.quality-gate.yml` — `forbid` for an import, a `canonical` row for a
 pattern — not in a new detector. When the user points at a rule their docs
