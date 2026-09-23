@@ -1,6 +1,6 @@
 ---
 name: orchestrator
-version: 0.7.1
+version: 0.8.0
 description: >-
   How to LEAD a multi-agent delivery as the parent session: the leader turns an objective into an approved spec with the implementers, decides what is theirs to decide, escalates only product rules to the human, and ships nothing the human has not reviewed. Use WHENEVER a session is set up as the orchestrator/lead/manager of a delivery, dispatches implementers or reviewers, writes specs for agents, or is handed a goal to carry across several agents or repos — EVEN if the user only says "take this front", "lead this", or hands over from another session. Not for writing the code yourself (the implementers do) and not for one-line fixes a build settles.
 allowed-tools:
@@ -110,14 +110,27 @@ moves a decision *earlier*, where it costs a message instead of a rewrite.
 - **A sibling session on the other artifacts gets the contract, not the code.** Hand it over with
   `SendMessage`, and use `ListAgents` to find the live id when a socket goes stale. The screens are
   theirs; the backend and the contract between you stay yours.
-- **Continuation is the default, for every follow-up in an area** — correction, re-review and the next
-  task alike go by `SendMessage` to the agent that already read that area; a new agent pays the recon
-  again. Spawn fresh only for a different area or repo, for the unbiased reviewer, or when the old design
-  would bias the work (then it gets only the approved spec, plus what to remove).
-- **Retire an agent at a natural seam, around two-thirds of its context** — read `subagent_tokens` in each
-  task notification as the gauge. Before retiring it, have it write the handoff: a short technical note
-  (structure and traps) and its measurement scripts moved out of the scratchpad, so the successor starts
-  near empty and needs no recon.
+- **One agent per context, for the whole delivery.** The agent that did the recon of an area is the one
+  that writes its spec, builds it, takes the corrections, the re-review fixes and the next task in that
+  area — all by `SendMessage`. A fresh agent pays the whole recon again, and that recon is the token cost
+  that ends the subscription early. Spawning fresh is allowed for exactly three reasons: a different
+  context (below), the unbiased reviewer (it must not have seen the implementer's reasoning), or the
+  agent itself reporting its context at 70% or more. "It has done a lot already" is not a reason;
+  neither is "this task is a different phase" — recon, build and fix of one area are one context.
+- **Cut the contexts before dispatching, once, on two criteria.** A context is a set of files one agent
+  owns for the delivery. Cut where two agents would otherwise collide (same files, same generator, same
+  contract being decided) and where parallel work actually shortens the wall clock. Do not cut for the
+  sake of parallelism: a context that gives an agent five minutes of work is a recon paid for five
+  minutes of build — merge it into its neighbour and accept one agent working longer. Do not merge
+  everything either: one agent holding backend and front of a big delivery serialises what could run in
+  parallel across repos. Write the cut in the brief (context → files → agent) so every follow-up goes to
+  the right agent without thinking.
+- **`subagent_tokens` in a task notification is cumulative spend, not context fill** — an agent at 900k
+  spent tokens was still working fine; the number never tells you how full its window is. The gauge is
+  the agent's own report: ask it at a natural seam ("how full is your context?") and read any
+  summarisation notice the harness shows. Retire only at 70%, at a seam, and only after it writes the
+  handoff: a short technical note (structure and traps) and its measurement scripts moved out of the
+  scratchpad, so the successor starts near empty and needs no recon.
 - **The brief lives on disk; the message carries the delta.** "Read X, then do Y", and every follow-up is a
   numbered minimal delta that also names what does not change. Pre-decide the implementation choices in
   the message so the agent doesn't stop to ask.
