@@ -86,6 +86,13 @@ moves a decision *earlier*, where it costs a message instead of a rewrite.
   check the analogy holds there — a bridge that serves one role through many vendors is not shaped like
   a bridge that speaks to one company, however alike the folders look. Write the shape (packages, who
   knows what, where state lives, what a swap costs) in the spec; the implementer builds it, not derives it.
+- **Name the row and column a new fact lives on.** "Claim it before sending", "don't mark it on failure",
+  "remove the orphan" leave the shape open, and the implementer fills it with a side table and a delete.
+  The spec says which row carries the flag, that undoing it is an update, and that what should not
+  exist is never written.
+- **A change to what a shared function returns lists its callers in the spec.** A new error decided for
+  one flow reaches every flow that calls the function; write what each caller does with it before
+  dispatching.
 
 ## 3. Agents
 

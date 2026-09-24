@@ -60,7 +60,7 @@ A mutant that **survives because killing it would require widening production** 
 ## Regression + architecture
 
 - Does the deliverable break something existing? Find the call-sites of what changed; a new field/column/tab can blow up an old consumer, a tab strip, a layout.
-- Does it respect the project's conventions (layers, error handling, i18n, mock generation, terse comments)? Read the project's `AGENTS.md` if there is one.
+- Does it respect the project's conventions (layers, error handling, i18n, mock generation, terse comments)? Read the project's `AGENTS.md` if there is one. **Check every new name, port method, table, state column and delete against it, and cite the rule each one breaks** — a design that works but breaks a written convention is a finding, not a style note.
 - Findings that **contradict the spec**: the spec wins. Report that the implementer diverged from the spec, not that "you disagree".
 
 ## Always attack these
@@ -73,6 +73,9 @@ Where a green build hides a defect, every time. Each one you clear costs a grep;
 - **A notice that promises the future.** A message announcing what will happen is a lie whenever the job later decides otherwise; only the past is safe to announce.
 - **Two owners of one computation.** What a screen shows and what an invoice charges, computed in two places, agree only until the rule moves. Diff the two, don't trust that they match today.
 - **A write with no reader.** A column, status, flag or event that nothing consumes is dead state that will be read one day as if it were maintained.
+- **A delete that undoes state, or a table whose existence is a flag.** A row written and then removed, a claim released by deleting it, a second repository beside the one that owns the subject: each splits or hides a fact. The fix is a column on the owning row, released by an update.
+- **An error a fix introduced, leaking through other callers.** A new error from a shared function reaches every flow that calls it: list the callers and check each one's behaviour with it.
+- **A reason inferred from absence.** "Not in the result, so it was X" holds only until the next skip is added; demand the reason be carried explicitly.
 - **Doubles that ignore scope.** A fake or mock returning the same row whatever tenant, account or seller id it is handed proves nothing about the filter the query forgot.
 
 ## The git index is the user's — never touch it

@@ -17,6 +17,11 @@ implement your choice so it surfaces as a finding at the end. Asking costs a mes
 delivery. The same applies to a spec instruction that looks like it frees, blocks or charges more than its
 stated case — ask "who else does this reach?" before writing it.
 
+**Four shapes are the lead's to approve even when the spec is silent:** a new table, a new repository or
+port method, a delete, and a new state flag. Each one decides where a fact lives for every future reader,
+so choosing it alone is a design decision, not an implementation detail: bring it with your
+recommendation before writing it.
+
 ## Git — the index belongs to the human
 
 A staged file means "the human reviewed this version". **Never** run `git add`, `git reset`,
@@ -87,6 +92,18 @@ question — say so.
 - **Money in integer minor units**, never float. On a path delivered at least once, write totals rather
   than deltas, so a redelivery cannot count twice. When an external call and our own record must both
   happen, decide their order deliberately and say what a failure between them leaves behind.
+- **State is updated on the row that owns the fact, never deleted to undo it.** A flag such as "sent",
+  "claimed" or "in flight" is a column on that row, released by an update; a side table whose mere
+  existence is the flag forces a delete to undo it, and a second repository for the same subject splits
+  one fact in two. What should not exist is never written: a row written only to be deleted afterwards
+  is a race nobody can close, because the deleter cannot know it is an orphan.
+- **A question to the database is one query that asks it.** Listing rows and then asking a port about
+  each one is N calls, and a filter applied in the loop is a filter no SQL test can kill.
+- **A reason travels explicitly, never inferred from absence.** A caller that decides "the key is missing,
+  so it must have been that error" misreports the next skip anyone adds; carry the reason with the result.
+- **Changing what a shared function returns is a decision per caller.** Before a new error or result
+  leaves a function other flows call, list every caller and decide what each does with it: one flow's
+  "fail loudly" is another flow's lost message.
 - **Regenerate file by file, never the target that wipes the folder.** While other agents are working, a
   generator that clears and rebuilds a shared directory (mocks, clients, types) hands them a broken build
   they did not cause, and they will debug it as if it were theirs.
