@@ -30,6 +30,11 @@ type Artifact struct {
 	Summary   string
 	// VersionEnv is the pre-monorepo env var some skills still honour.
 	VersionEnv string
+	// Setup marks a binary with a `setup` command whose --check reports
+	// whether credentials or dependencies are in place. A binary without one
+	// has nothing to configure, so probing it would only print an unknown
+	// command as if it were a failure.
+	Setup bool
 	// Requires names artifacts this one cannot work without. A skill that
 	// dispatches an agent is broken without it, so selection pulls it in.
 	Requires []string
@@ -76,6 +81,7 @@ var catalog = []Artifact{
 		Name:       "confluence-docs",
 		Kind:       KindSkill,
 		TagPrefix:  "confluence-v",
+		Setup:      true,
 		Summary:    "Search, create and update Confluence pages from natural language",
 		VersionEnv: "CONFLUENCE_DOCS_VERSION",
 	},
@@ -83,6 +89,7 @@ var catalog = []Artifact{
 		Name:       "jira-tickets",
 		Kind:       KindSkill,
 		TagPrefix:  "jira-v",
+		Setup:      true,
 		Summary:    "Read, create and transition Jira issues without burning context",
 		VersionEnv: "JIRA_TICKETS_VERSION",
 	},
@@ -90,6 +97,7 @@ var catalog = []Artifact{
 		Name:      "social-carousel",
 		Kind:      KindSkill,
 		TagPrefix: "carousel-v",
+		Setup:     true,
 		Summary:   "Generate Instagram and LinkedIn carousels from a YAML brief",
 	},
 	{

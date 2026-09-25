@@ -299,10 +299,11 @@ func copyFile(src, dst string) error {
 	return nil
 }
 
-// verify runs the installed binary and reports credential state. Unlike the
-// shell installer it surfaces the skill's own diagnosis instead of collapsing
-// every non-zero exit into "not configured" — a valid grant on a site missing
-// the product used to be reported as missing credentials.
+// verify runs the installed binary and, for a skill declaring Setup, reports
+// credential state. Unlike the shell installer it surfaces the skill's own
+// diagnosis instead of collapsing every non-zero exit into "not configured" —
+// a valid grant on a site missing the product used to be reported as missing
+// credentials.
 func verify(s Artifact, binPath, version, dir string, out io.Writer) error {
 	fmt.Fprintln(out, "\nVerifying installation...")
 	ver, err := exec.Command(binPath, "--version").Output()
@@ -313,13 +314,15 @@ func verify(s Artifact, binPath, version, dir string, out io.Writer) error {
 
 	runPostInstall(binPath, out)
 
-	fmt.Fprintln(out, "\nChecking credentials...")
-	// Output(), not Run(): only Output populates ExitError.Stderr, which is
-	// where the skill explains what is actually missing.
-	if _, checkErr := exec.Command(binPath, "setup", "--check").Output(); checkErr == nil {
-		fmt.Fprintln(out, "  Already configured.")
-	} else {
-		reportUnconfigured(s, binPath, checkErr, out)
+	if s.Setup {
+		fmt.Fprintln(out, "\nChecking credentials...")
+		// Output(), not Run(): only Output populates ExitError.Stderr, which is
+		// where the skill explains what is actually missing.
+		if _, checkErr := exec.Command(binPath, "setup", "--check").Output(); checkErr == nil {
+			fmt.Fprintln(out, "  Already configured.")
+		} else {
+			reportUnconfigured(s, binPath, checkErr, out)
+		}
 	}
 
 	fmt.Fprintf(out, "\nDone. %s %s installed to:\n  %s\n", s.Name, version, binPath)

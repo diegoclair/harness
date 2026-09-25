@@ -394,7 +394,7 @@ esac
 `
 	serveRelease(t, "cli-v9.9.9", makeReleaseZip(t, "cli-skill", hookCLI))
 
-	skill := Artifact{Name: "cli-skill", Kind: KindSkill, TagPrefix: "cli-v"}
+	skill := Artifact{Name: "cli-skill", Kind: KindSkill, TagPrefix: "cli-v", Setup: true}
 	var out strings.Builder
 	if err := installOne(t, skill, localTree{path: root}, &out); err != nil {
 		t.Fatalf("install: %v\n%s", err, out.String())
@@ -490,12 +490,42 @@ esac
 `
 	serveRelease(t, "cli-v9.9.9", makeReleaseZip(t, "cli-skill", pickyCLI))
 
-	skill := Artifact{Name: "cli-skill", Kind: KindSkill, TagPrefix: "cli-v"}
+	skill := Artifact{Name: "cli-skill", Kind: KindSkill, TagPrefix: "cli-v", Setup: true}
 	var out strings.Builder
 	if err := installOne(t, skill, localTree{path: root}, &out); err != nil {
 		t.Fatalf("install: %v", err)
 	}
 	if !strings.Contains(out.String(), "no API token found for this workspace") {
 		t.Errorf("the skill's own reason should be surfaced, got:\n%s", out.String())
+	}
+}
+
+// A binary with nothing to configure has no setup command; probing it anyway
+// printed its unknown-command usage under "Checking credentials" as if the
+// install were broken.
+func TestSkillWithoutSetupIsNotProbed(t *testing.T) {
+	sandboxHome(t)
+	root := fixtureTree(t)
+	mustWrite(t, filepath.Join(root, "skills", "cli-skill", "SKILL.md"), "---\nname: cli-skill\n---\n")
+	mustWrite(t, filepath.Join(root, "skills", "cli-skill", "cli", "main.go"), "package main\n")
+
+	noSetupCLI := `#!/bin/sh
+case "$1" in
+  --version) echo "cli-skill v9.9.9" ;;
+  setup)     echo "unknown command \"setup\"" >&2; exit 2 ;;
+  *)         exit 1 ;;
+esac
+`
+	serveRelease(t, "cli-v9.9.9", makeReleaseZip(t, "cli-skill", noSetupCLI))
+
+	skill := Artifact{Name: "cli-skill", Kind: KindSkill, TagPrefix: "cli-v"}
+	var out strings.Builder
+	if err := installOne(t, skill, localTree{path: root}, &out); err != nil {
+		t.Fatalf("install: %v\n%s", err, out.String())
+	}
+	for _, unwanted := range []string{"Checking credentials", "unknown command", "cli-skill setup"} {
+		if strings.Contains(out.String(), unwanted) {
+			t.Errorf("output should not contain %q:\n%s", unwanted, out.String())
+		}
 	}
 }
