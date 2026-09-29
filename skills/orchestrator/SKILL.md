@@ -40,8 +40,15 @@ moves a decision *earlier*, where it costs a message instead of a rewrite.
      that you keep moving on premises marked `ASSUMED`, each isolated at a single switch point, so one
      answer later changes one place. A prompt pass, a paid run worth cents, a test adjustment: decide and go.
 4. **Only an approved spec goes to implementation.** Use `implementation-plan` for the spec itself.
+   **When the delivery crosses back and fronts, fix the contract first** — route, fields with exact names,
+   error codes, one example per case — and dispatch every side against it at once, instead of the fronts
+   waiting for the backend to finish. The contract is a hypothesis, not an order: **any implementer who
+   finds it needs to change (a field missing, a shape that forces a second read, a case it cannot draw)
+   tells the leader, never patches around it nor follows it blindly.** The leader weighs it, decides, and
+   relays the delta to every other side in the same round, so no side builds on the old shape.
 5. **An implementer who meets a product decision the spec does not cover stops and brings it** — never
-   implements its own choice to report it afterwards. Say so in every prompt.
+   implements its own choice to report it afterwards. Say so in every prompt. No implementer follows a
+   spec or contract blindly: when what it reads in the code contradicts the brief, it says so first.
 6. **Everything stays local until the human reviews it** (§6).
 7. **A finding that reopens the design goes to the human before any correction is dispatched.** A bug is
    yours to route; a reviewer's REJECT that changes what the thing does, or a redesign you thought of
