@@ -90,7 +90,7 @@ var catalog = map[string]Rule{
 	"ARC-04": {"ARC-04", SevError, "go", "data imports the service layer",
 		"A repository answers where the data is. Declared DTO packages are the allowed exception."},
 	"ARC-05": {"ARC-05", SevWarn, "go", "domain rule inside the data layer",
-		"A CASE WHEN, a business-state literal or a date window computed in SQL is the business deciding inside the query. Heuristic by design — it is warn, and it is the phase-2 judge's main input."},
+		"A CASE WHEN, a business-state literal or a date window computed in SQL is the business deciding inside the query. Heuristic by design — it is warn, and it is the architecture-reviewer's main input."},
 	"ARC-06": {"ARC-06", SevWarn, "go", "domain rule inside the transport layer",
 		"A conditional over an entity field beyond validation and error mapping, arithmetic on a domain value, or a time comparison deciding an outcome."},
 
@@ -109,7 +109,7 @@ var catalog = map[string]Rule{
 		"Date arithmetic, money arithmetic or a state derived inline. A component renders what it is given; the rule belongs in a hook, a service, or the backend that already owns it. Heuristic by design, hence warn."},
 
 	"NAM-01": {"NAM-01", SevError, "go", "name ends in Of or For but the function does I/O",
-		"`profileOf(ctx, id)` promises a pure, total computation, so the reader of the call cannot tell it goes to a database or a vendor and can fail. A verb names the cost: read, load, fetch, Get. The signature is the proof — a context.Context in, or an error out."},
+		"`profileOf(ctx, id)` promises a pure, total computation, so the reader of the call cannot tell it goes to a database or a vendor and can fail. The fix is the project's verb for the gesture: get, find or list for a read, fetch for a vendor call; read, load, resolve and settle are not verbs. The signature is the proof — a context.Context in, or an error out."},
 
 	"GATE-01": {"GATE-01", SevError, "both", "suppression without a reason",
 		"`quality-gate:allow RULE — reason`. The reason is the point: it is the review comment the next reader needs."},

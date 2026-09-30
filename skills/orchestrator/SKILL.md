@@ -1,6 +1,6 @@
 ---
 name: orchestrator
-version: 0.9.0
+version: 0.10.0
 description: >-
   How to LEAD a multi-agent delivery as the parent session: the leader turns an objective into an approved spec with the implementers, decides what is theirs to decide, escalates only product rules to the human, and ships nothing the human has not reviewed. Use WHENEVER a session is set up as the orchestrator/lead/manager of a delivery, dispatches implementers or reviewers, writes specs for agents, or is handed a goal to carry across several agents or repos — EVEN if the user only says "take this front", "lead this", or hands over from another session. Not for writing the code yourself (the implementers do) and not for one-line fixes a build settles.
 allowed-tools:
@@ -120,17 +120,21 @@ moves a decision *earlier*, where it costs a message instead of a rewrite.
 - **Never more than two reviewers at once, and each one gets ONE code path.** Its prompt carries that path,
   a closed list of the invariants it must check, and a time ceiling. "Review the wave" is not a scope: a
   reviewer that spans a wave exhausts its memory before it reaches a verdict.
-- **Sonnet builds, opus judges.** Implementers and correctors run on sonnet; the reviewer and the lead keep
-  opus, because the gate is what holds quality. Pass `model: opus` to an implementer only when the spec
-  leaves a shape open — and first try closing that shape in the spec.
+- **Opus for anything that holds a decision; sonnet only for mechanical work.** Work that touches
+  concurrency, state, side effects, writes to a marketplace or external platform, or design goes to opus;
+  sonnet takes only what the spec fully dictates — a rename, a 1:1 port, a mechanical sweep. The reviewers
+  and the lead are always opus. The quota is charged in tokens, so a cheaper model that needs more rounds
+  costs more.
 - **The waste is duplicated recon, not parallelism.** Never split the same area between agents. Different
   repos always parallelise; research never collides.
 - **Serialise only on real collisions:** a shared destructive step (a generator that wipes a directory),
   or one delivery depending on another's signature still being decided. One heavy validation per repo at a
   time.
-- **The orchestrator is the only session on its repos.** It assigns migration numbers, owns the shared
-  destructive steps and the validation slot; it never polls peer sessions before acting. A second
-  session touching the same repo is the defect to report, not a number to negotiate.
+- **Who owns a repo is settled when the session is set up, never by asking around.** The orchestrator
+  assigns its repos' migration numbers and does not poll peer sessions before acting. **It tells a peer
+  session (`SendMessage`) before a heavy validation, before a destructive shared step** (a generator that
+  wipes a directory, a module-wide rename), **and before editing a file the peer owns** — the peer is
+  mid-edit or mid-validation, and a collision it did not see costs it a debugging round.
 - **One migration per wave.** Agents number their own while they build; before the review you fold the
   wave into a single migration with the next number. A migration tool refuses a number below the last
   one applied, so a wave that ships three files can be unrunnable in the next environment.
@@ -141,7 +145,7 @@ moves a decision *earlier*, where it costs a message instead of a rewrite.
   that writes its spec, builds it, takes the corrections, the re-review fixes and the next task in that
   area — all by `SendMessage`. A fresh agent pays the whole recon again, and that recon is the token cost
   that ends the subscription early. Spawning fresh is allowed for exactly three reasons: a different
-  context (below), the unbiased reviewer (it must not have seen the implementer's reasoning), or the
+  context (below), a reviewer (it must not have seen the implementer's reasoning), or the
   agent itself reporting its context at 70% or more. "It has done a lot already" is not a reason;
   neither is "this task is a different phase" — recon, build and fix of one area are one context.
 - **Cut the contexts before dispatching, once, on two criteria.** A context is a set of files one agent
@@ -152,8 +156,8 @@ moves a decision *earlier*, where it costs a message instead of a rewrite.
   everything either: one agent holding backend and front of a big delivery serialises what could run in
   parallel across repos. Write the cut in the brief (context → files → agent) so every follow-up goes to
   the right agent without thinking.
-- **`subagent_tokens` in a task notification is cumulative spend, not context fill** — an agent at 900k
-  spent tokens was still working fine; the number never tells you how full its window is. The gauge is
+- **`subagent_tokens` in a task notification is cumulative spend, not context fill** — the number
+  never tells you how full an agent's window is. The gauge is
   the agent's own report: ask it at a natural seam ("how full is your context?") and read any
   summarisation notice the harness shows. Retire only at 70%, at a seam, and only after it writes the
   handoff: a short technical note (structure and traps) and its measurement scripts moved out of the
@@ -164,8 +168,8 @@ moves a decision *earlier*, where it costs a message instead of a rewrite.
 - **A contract crosses to the session that owns the other tree**, never your own agent into a tree someone
   else has mid-edit: it avoids the collision and the duplicated recon.
 - **Group neighbouring deliverables** (same code path, same files) and validate once at the end.
-- **Dispatch `backend-implementer` or `frontend-implementer` to build, by the stack, and `architecture-reviewer`
-  then `unbiased-reviewer` to judge.** The house rules — git index,
+- **Dispatch `backend-implementer` or `frontend-implementer` to build, by the stack, and the reviewers of §5
+  to judge.** The house rules — git index,
   comments, tests, naming, search before creating, one owner, stopping on product decisions — are built
   into those agents, so the prompt carries only what is particular to this delivery: the objective or the
   approved spec, the files in scope, and what is forbidden to touch. Re-pasting the rules into a prompt
@@ -184,9 +188,9 @@ the whole context, so a long session makes *each* step expensive — not only th
 - **Fewer rounds, not smaller ones.** Each extra round pays recon again; group, then validate once (§3).
 - **Short specs and short reports, with a line ceiling in the prompt.** Forbid the narrated report — the
   agent reports result, proof, findings and what it did not do.
-- **Match the agent to the task.** A read-only search agent for sweeping files; haiku for listing, a
-  mechanical sweep or a short doc; sonnet to build; opus where the judgement is the work. A general-purpose agent
-  sent to grep is the most common waste.
+- **Match the agent to the task.** A read-only search agent for sweeping files; haiku for listing or a
+  short doc; sonnet for mechanical edits the spec fully dictates; opus for everything else that builds, and
+  for every review (§3). A general-purpose agent sent to grep is the most common waste.
 - **An image is the most expensive proof.** A screenshot in an agent's context is re-read on every request
   after it. Browser proof is measured in text, with one screenshot per width at the end; never ask for a
   screenshot per state, and never pull an agent's screenshots into your own context to check them.
@@ -213,14 +217,14 @@ the whole context, so a long session makes *each* step expensive — not only th
 
 - **Proof covers what changed and the existing behaviour that depends on it**, closed with one pass over the
   blast radius — not a narrow run that only shows the new code works, and not the whole suite repeated.
-- **Every closed code path is reviewed in two passes, in this order.** First `architecture-reviewer`:
-  read-only and cheap, it judges one owner per question against the spec's owner table, forwarders, flag
-  parameters, threaded parameter groups, files holding several scopes, facts after effects and swallowed
-  errors. Then
-  `unbiased-reviewer`, handed the first report, judges correctness. A REJECT from the first pass goes to
-  the corrector before the second runs: never spend the correctness gate on a shape about to change.
-- **The adversarial pass goes deep only where it hurts:** money, writes to an external platform, data
-  transactions. Re-review is lean: one mutant per finding, with a time ceiling.
+- **`architecture-reviewer` on every closed code path.** Read-only and cheap, it judges one owner per
+  question against the spec's owner table, forwarders, flag parameters, threaded parameter groups, files
+  holding several scopes, facts after effects and swallowed errors. No path skips it.
+- **`unbiased-reviewer` only where an error costs a lot: money, writes to a marketplace or external
+  platform, data transactions, concurrency.** It runs after the architecture pass and is handed its report;
+  a REJECT from the first pass is corrected before it runs, so the correctness gate is never spent on a
+  shape about to change. The spec names which paths carry that risk. Re-review is lean: one mutant per
+  finding, with a time ceiling.
 - **Test the seams, not only the pieces.** Per-package tests pass while the joint between two correct
   pieces is broken — a gate that blocks the action that starts a trial, a dependency registered before it
   exists, a job that never reads the switch. **Demand a journey test across the seam** for any change that

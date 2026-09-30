@@ -198,7 +198,7 @@ The baseline is committed. It is the honest record of what the repo owes.
 ## F1 as built
 
 418 files, 63k lines, in 0.7s. The calibration pass and what it cost is recorded
-at the end of [reference/rules.md](reference/rules.md).
+in [reference/calibration.md](reference/calibration.md).
 
 Two things the build changed from this design:
 
@@ -222,9 +222,9 @@ Open from the run, for the user to decide:
 
 ## F2 as built
 
-414 ts/tsx files across three repos in 0.4s. The calibration pass, the eight
-false-positive families it killed, and the list of things a scanner cannot know
-are at the end of [reference/rules.md](reference/rules.md).
+414 ts/tsx files across three repos in 0.4s. The calibration pass and the eight
+false-positive families it killed are in [reference/calibration.md](reference/calibration.md);
+the list of things a scanner cannot know is in [reference/rules.md](reference/rules.md).
 
 Four things the build added to this design:
 

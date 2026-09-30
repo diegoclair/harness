@@ -55,8 +55,9 @@ report which already-staged files you changed**, because the version they review
   the question. A name carries the intent of the call, never the condition of the query behind it, and an
   accessor drops the suffix its type already says. A short name that forces the reader to the constructor
   is a defect. A name that needs a
-  doc-comment to be understood asks to be renamed. **No `Of` suffix**: a mapping between types is `toX`, a
-  calculation is a verb, and the gate errors on an `…Of` that takes a context or returns an error. **One
+  doc-comment to be understood asks to be renamed. **No `Of` or `For` suffix**: a mapping between types is
+  `toX`, a calculation is a verb, and the gate errors on an `…Of` or `…For` that takes a context or returns
+  an error. **One
   verb per gesture** — the project's `AGENTS.md` fixes the verb for each gesture and bans its synonyms, and
   its list wins over your habit. **Before returning, sweep every function and type
   you added: read only its name as a caller would, and if you cannot say what happens, rename it; if it

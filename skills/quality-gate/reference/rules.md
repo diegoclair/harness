@@ -381,8 +381,8 @@ package is skipped outright, and so is any function named `parse*`, `to*`,
 `from*`, `validate*`, `map*`, `build*`, `render*` or `new*` — parsing,
 validating and rendering are what a handler is for.
 
-Both are heuristics, hence `warn`, and both are prime input for the phase-2
-judge, which can read intent instead of markers.
+Both are heuristics, hence `warn`, and both are prime input for the
+`architecture-reviewer`, which can read intent instead of markers.
 
 **ARC-07 — a forbidden import.** A denied edge is about the project's own
 layers; this one names a package outright, so it reaches third-party packages
@@ -473,11 +473,13 @@ rendering, and treating it as a decision reported every `.filter()` in the repo.
 | NAM-01 | error | go | Function or method named `…Of` or `…For` whose signature takes a `context.Context` or returns an `error` |
 
 `profileOf(ctx, id)` promises a pure, total computation: the reader of the call
-cannot tell it goes to a database or a vendor and can fail. A verb names the
-cost — `read…`, `load…`, `fetch…`, `Get…`.
+cannot tell it goes to a database or a vendor and can fail. The fix is the
+project's verb for the gesture — `get…`, `find…`, `list…` for a read, `fetch…`
+for a vendor call, `compute…`/`build…` for a calculation. `read…`, `load…`,
+`resolve…` and `settle…` name no gesture and are not verbs.
 
-`Of` counts only as the final camelCase word, so `Proof` and `Thereof` are not
-it; exported and unexported alike. The signature is the proof, which is why this
+`Of` and `For` count only as the final camelCase word, so `Proof`, `Thereof`
+and `Therefor` are not it; exported and unexported alike. The signature is the proof, which is why this
 is a lint: whether a name is merely *opaque* stays with the reviewer (see
 Non-goals).
 
@@ -506,8 +508,8 @@ Rules that will **not** be added, recorded so nobody adds them later:
   noise CMT-07 deletes.
 - Any style rule a formatter already owns (`gofmt`, Prettier).
 - Rules requiring semantic judgment — "is this abstraction right", "does this
-  name lie", "should these two components be one". Those belong to the phase-2
-  judge, not to a linter pretending it can decide them. NAM-01 is the one slice
+  name lie", "should these two components be one". Those belong to the
+  `architecture-reviewer` agent, not to a linter pretending it can decide them. NAM-01 is the one slice
   of "does this name lie" a signature settles without judgment.
 
 ## Backlog — not now
@@ -520,99 +522,14 @@ Rules that will **not** be added, recorded so nobody adds them later:
 
 ---
 
-## Calibration — Lybel backend, first run
+## Calibration
 
-The thresholds above are not guesses. They were set by running the gate over
-418 Go files (63k lines) and reading a sample of every rule's output.
+The thresholds are set by running the gate over real repos and sampling every
+rule's output against the source; the runs, their numbers and the defect behind
+each change are in [calibration.md](calibration.md). A threshold changes only
+with a new run recorded there.
 
-| Stage | Errors | Warnings |
-|---|---|---|
-| First run, defaults straight from the catalog | 1554 | 1158 |
-| After the four false-positive families were fixed | 494 | 644 |
-
-The four were: type-2 clones matching idiomatic declarations (1063 findings, all
-noise); `used to` and `no longer` reading as history inside ordinary
-present-tense English; a generated file (`goswag/`) counted as source; and
-`IsZero`-style guards read as domain rules.
-
-What the same run proved about the repo: `ARC-01` to `ARC-04` are at **zero**
-violations, so the four import boundaries lock the future with no baseline
-entry. That was verified twice — the first time the rules were mute, because a
-layer pattern written for files did not match the package path an import
-resolves to. A gate that passes for the wrong reason is worse than no gate, and
-the fixture in `cli/testdata/probe` exists so that class of silence fails a test
-instead of a repo.
-
-The gate's own source passes its own rules with **no baseline**: 0 errors, 13
-warnings, all of them CMT-03 questions about comments that carry constraints.
-
----
-
-## Calibration — the web front-ends, first run
-
-Same method: run `check --all`, sample every rule's output, open the source,
-judge. 414 files across three repos with three different shapes — a Vite SPA, a
-Next app and an admin panel.
-
-| Stage | Errors | Warnings |
-|---|---|---|
-| First run, `app/` only, defaults straight from the catalog | 429 | 468 |
-| After the eight false-positive families were fixed (`app/`) | 275 | 580 |
-| `landingpage/` after the same fixes | 145 | 207 |
-| `nexus/` after the same fixes | 38 | 82 |
-
-Warnings went **up** on `app/` while errors went down, and that is the fix
-working: 147 JSX comments had been read as trailing code comments, which both
-overcharged them on CMT-01 and let CMT-02 fire on their own words; correcting
-the position moved them to CMT-03, which is a question, not a failure.
-
-The eight families, each found by reading the source behind a finding:
-
-1. **A `{/* … */}` comment read as trailing code.** The `{` before it is JSX
-   syntax, not code the comment sits after. It also poisoned `NextIdents`,
-   which is read from the line *before* a trailing comment — the comment's own
-   words — so CMT-02 saw 100% overlap. One fix, two rules. (63 → 5 CMT-02.)
-2. **A function-typed member charged as a data member.** `onApplied: (msg) =>
-   void` is the web's interface method, and Go already gives an interface method
-   the function budget. (84 → 52 CMT-09.)
-3. **A module-scope `const` charged as a member.** Two lines is the budget for a
-   field; a module-scope binding is not a field.
-4. **A box-drawing section divider read as a doc.** `// ── Schema ──` above
-   `const serviceSchema` restates a name it never claimed to describe. (42 → 0
-   CMT-07.)
-5. **Documentation read as leftover code.** A fenced block, an `@example` body,
-   a `@param {Type}` line, and any line that reads as a sentence. (6 → 0 CMT-06.)
-6. **JSDoc delimiters charged to the budget.** `/**` and `*/` alone on a line
-   are punctuation. (192 → 128 CMT-01 on `app`, 0 change on the Go backend.)
-7. **A flat run of siblings read as a duplicated subtree.** Twelve `<col>` and
-   `<th>` is what a table is. (6 → 2 DUP-03 on `nexus`, both real.)
-8. **ARC noise from three directions at once**: `ky` imported for a type read as
-   an HTTP call; `</span>` read as a division on a line naming a price; a status
-   comparison read as a decision; and `catch { … }` classified as an object
-   literal, which turned a comment inside it into a member description.
-
-Precision on an 18-finding random sample of the errors, across all three repos:
-**17 true positives by the rule as written, 1 soft miss** (`0–5 short options`
-read as a description rather than a count bound — fixed by reading a numeric
-range as a constraint). The residue the sampling did find and did not fix is two
-CMT-02 overlap hits on comments that name the identifiers they explain — the
-react-day-picker gotcha in `calendar.tsx` and an algebra note in
-`DailyBarChart.tsx`. Both are the 60% overlap threshold doing what it was
-calibrated to do; the baseline absorbs them.
-
-`ARC-14` finds nothing on `app/` and three genuine hits on `landingpage/`. That
-is the honest answer, not a mute rule: `app/` keeps its date arithmetic in
-module-level helpers, and the probe fixture proves all three markers fire.
-
-**The Go path is unchanged**, verified by diffing the F1 binary against this one
-over the 418-file backend with the baseline off: 388/645 before, 387/645 after,
-zero findings added. The one removed is a false positive of family 8 — a
-`// Now is injected so the time rules are testable.` doc on a field named `Now`,
-which fired CMT-02 for opening with its own field name after CMT-09 had already
-accepted its constraint. The backend baseline therefore has one more stale entry
-than it did, and `quality-gate baseline` is the user's call to make.
-
-### What the web front-end cannot know
+## What the web front-end cannot know
 
 It is a tolerant scanner, not a type-aware AST, and these are the places it
 guesses:
@@ -639,59 +556,12 @@ guesses:
 
 ---
 
-## Second calibration — the precision audit
-
-The first calibration counted findings. An audit then sampled them against the
-source and asked how many a reviewer would act on, which is the only number that
-matters. It was bad: several `error` rules sat below 30% precision, and roughly
-300 of the 404 frozen errors were noise or non-actionable.
-
-| Repo | Before the audit | After |
-|---|---|---|
-| `backend` | 494 err / 644 warn | **71 err / 66 warn** |
-| `app` | 274 err / 580 warn | **140 err / 113 warn** |
-| `landingpage` | 145 err / 207 warn | **79 err / 26 warn** |
-| `nexus` | 38 err / 82 warn | **20 err / 32 warn** |
-
-Baseline entries across the four repos: **2377 → 547**.
-
-Each change was a defect, not a threshold nudge:
-
-- **Three duplication bugs.** The same intra-file clone was reported from both
-  ends (101 findings of pure repetition); the token count sat in the signature,
-  so editing one line near any clone failed the gate with stale-baseline errors
-  in untouched files; and `return` counted as control flow, which made the
-  "a clone must contain logic" floor inert. An exact clone and a shape clone over
-  the same lines are now one finding.
-- **Markers matched substrings.** "re**moved from** the cache" was reported as
-  history. Markers now match on word boundaries.
-- **A quoted word is mentioned, not used.** CMT-04 already stripped quoted spans;
-  CMT-05 did not, and flagged this project's own comment describing that bug.
-- **CMT-05's bare-date sub-rule was 0% precision** — every hit was a test comment
-  where the date *is* the fixture. Deleted.
-- **Section labels.** Six content words instead of three, plus a divider rule and
-  a "starts with the declaration's own first word" test, which is what separates
-  a label from a Go-convention doc. CMT-07 consults it too.
-- **CMT-09 dropped to `warn`.** After every marker fix it still sat near 40%.
-  Describing versus constraining is semantic, and a keyword whitelist cannot
-  reach error-grade precision on it; at `error` it was deleting comments that
-  carried real information, the exact failure this catalog warns about. As a
-  question it still catches the case that motivated the rule.
-- **Budgets moved one line** (func 6, body 3, decl 3). Two thirds of CMT-01's
-  findings were *exactly* one line over and every sampled one carried a real
-  constraint. gofmt owns line breaks; one line over measures wrapping, not prose.
-- **CPX-01 20 → 15.** At 20 it sat one notch above the worst function in the repo
-  and reported nothing. CPX-03 now needs branchiness too: a 267-line route table
-  holds one rule, not two.
-
----
-
 ## Budgets are per position, and the positions are measured
 
 `interface`, `type`, `func`, `method`, `decl`, `field`, `body`, `trailing` and `package` each carry
 their own budget, because they are read at different distances. The numbers are
-not chosen by taste — this is the distribution across the Lybel repos when they
-were set:
+not chosen by taste — this is the distribution measured on the repos they were
+set against:
 
 | Position | n | median | p90 | max | budget |
 |---|---|---|---|---|---|
@@ -699,14 +569,12 @@ were set:
 | type / struct | 368 | 2 | 4 | 12 | none |
 | func | 844 | 2 | 5 | 15 | 6 |
 
-**A budget above the worst case in the repo is inert** — `type` sat at 10 with a
-p90 of 4 and reported nothing, the same mistake CPX-01 made at 20. Dropping it
-to 8 then caught exactly two comments, and both were decisions with nowhere else
-to live: an unsubscribe token that must not expire because "your link expired"
-produces a spam complaint, and a rate ceiling loosened for CGNAT. Length was
-never the failure mode on a contract — so the cap came off, and CMT-02 carries
-the rule that matters: **a contract may be as long as it needs, but it may not
-describe behavior.**
+**A budget above the worst case in the repo is inert**: it reports nothing. And
+length is not the failure mode on a contract — a long type doc a cap would catch
+is a decision with nowhere else to live, such as an unsubscribe token that must
+not expire because "your link expired" produces a spam complaint. So `interface`
+and `type` carry no cap, and CMT-02 carries the rule that matters: **a contract
+may be as long as it needs, but it may not describe behavior.**
 
 On those positions, and on a Go interface method, CMT-02 runs its opener
 detector only. The overlap detector is
@@ -722,4 +590,4 @@ CMT-01 without opting out of anything else.
 the fix is to call it `ElementName`, and the comment disappears on its own.
 CMT-09 points at the comment; nothing here can see that the defect is the
 identifier, because that needs knowing what the field holds. It is the clearest
-case the phase-2 judge exists for.
+case the `architecture-reviewer` exists for.

@@ -1,6 +1,6 @@
 ---
 name: quality-gate
-version: 0.3.1
+version: 0.3.2
 description: >-
   Runs the review pass a linter can actually do, as the last step of a delivery — before you report the work as done, and again on the PR. A local Go binary that catches what a reviewer otherwise catches by hand: comments that narrate behavior instead of stating purpose, declarations described instead of constrained, blocks that already exist elsewhere in the repo (indexed whole-repo, not just the diff), functions holding two rules, and domain logic leaking into a handler or a SQL query. Baseline-frozen, so it blocks new violations without demanding the repo be clean first. Use this skill whenever you finish writing or refactoring code and are about to hand it over, when the user asks for a quality gate, a code-quality check, a duplication check, a comment/architecture review before commit or PR — and as the closing step of any multi-file delivery, even when the user does not name it. Replies match the user's language.
 allowed-tools: |
@@ -44,10 +44,10 @@ real information and call it progress.
 
 Three shapes come up constantly, and all three are *correct as they are*:
 
-- **A long comment that is a decision.** "Rejecting was a real incident — once a
-  chat crossed the old cap every further message failed" is not padding. Cut the
-  catalogue that repeats the code; keep the incident, the spec reference, the
-  reason a guard exists. When a rewrite would cost information, say so and leave
+- **A long comment that is a constraint.** "The vendor rejects a reply past its
+  size limit and bans the account on repeat" is not padding. Cut the catalogue
+  that repeats the code; keep the constraint, the spec reference, the reason a
+  guard exists. When a rewrite would cost information, say so and leave
   it — a `quality-gate:allow` with the reason is the honest ending.
 - **Duplication that should stay duplicated.** Two bounded contexts that must
   not import each other will mirror code, and that is the price of the
@@ -75,17 +75,15 @@ the evidence to the class of change:
 | **A refactor that renders** | **Diff the artifact.** Build the commit before and the commit after, normalise chunk hashes, and diff the generated HTML. Identical output is the only claim worth making. |
 | A route, a query, a migration | The artifact plus the real request or the real rows. |
 
-This is not theory. Collapsing six page layouts into one helper produced
-byte-identical HTML on ten of twelve pages — and on the eleventh it silently
-dropped a `robots` directive that exactly one of the six carried. The build was
-green, the types checked, the copy was asserted identical string by string, and
-the regression was still there. Only the rendered diff found it.
+A helper that collapses several page layouts can drop a directive only one of
+them carried while the build is green, the types check and the copy matches
+string by string; only the rendered diff shows it.
 
 Two habits follow. **An extraction script must assert it consumed every key it
-found, not only the ones you expected** — the drop happened because the script
-read four fields and the sixth file had five. And **when the diff shows a change
-you did not intend, stop and explain it before shipping**; a difference you
-cannot account for is a bug you have not found yet.
+found, not only the ones you expected** — a source with one field more than the
+script reads loses it silently. And **when the diff shows a change you did not
+intend, stop and explain it before shipping**; a difference you cannot account
+for is a bug you have not found yet.
 
 ## The three rules of using it
 
@@ -125,15 +123,15 @@ adapter, transport reaching for a repository, one bounded context importing
 another) is an error, and the two heuristics (ARC-05, ARC-06) flag a domain rule
 that drifted into a query or a handler. When ARC-05 fires, the fix is almost
 always to move the decision up into the service and let the query return rows.
-NAM-01 flags a pure-sounding `…Of` name on a function whose signature does I/O
-(a `context.Context` in or an `error` out); the fix is a verb that names the
-cost. CPX-06 to CPX-08 read the shape a name hides — a `bool` parameter, a
+NAM-01 flags a pure-sounding `…Of` or `…For` name on a function whose signature
+does I/O (a `context.Context` in or an `error` out); the fix is the project's
+verb for the gesture. CPX-06 to CPX-08 read the shape a name hides — a `bool` parameter, a
 single-caller forwarder, a recursive closure. All three are warnings: each asks
 for a design step (the missing type, the rule the name promises), never a cut
 to fit a number.
 
-**Frontend (ts/tsx).** Shipped. The comment, duplication and complexity rules
-are language-neutral and now run on `.ts`/`.tsx`/`.js`/`.jsx` too, plus six
+**Frontend (ts/tsx).** The comment, duplication and complexity rules are
+language-neutral and run on `.ts`/`.tsx`/`.js`/`.jsx` too, plus six
 web-only rules: `ARC-10` (one feature importing another), `ARC-11` (shared code
 importing a feature or a route), `ARC-12` (an HTTP call outside the layer that
 owns the wire), `ARC-13` (the project's canonical-components table, declared in
@@ -145,8 +143,8 @@ Two things to know before arguing with a web finding:
 
 - **The front-end is a scanner, not a type-aware AST.** No cgo, no Node, one
   static binary — the cost is that a handful of findings are approximate, and
-  exactly which ones is written down at the end of
-  [reference/rules.md](reference/rules.md). Read that before calling one wrong.
+  exactly which ones is written down in [reference/rules.md](reference/rules.md)
+  § What the web front-end cannot know. Read that before calling one wrong.
 - **`ARC-13` is the project's table, not the gate's.** A new canonical component
   ships with its row in the repo's `AGENTS.md` *and* its row in
   `.quality-gate.yml`. What eslint already locks is never repeated there — one
@@ -185,10 +183,12 @@ tooling already rejects — it never reimplements a formatter.
 
 Maximum lines per file, maximum functions per file, mandatory doc comments on
 exported symbols: none of these will ever be rules here. They buy compliance by
-fragmenting the codebase, and fragmentation costs more than it saves. The
-reasoning, rule by rule, is in [reference/rules.md](reference/rules.md) — read it
-before arguing with a finding, and before proposing a new rule.
+fragmenting the codebase, and fragmentation costs more than it saves. A file
+that holds two or three scopes splits by scope, and that is a judgement for the
+architecture review, never a line count. The reasoning, rule by rule, is in
+[reference/rules.md](reference/rules.md) — read it before arguing with a
+finding, and before proposing a new rule.
 
 Judgment calls — is this abstraction right, does this name lie, should these two
-components really be one — are not linter work. They belong to the phase-2
-judge, which does not exist yet.
+components really be one — are not linter work. They belong to the
+architecture review — a reviewer agent that reads the gate's findings as leads.
