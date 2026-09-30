@@ -15,11 +15,13 @@ func profileOf(ctx context.Context, id string) string { return id }
 func chargeOf(id string) (int, error)                 { return 0, nil }
 func OldestOutstandingOf(ctx context.Context) (int, error) { return 0, nil }
 func (r *repo) accountOf(ctx context.Context, id string) string { return id }
+func sheetsFor(ctx context.Context, id string) (string, error) { return id, nil }
 
 func totalOf(prices []int) int { return len(prices) }
 func Proof(ctx context.Context) error { return nil }
 func Thereof() error { return nil }
 func loadProfile(ctx context.Context, id string) (string, error) { return id, nil }
+func Therefor() error { return nil }
 `
 	f := parseGoSource(t, src)
 
@@ -30,12 +32,12 @@ func loadProfile(ctx context.Context, id string) (string, error) { return id, ni
 		}
 	})
 
-	for _, name := range []string{"profileOf", "chargeOf", "OldestOutstandingOf", "accountOf"} {
+	for _, name := range []string{"profileOf", "chargeOf", "OldestOutstandingOf", "accountOf", "sheetsFor"} {
 		if !got[name] {
 			t.Errorf("%s does I/O behind a pure-sounding name and must be reported", name)
 		}
 	}
-	for _, name := range []string{"totalOf", "Proof", "Thereof", "loadProfile"} {
+	for _, name := range []string{"totalOf", "Proof", "Thereof", "loadProfile", "Therefor"} {
 		if got[name] {
 			t.Errorf("%s must stay silent", name)
 		}

@@ -1,6 +1,6 @@
 ---
 name: quality-gate
-version: 0.3.0
+version: 0.3.1
 description: >-
   Runs the review pass a linter can actually do, as the last step of a delivery — before you report the work as done, and again on the PR. A local Go binary that catches what a reviewer otherwise catches by hand: comments that narrate behavior instead of stating purpose, declarations described instead of constrained, blocks that already exist elsewhere in the repo (indexed whole-repo, not just the diff), functions holding two rules, and domain logic leaking into a handler or a SQL query. Baseline-frozen, so it blocks new violations without demanding the repo be clean first. Use this skill whenever you finish writing or refactoring code and are about to hand it over, when the user asks for a quality gate, a code-quality check, a duplication check, a comment/architecture review before commit or PR — and as the closing step of any multi-file delivery, even when the user does not name it. Replies match the user's language.
 allowed-tools: |

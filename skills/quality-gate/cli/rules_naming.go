@@ -7,7 +7,7 @@ import "fmt"
 func checkNaming(cfg *Config, f *File, add func(Finding)) {
 	for _, fn := range f.Funcs {
 		tell := ioTell(fn)
-		if tell == "" || !endsInOf(fn.Name) {
+		if tell == "" || !endsInOpaqueTail(fn.Name) {
 			continue
 		}
 		add(Finding{
@@ -19,10 +19,14 @@ func checkNaming(cfg *Config, f *File, add func(Finding)) {
 	}
 }
 
-// `Of` promises only as its own camelCase word, never as the tail of a longer one.
-func endsInOf(name string) bool {
+// `Of` and `For` count only as their own camelCase word, never as the tail of a longer one.
+func endsInOpaqueTail(name string) bool {
 	words := splitIdent(name)
-	return len(words) > 1 && words[len(words)-1] == "of"
+	if len(words) < 2 {
+		return false
+	}
+	tail := words[len(words)-1]
+	return tail == "of" || tail == "for"
 }
 
 func ioTell(fn Func) string {

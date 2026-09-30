@@ -470,7 +470,7 @@ rendering, and treating it as a decision reported every `.filter()` in the repo.
 
 | ID | Sev | Ruleset | Detects |
 |---|---|---|---|
-| NAM-01 | error | go | Function or method named `…Of` whose signature takes a `context.Context` or returns an `error` |
+| NAM-01 | error | go | Function or method named `…Of` or `…For` whose signature takes a `context.Context` or returns an `error` |
 
 `profileOf(ctx, id)` promises a pure, total computation: the reader of the call
 cannot tell it goes to a database or a vendor and can fail. A verb names the

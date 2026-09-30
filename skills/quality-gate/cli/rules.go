@@ -108,7 +108,7 @@ var catalog = map[string]Rule{
 	"ARC-14": {"ARC-14", SevWarn, "web", "business rule computed inside a component",
 		"Date arithmetic, money arithmetic or a state derived inline. A component renders what it is given; the rule belongs in a hook, a service, or the backend that already owns it. Heuristic by design, hence warn."},
 
-	"NAM-01": {"NAM-01", SevError, "go", "name reads like a pure value but the function does I/O",
+	"NAM-01": {"NAM-01", SevError, "go", "name ends in Of or For but the function does I/O",
 		"`profileOf(ctx, id)` promises a pure, total computation, so the reader of the call cannot tell it goes to a database or a vendor and can fail. A verb names the cost: read, load, fetch, Get. The signature is the proof — a context.Context in, or an error out."},
 
 	"GATE-01": {"GATE-01", SevError, "both", "suppression without a reason",
