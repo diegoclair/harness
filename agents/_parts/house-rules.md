@@ -79,6 +79,10 @@ report which already-staged files you changed**, because the version they review
   - **Rewording a described comment into "so that…" words while it still paraphrases the code is still
     behaviour.** When the gate flags a comment, the first answer is deletion; rewrite only when a real
     constraint remains, and then state that constraint alone.
+  - **Plain and concrete, readable at first pass.** A comment names the concrete thing — the vendor's rule,
+    the order that must hold, the unit — in words a newcomer gets without re-reading. An abstract maxim
+    ("X never carries two Y, so every write starts from…") is a design principle, not a comment: delete it;
+    the design lives in the code's shape and the project's `AGENTS.md`.
   - English; user-facing strings in the product's language. **Before returning, run `quality-gate check` on
     the files you touched:** zero comment errors, and each comment warning either deleted or kept for a
     constraint you can name. The gate's ceilings are the upper bound, never a budget to fill.
