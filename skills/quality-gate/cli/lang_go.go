@@ -279,8 +279,12 @@ func collectGoDecls(af *ast.File, f *File, line func(token.Pos) int) {
 			Params:       countParams(fd),
 			TakesContext: takesContext(fd),
 			ReturnsError: returnsError(fd),
+			BoolParams:   boolParams(fd),
+			Forwards:     forwards(fd.Body),
 		})
+		f.RecursiveClosures = append(f.RecursiveClosures, recursiveClosures(fd.Body, line)...)
 	}
+	f.Refs, f.Calls = identUses(af)
 
 	ast.Inspect(af, func(n ast.Node) bool {
 		switch n := n.(type) {
@@ -373,26 +377,24 @@ func cyclomatic(body *ast.BlockStmt) int {
 }
 
 func maxDepth(body *ast.BlockStmt) int {
-	var walk func(ast.Node, int) int
-	walk = func(n ast.Node, depth int) int {
-		best := depth
-		ast.Inspect(n, func(child ast.Node) bool {
-			if child == n {
-				return true
-			}
-			switch child.(type) {
-			case *ast.IfStmt, *ast.ForStmt, *ast.RangeStmt, *ast.SwitchStmt,
-				*ast.TypeSwitchStmt, *ast.SelectStmt:
-				if d := walk(child, depth+1); d > best {
-					best = d
-				}
-				return false
-			}
+	return depthBelow(body, 0)
+}
+
+func depthBelow(n ast.Node, depth int) int {
+	best := depth
+	ast.Inspect(n, func(child ast.Node) bool {
+		if child == n {
 			return true
-		})
-		return best
-	}
-	return walk(body, 0)
+		}
+		switch child.(type) {
+		case *ast.IfStmt, *ast.ForStmt, *ast.RangeStmt, *ast.SwitchStmt,
+			*ast.TypeSwitchStmt, *ast.SelectStmt:
+			best = max(best, depthBelow(child, depth+1))
+			return false
+		}
+		return true
+	})
+	return best
 }
 
 func countParams(fd *ast.FuncDecl) int {
@@ -474,4 +476,157 @@ func goTokens(fset *token.FileSet, path string, src []byte, skip []lineRange) []
 		out = append(out, t)
 	}
 	return out
+}
+
+func boolParams(fd *ast.FuncDecl) []string {
+	var out []string
+	for _, p := range fieldList(fd.Type.Params) {
+		if id, ok := p.Type.(*ast.Ident); !ok || id.Name != "bool" {
+			continue
+		}
+		if len(p.Names) == 0 {
+			out = append(out, "_")
+		}
+		for _, n := range p.Names {
+			out = append(out, n.Name)
+		}
+	}
+	return out
+}
+
+// Only plain arguments count: a call that composes expressions is naming a
+// computation, which is what a function is for.
+func forwards(body *ast.BlockStmt) bool {
+	if len(body.List) != 1 {
+		return false
+	}
+	var call *ast.CallExpr
+	switch st := body.List[0].(type) {
+	case *ast.ReturnStmt:
+		if len(st.Results) == 1 {
+			call, _ = st.Results[0].(*ast.CallExpr)
+		}
+	case *ast.ExprStmt:
+		call, _ = st.X.(*ast.CallExpr)
+	}
+	if call == nil {
+		return false
+	}
+	for _, arg := range call.Args {
+		if !isPlainArg(arg) {
+			return false
+		}
+	}
+	return true
+}
+
+func isPlainArg(e ast.Expr) bool {
+	switch e := e.(type) {
+	case *ast.Ident, *ast.BasicLit:
+		return true
+	case *ast.SelectorExpr:
+		return isPlainArg(e.X)
+	case *ast.UnaryExpr:
+		return e.Op == token.AND && isPlainArg(e.X)
+	case *ast.CallExpr:
+		return len(e.Args) == 0 && isPlainArg(e.Fun)
+	}
+	return false
+}
+
+func recursiveClosures(body *ast.BlockStmt, line func(token.Pos) int) []RecursiveClosure {
+	declared := map[string]int{}
+	ast.Inspect(body, func(n ast.Node) bool {
+		ds, ok := n.(*ast.DeclStmt)
+		if !ok {
+			return true
+		}
+		gd, ok := ds.Decl.(*ast.GenDecl)
+		if !ok || gd.Tok != token.VAR {
+			return true
+		}
+		for _, spec := range gd.Specs {
+			vs, ok := spec.(*ast.ValueSpec)
+			if !ok || len(vs.Values) > 0 {
+				continue
+			}
+			if _, isFunc := vs.Type.(*ast.FuncType); !isFunc {
+				continue
+			}
+			for _, name := range vs.Names {
+				declared[name.Name] = line(name.Pos())
+			}
+		}
+		return true
+	})
+	if len(declared) == 0 {
+		return nil
+	}
+
+	var out []RecursiveClosure
+	ast.Inspect(body, func(n ast.Node) bool {
+		as, ok := n.(*ast.AssignStmt)
+		if !ok || len(as.Lhs) != 1 || len(as.Rhs) != 1 {
+			return true
+		}
+		id, ok := as.Lhs[0].(*ast.Ident)
+		lit, isLit := as.Rhs[0].(*ast.FuncLit)
+		if !ok || !isLit {
+			return true
+		}
+		if at, known := declared[id.Name]; known && mentions(lit.Body, id.Name) {
+			out = append(out, RecursiveClosure{Name: id.Name, Line: at})
+		}
+		return true
+	})
+	return out
+}
+
+func mentions(n ast.Node, name string) bool {
+	found := false
+	ast.Inspect(n, func(child ast.Node) bool {
+		if id, ok := child.(*ast.Ident); ok && id.Name == name {
+			found = true
+		}
+		return !found
+	})
+	return found
+}
+
+// A function handed over as a value cannot be inlined, so a use that is not a
+// call is counted apart from the calls.
+func identUses(af *ast.File) (refs, calls map[string]int) {
+	declNames := map[*ast.Ident]bool{}
+	for _, d := range af.Decls {
+		if fd, ok := d.(*ast.FuncDecl); ok {
+			declNames[fd.Name] = true
+		}
+	}
+	refs, calls = map[string]int{}, map[string]int{}
+	ast.Inspect(af, func(n ast.Node) bool {
+		switch n := n.(type) {
+		case *ast.Ident:
+			if !declNames[n] {
+				refs[n.Name]++
+			}
+		case *ast.CallExpr:
+			if name := calleeName(n.Fun); name != "" {
+				calls[name]++
+			}
+		}
+		return true
+	})
+	return refs, calls
+}
+
+func calleeName(fun ast.Expr) string {
+	switch fun := fun.(type) {
+	case *ast.Ident:
+		return fun.Name
+	case *ast.SelectorExpr:
+		return fun.Sel.Name
+	case *ast.IndexExpr:
+		return calleeName(fun.X)
+	}
+	return ""
 }

@@ -8,11 +8,11 @@ import (
 	"testing"
 )
 
-var updateAgents = flag.Bool("update-agents", false, "rewrite the implementer agents from agents/_parts")
+var updateAgents = flag.Bool("update-agents", false, "rewrite the assembled agents from agents/_parts")
 
-// Two agents share most of their rules; assembling both from one part keeps a single owner for what they
-// share, and this test fails the day someone edits an assembled agent instead of its part.
-func TestImplementerAgentsAreAssembledFromTheirParts(t *testing.T) {
+// The agents share rules; assembling each from parts keeps a single owner for what they share, and this
+// test fails the day someone edits an assembled agent instead of its part.
+func TestAgentsAreAssembledFromTheirParts(t *testing.T) {
 	partsDir := filepath.Join("..", "agents", "_parts")
 	readPart := func(name string) string {
 		raw, err := os.ReadFile(filepath.Join(partsDir, name))
@@ -23,10 +23,13 @@ func TestImplementerAgentsAreAssembledFromTheirParts(t *testing.T) {
 	}
 	includes := strings.NewReplacer(
 		"{{house-rules}}", readPart("house-rules.md"),
+		"{{owners}}", readPart("owners.md"),
+		"{{facts-and-errors}}", readPart("facts-and-errors.md"),
+		"{{mutants}}", readPart("mutants.md"),
 		"{{report}}", readPart("report.md"),
 	)
 
-	for _, name := range []string{"backend-implementer", "frontend-implementer"} {
+	for _, name := range []string{"backend-implementer", "frontend-implementer", "architecture-reviewer", "unbiased-reviewer"} {
 		want := includes.Replace(readPart(name+".md")) + "\n"
 		path := filepath.Join("..", "agents", name+".md")
 

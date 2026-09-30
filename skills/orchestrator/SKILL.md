@@ -1,6 +1,6 @@
 ---
 name: orchestrator
-version: 0.8.0
+version: 0.9.0
 description: >-
   How to LEAD a multi-agent delivery as the parent session: the leader turns an objective into an approved spec with the implementers, decides what is theirs to decide, escalates only product rules to the human, and ships nothing the human has not reviewed. Use WHENEVER a session is set up as the orchestrator/lead/manager of a delivery, dispatches implementers or reviewers, writes specs for agents, or is handed a goal to carry across several agents or repos — EVEN if the user only says "take this front", "lead this", or hands over from another session. Not for writing the code yourself (the implementers do) and not for one-line fixes a build settles.
 allowed-tools:
@@ -78,6 +78,17 @@ moves a decision *earlier*, where it costs a message instead of a rewrite.
   answer agrees only until the rule changes, and no linter sees it — different code does not look like
   duplication. Signals: a consumer re-reading config, re-interpreting what a port returned, or redoing
   by hand a computation that already has an owner.
+- **The spec names the owner of every business question it touches**, in a table: `question → owning
+  symbol → copies to repoint`. Find each owner by grepping the behaviour, not a name, in every layer the
+  rule can hide in — the entity method and the SQL predicate, the service and its query, the bridge and
+  the domain. A question with no owner gets one in the spec, where the project puts rules of its kind; a
+  rule the database must apply is a named SQL fragment beside its entity method, never an inline copy.
+  The implementer's owner search refutes the table cheaply; the architecture reviewer judges against it.
+- **A file or package that grows because it holds two or three different scopes splits by scope, when
+  that makes sense.** It is a judgement, never a line count. Before dispatching work that adds a scope to
+  a place already holding others, the spec draws the split: the questions it answers, where each one
+  lives, what moves and in which order. Work piled in without that step is how one package ends up
+  answering the same question five times.
 - **A fix that creates new state is at the wrong level.** A time defect is solved with a window; never
   create state that no job walks.
 - **A numeric fuse in config that stops a flow is the wrong answer.** What a run may cost is the
@@ -93,10 +104,12 @@ moves a decision *earlier*, where it costs a message instead of a rewrite.
   check the analogy holds there — a bridge that serves one role through many vendors is not shaped like
   a bridge that speaks to one company, however alike the folders look. Write the shape (packages, who
   knows what, where state lives, what a swap costs) in the spec; the implementer builds it, not derives it.
-- **Name the row and column a new fact lives on.** "Claim it before sending", "don't mark it on failure",
-  "remove the orphan" leave the shape open, and the implementer fills it with a side table and a delete.
-  The spec says which row carries the flag, that undoing it is an update, and that what should not
-  exist is never written.
+- **Name the row and column a new fact lives on, and when it is written.** "Claim it before sending",
+  "don't mark it on failure", "remove the orphan" leave the shape open, and the implementer fills it with a
+  side table and a delete. The spec says which row carries the flag, that undoing it is an update, that
+  what should not exist is never written, and that the fact lands after its effect — or in the same
+  transaction under a condition. "Mark paid, then advance the plan" in two steps is a lie waiting for the
+  first failure between them.
 - **A change to what a shared function returns lists its callers in the spec.** A new error decided for
   one flow reaches every flow that calls the function; write what each caller does with it before
   dispatching.
@@ -151,7 +164,8 @@ moves a decision *earlier*, where it costs a message instead of a rewrite.
 - **A contract crosses to the session that owns the other tree**, never your own agent into a tree someone
   else has mid-edit: it avoids the collision and the duplicated recon.
 - **Group neighbouring deliverables** (same code path, same files) and validate once at the end.
-- **Dispatch `backend-implementer` or `frontend-implementer` to build, by the stack, and `unbiased-reviewer` to judge.** The house rules — git index,
+- **Dispatch `backend-implementer` or `frontend-implementer` to build, by the stack, and `architecture-reviewer`
+  then `unbiased-reviewer` to judge.** The house rules — git index,
   comments, tests, naming, search before creating, one owner, stopping on product decisions — are built
   into those agents, so the prompt carries only what is particular to this delivery: the objective or the
   approved spec, the files in scope, and what is forbidden to touch. Re-pasting the rules into a prompt
@@ -199,8 +213,14 @@ the whole context, so a long session makes *each* step expensive — not only th
 
 - **Proof covers what changed and the existing behaviour that depends on it**, closed with one pass over the
   blast radius — not a narrow run that only shows the new code works, and not the whole suite repeated.
-- **Adversarial review only where it hurts:** money, writes to an external platform, data transactions.
-  Re-review is lean: one mutant per finding, with a time ceiling.
+- **Every closed code path is reviewed in two passes, in this order.** First `architecture-reviewer`:
+  read-only and cheap, it judges one owner per question against the spec's owner table, forwarders, flag
+  parameters, threaded parameter groups, files holding several scopes, facts after effects and swallowed
+  errors. Then
+  `unbiased-reviewer`, handed the first report, judges correctness. A REJECT from the first pass goes to
+  the corrector before the second runs: never spend the correctness gate on a shape about to change.
+- **The adversarial pass goes deep only where it hurts:** money, writes to an external platform, data
+  transactions. Re-review is lean: one mutant per finding, with a time ceiling.
 - **Test the seams, not only the pieces.** Per-package tests pass while the joint between two correct
   pieces is broken — a gate that blocks the action that starts a trial, a dependency registered before it
   exists, a job that never reads the switch. **Demand a journey test across the seam** for any change that
@@ -210,6 +230,12 @@ the whole context, so a long session makes *each* step expensive — not only th
   reading a function cut off one line early. **On a backend delivery, run the two architecture greps
   yourself before relaying:** concrete infrastructure imported inside the domain, and a vendor's word
   inside the shared code. A "sweep done" in an agent's report is a claim, not a result.
+- **A report without its owner search goes back.** Every function or type an implementer created carries
+  its line `question → searched → reused | extended | born at`; a helper with no line was born without
+  looking for its owner.
+- **Mutants never touch the working tree.** Implementers and reviewers mutate through a scratch copy
+  (`go test -overlay` in Go). Run `git status --short` after every agent that mutated: a file the delivery
+  did not change is a mutant left behind, and it ships with the next commit.
 
 ## 6. Shipping
 
@@ -232,6 +258,8 @@ the whole context, so a long session makes *each* step expensive — not only th
   becomes *built*, *not built* or *divergent*, verified in the function body, never in a name, comment or
   test. Writing nobody reads counts as not built.
 - **Close a wave by checklist, not by feeling:** that sweep written to a scratch file outside the repo,
-  the project's doc generation, lint, tests and the quality gate run whole rather than scoped, the
-  roadmap docs updated, the memory recorded. Whatever you skipped, name it in the report.
+  an `architecture-reviewer` pass in `Mode: WAVE` over the packages the wave touched with its owner
+  tables — two paths can each answer the same question, and neither path review sees it — the project's
+  doc generation, lint, tests and the quality gate run whole rather than scoped, the roadmap docs
+  updated, the memory recorded. Whatever you skipped, name it in the report.
 - **A doc that lies about the system is a finding**, fixed in the same delivery.

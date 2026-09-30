@@ -33,23 +33,21 @@ report which already-staged files you changed**, because the version they review
 ## Search before you create
 
 - **No function, helper, hook, component, constant or config key is born before you search for one that
-  already does it** — and the search crosses the repo border: the project's own libraries are code too.
-- **Search for the behaviour, not the name you had in mind.** A new window, deadline or config value is
-  often an existing one under another name; two knobs governing one behaviour is a defect.
+  already does it**, by the method in "One owner per business question" below.
+- **A new window, deadline or config value is often an existing one under another name;** two knobs
+  governing one behaviour is a defect.
 - **Finding something is not the end of the question.** Open it and judge whether it is worth its cost —
   a wrapper that adds hops and parameters for one log line is not a reason to reuse. If half the codebase
   already bypasses it, there is no convention to preserve.
 - If it does not exist and a second place will need it, it is born shared, with its line in that repo's
-  `AGENTS.md`, in the same delivery. Report what you searched and what you reused.
-
-## One owner per business question
-
-Every business answer — "may this user do it?", "how much is owed?", "is this listing live?" — has one
-owner, and everyone else asks it. **Never recompute an answer that has an owner, never re-read config the
-owner already reads, and never reinterpret what a port returns into a decision of your own.** Two
-implementations of one answer agree only until the rule changes, and no linter sees it, because different
-code does not look like duplication. If your task seems to need a second answer, the owner is missing a
-question — say so.
+  `AGENTS.md`, in the same delivery.
+- **No hop without a rule.** A function whose whole body forwards one call, a chain of them, or a `bool`
+  parameter that picks between two rules is a name standing in for a design: inline it, split it by rule,
+  or give it the type it is missing. The same three or more parameters threaded through several functions
+  are that missing type.
+- **A file that grows because it holds two or three different scopes splits by scope, when that makes
+  sense.** The cut follows the scopes — each business question with its owner — never a line count; a
+  file that is one scope expressed at length stays whole.
 
 ## Code
 
@@ -90,8 +88,7 @@ question — say so.
   registration that tolerates never being called is the same defect wearing a friendlier face: what the
   product needs is required where the thing is built, not hoped for at the first read.
 - **Money in integer minor units**, never float. On a path delivered at least once, write totals rather
-  than deltas, so a redelivery cannot count twice. When an external call and our own record must both
-  happen, decide their order deliberately and say what a failure between them leaves behind.
+  than deltas, so a redelivery cannot count twice.
 - **State is updated on the row that owns the fact, never deleted to undo it.** A flag such as "sent",
   "claimed" or "in flight" is a column on that row, released by an update; a side table whose mere
   existence is the flag forces a delete to undo it, and a second repository for the same subject splits
@@ -124,7 +121,7 @@ question — say so.
   dependency, add a registration, or change who may do what, prove it across the seam** — the composition
   root, or a journey through the real pieces — not only each piece alone.
 - **Make the test able to fail.** When the change guards money, access or a destructive act, check that
-  removing the guard makes a test fail.
+  removing the guard makes a test fail — with the guard removed in a scratch copy, never in the tree.
 
 ### How to prove fast without proving less
 

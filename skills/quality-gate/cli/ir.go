@@ -90,6 +90,15 @@ type Func struct {
 	// Go only: the signature's admission of I/O, which the name can contradict.
 	TakesContext bool
 	ReturnsError bool
+
+	// Go only: the shape a caller cannot see from the name.
+	BoolParams []string
+	Forwards   bool
+}
+
+type RecursiveClosure struct {
+	Name string
+	Line int
 }
 
 // Element is one markup element's opening tag, attributes included, so a rule
@@ -202,6 +211,11 @@ type File struct {
 	Tokens   []Token
 	Elements []Element
 	JSXNodes []JSXNode
+
+	// Go only; Refs never counts a function's own declaration.
+	Refs              map[string]int
+	Calls             map[string]int
+	RecursiveClosures []RecursiveClosure
 }
 
 func (f *File) codeSource() []string {

@@ -14,7 +14,7 @@ import (
 	"path/filepath"
 )
 
-var version = "v0.1.0"
+var version = "v0.3.0"
 
 const (
 	exitOK       = 0

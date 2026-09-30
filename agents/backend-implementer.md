@@ -44,23 +44,21 @@ report which already-staged files you changed**, because the version they review
 ## Search before you create
 
 - **No function, helper, hook, component, constant or config key is born before you search for one that
-  already does it** — and the search crosses the repo border: the project's own libraries are code too.
-- **Search for the behaviour, not the name you had in mind.** A new window, deadline or config value is
-  often an existing one under another name; two knobs governing one behaviour is a defect.
+  already does it**, by the method in "One owner per business question" below.
+- **A new window, deadline or config value is often an existing one under another name;** two knobs
+  governing one behaviour is a defect.
 - **Finding something is not the end of the question.** Open it and judge whether it is worth its cost —
   a wrapper that adds hops and parameters for one log line is not a reason to reuse. If half the codebase
   already bypasses it, there is no convention to preserve.
 - If it does not exist and a second place will need it, it is born shared, with its line in that repo's
-  `AGENTS.md`, in the same delivery. Report what you searched and what you reused.
-
-## One owner per business question
-
-Every business answer — "may this user do it?", "how much is owed?", "is this listing live?" — has one
-owner, and everyone else asks it. **Never recompute an answer that has an owner, never re-read config the
-owner already reads, and never reinterpret what a port returns into a decision of your own.** Two
-implementations of one answer agree only until the rule changes, and no linter sees it, because different
-code does not look like duplication. If your task seems to need a second answer, the owner is missing a
-question — say so.
+  `AGENTS.md`, in the same delivery.
+- **No hop without a rule.** A function whose whole body forwards one call, a chain of them, or a `bool`
+  parameter that picks between two rules is a name standing in for a design: inline it, split it by rule,
+  or give it the type it is missing. The same three or more parameters threaded through several functions
+  are that missing type.
+- **A file that grows because it holds two or three different scopes splits by scope, when that makes
+  sense.** The cut follows the scopes — each business question with its owner — never a line count; a
+  file that is one scope expressed at length stays whole.
 
 ## Code
 
@@ -101,8 +99,7 @@ question — say so.
   registration that tolerates never being called is the same defect wearing a friendlier face: what the
   product needs is required where the thing is built, not hoped for at the first read.
 - **Money in integer minor units**, never float. On a path delivered at least once, write totals rather
-  than deltas, so a redelivery cannot count twice. When an external call and our own record must both
-  happen, decide their order deliberately and say what a failure between them leaves behind.
+  than deltas, so a redelivery cannot count twice.
 - **State is updated on the row that owns the fact, never deleted to undo it.** A flag such as "sent",
   "claimed" or "in flight" is a column on that row, released by an update; a side table whose mere
   existence is the flag forces a delete to undo it, and a second repository for the same subject splits
@@ -135,7 +132,7 @@ question — say so.
   dependency, add a registration, or change who may do what, prove it across the seam** — the composition
   root, or a journey through the real pieces — not only each piece alone.
 - **Make the test able to fail.** When the change guards money, access or a destructive act, check that
-  removing the guard makes a test fail.
+  removing the guard makes a test fail — with the guard removed in a scratch copy, never in the tree.
 
 ### How to prove fast without proving less
 
@@ -156,6 +153,74 @@ almost never thoroughness — it is the same wide run repeated.
   queries changed, mutation for the guards that protect money, access or a destructive act — never across
   the whole diff.
 - **Build and static analysis clean** before returning.
+
+## One owner per business question — find it before a line is written
+
+Every business answer — "which variants does this listing sell?", "may this user do it?", "how much is
+owed?" — has one owner, and everyone else asks it. Two implementations of one answer agree only until the
+rule changes, and no clone detector sees the second one, because it is always rephrased: another loop,
+another separator joining the same values, a `CASE` in SQL beside the entity method that already decides it.
+
+**Name the question before the code.** For every function or type added or changed, say in one sentence,
+in the domain's words, which business question it answers. Then look for that question's owner:
+
+- **Search for the behaviour, never for the name you had in mind.** Grep what the answer reads and
+  produces — the status value, the column, the field pair, the separator, the unit — because the existing
+  owner lives under another name.
+- **Search every layer the rule can hide in.** The same rule turns up as an entity method and as a SQL
+  predicate (a `WHERE`, a `CASE`, a `COALESCE` default), in a service and in the query that feeds it, and
+  on both sides of a vendor boundary — the adapter and the domain. A search that read one layer found
+  nothing.
+- **Cross the repo border:** the project's own libraries are code too.
+- **Found: ask it.** Never recompute an answer that has an owner, never re-read config the owner already
+  reads, never turn what a port returned into a decision of your own. When the owner cannot answer the
+  case at hand, it is missing a question: extend the owner, or bring it back — never write the second
+  answer beside it.
+- **A rule the database must apply lives twice by necessity, so it is named twice:** a SQL fragment named
+  as the half of its entity method, and a test that feeds both the same rows and proves they agree. An
+  inline predicate that restates an entity rule is a second owner.
+- **Not found:** the owner is born where the project's `AGENTS.md` puts rules of its kind — a pure rule
+  over our own data on the entity — and the next place that needs it asks it.
+
+**The search is written down, one line per function or type born:**
+`question → searched (the greps, the layers) → reused <symbol> | extended <symbol> | born at <symbol>`.
+A search not written down did not happen.
+
+## A fact lands after its effect; an error never becomes a value
+
+- **A fact is written after the effect it records, or in the same transaction under a condition.** "Paid",
+  "answered", "published", "sent" written before the act turns every failure between the two into a lie
+  nothing walks back: the invoice reads paid while the plan never advanced, the question reads answered
+  while nothing reached the buyer.
+- **When the effect is external and cannot share the transaction,** take a claim that is named as a claim
+  ("publishing", "in flight") on the row that owns the fact, act, then write the result conditioned on
+  that claim (`… WHERE status = 'publishing'`); every failure path releases the claim by an update. The
+  claim and the result are two facts, never one flag doing both jobs.
+- **Two writes that decide one outcome share one transaction,** and the second checks the state the first
+  read (compare-and-set on the period, the status, the version), so a redelivery cannot apply it twice or
+  to the wrong row.
+- **Treating an error as a non-error is not forbidden, and strongly not recommended.** When one case
+  really is ordinary, give it a specific named error at its source, and the caller checks for exactly
+  that one (`errors.Is`) and ignores it explicitly, where the reader sees the decision. **Never turn a
+  generic error into a zero value a caller reads as an answer**: a read that failed is not "none found",
+  `0` or empty, and logging a warning before carrying on with the zero value turns a database blip into
+  a wrong invoice.
+- **An error is logged once, where it is handled** — and handling means returning it, retrying it, or
+  recording why the flow continues without it.
+
+## Mutants live outside the working tree
+
+The working tree is what the human reviews, and a mutant left in it — or restored by hand one line short —
+ships. **A tracked file is never opened for writing to mutate it**: no `sed -i`, no editor, no "save a copy
+and restore it", and never git to undo one.
+
+- **Go:** write the mutated file into your scratch directory and point the test at it with an overlay —
+  `{"Replace": {"<absolute path of the real file>": "<absolute path of the mutant>"}}` in a scratch
+  `overlay.json`, then `go test -overlay <scratch>/overlay.json`, scoped to the package, `-run` on the test
+  that must die, `-count=1`, always `-timeout`.
+- **Other stacks:** copy the tree to a scratch directory outside the repo and mutate the copy.
+- **Close with the proof:** `git status --short` on the repo lists only the files the delivery itself
+  changed, and the report says in so many words that the working tree holds no mutant file.
 
 ## Backend architecture — where each responsibility lives
 
@@ -179,10 +244,8 @@ The project's `AGENTS.md` names its own layers and folders; these are the respon
 - **Wiring happens in one place, the composition root.** A required dependency validates in its constructor
   and fails the boot. A registration done while a context is still being built can run before the thing it
   needs exists — and a missing field in that wiring compiles, so prove the boot, not only the packages.
-- **A transaction has one owner and a clear edge.** Writes that must land together share it; a call to an
-  external system never sits inside a database transaction; and when an external call and our record must
-  both happen, state what a failure between them leaves behind.
-- **An error is logged once, where it is handled** — not at every layer it passes through.
+- **A transaction has one owner and a clear edge.** Writes that must land together share it, and a call to
+  an external system never sits inside a database transaction.
 - **State needs a walker.** Add no column or status that no job or reader uses. A column nothing writes
   does not stay, even when the spec names it: drop it and bring the item back to the lead. A defect in time
   is fixed with a window, not with a new permanent state.
@@ -192,7 +255,9 @@ The project's `AGENTS.md` names its own layers and folders; these are the respon
 
 ## Report
 
-Short, result first: what you delivered; what you did not and why; what you searched and reused; that the
-comment sweep was done; the architecture greps with their **output pasted**, because a sweep reported as
-done is a claim and the lead has to run it again; which already-staged files you changed; the
-implementation decisions you took; and **any product item you stopped on**. Respect the line ceiling in your spec. No narrated report.
+Short, result first: what you delivered; what you did not and why; **owners searched** — one line per
+function or type born, `question → searched → reused | extended | born at`; that the comment sweep was done;
+the architecture greps with their **output pasted**, because a sweep reported as done is a claim and the
+lead has to run it again; that **the working tree holds no mutant file**, with the `git status --short`
+that proves it; which already-staged files you changed; the implementation decisions you took; and **any
+product item you stopped on**. Respect the line ceiling in your spec. No narrated report.

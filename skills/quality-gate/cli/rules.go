@@ -74,6 +74,13 @@ var catalog = map[string]Rule{
 	"CPX-05": {"CPX-05", SevWarn, "web", "React component above the size or hook budget",
 		"A component past 250 lines or 10 hooks is usually two things: the markup and a piece of state logic with a name it has not been given yet. Extract the hook, or extract the sub-component — do not split the file to satisfy the number."},
 
+	"CPX-06": {"CPX-06", SevWarn, "go", "bool parameter",
+		"A flag usually holds two rules in one function, and the call site reads `true` without saying which. Split the function by the rule each value selects, or replace the flag with a named type when the choice is real data."},
+	"CPX-07": {"CPX-07", SevWarn, "go", "single-caller forwarder",
+		"An unexported function whose whole body forwards one call, called from one place, adds a hop and a name without adding a rule. Inline it, or move the rule its name promises into it."},
+	"CPX-08": {"CPX-08", SevWarn, "go", "recursive closure declared as `var x func`",
+		"A closure that calls itself through a variable is a named function hiding inside another one, usually with state it captures instead of receiving. Extract the function, or a type when the captured state is shared."},
+
 	"ARC-01": {"ARC-01", SevError, "go", "domain imports an outer layer",
 		"The domain names its ports; it never reaches for an adapter. Verified at zero violations when the rule was written."},
 	"ARC-02": {"ARC-02", SevError, "go", "bounded contexts import each other",

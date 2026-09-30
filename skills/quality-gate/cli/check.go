@@ -46,6 +46,7 @@ func runCheck(cfg *Config, opts checkOptions) (*checkResult, error) {
 		}
 	}
 
+	pkgs := indexGoPackages(parsed)
 	var findings []Finding
 	for _, path := range targets {
 		f, ok := parsed[path]
@@ -61,6 +62,7 @@ func runCheck(cfg *Config, opts checkOptions) (*checkResult, error) {
 		checkComments(cfg, f, add)
 		checkComplexity(cfg, f, add)
 		checkNaming(cfg, f, add)
+		checkShape(cfg, pkgs, f, add)
 		checkArchitecture(cfg, f, add)
 		checkDuplication(cfg, idx, f, add)
 

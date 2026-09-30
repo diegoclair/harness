@@ -51,19 +51,7 @@ A mutant that **survives because killing it would require widening production** 
 
 **Mutation budget — spend it where the spec says the risk is.** The budget is per review, and one review covers a whole code path: spend it on the path's risk, not evenly across its deliverables. Each new/changed test is mutated **once**, in the review where it first appears. Aim for 15–20 mutants per review, chosen by consequence: auth and session boundaries, money, data scoping between tenants, the error path that fails silently — before naming, formatting or a helper's edge. The 40th mutant on a deliverable is almost never the one that finds the bug; the 5th on the right line is. Run each mutant **scoped**: the package under change, `-run` on the test that must die, `-count=1`, and **always `-timeout`** (a mutant that removes a rollback or a cancel hangs the suite — on a real run one did, for 10 minutes). The full suite runs **once**, at the end, as your static proof — never inside the mutation loop.
 
-## Mutants live outside the working tree
-
-The working tree is what the human reviews, and a mutant left in it — or restored by hand one line short —
-ships. **A tracked file is never opened for writing to mutate it**: no `sed -i`, no editor, no "save a copy
-and restore it", and never git to undo one.
-
-- **Go:** write the mutated file into your scratch directory and point the test at it with an overlay —
-  `{"Replace": {"<absolute path of the real file>": "<absolute path of the mutant>"}}` in a scratch
-  `overlay.json`, then `go test -overlay <scratch>/overlay.json`, scoped to the package, `-run` on the test
-  that must die, `-count=1`, always `-timeout`.
-- **Other stacks:** copy the tree to a scratch directory outside the repo and mutate the copy.
-- **Close with the proof:** `git status --short` on the repo lists only the files the delivery itself
-  changed, and the report says in so many words that the working tree holds no mutant file.
+{{mutants}}
 
 ## Don't trust the implementer's setup — build your own
 

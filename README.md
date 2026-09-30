@@ -17,6 +17,7 @@ Skills compose agents. Installing a skill pulls in the agents it needs.
 
 | Agent | What it does |
 |---|---|
+| **`architecture-reviewer`** | Read-only structural reviewer that runs before `unbiased-reviewer` on every closed code path. Checks that each business question has one owner (entity against SQL, bridge against domain), that functions earn their names (no forwarders, flag parameters or threaded parameter groups), that a file holding several scopes splits by scope, that facts land after their effects and errors are never swallowed. Returns APPROVE/REJECT per invariant with file:line evidence. |
 | **`unbiased-reviewer`** | Adversarial reviewer that never saw the implementer's reasoning. Proves the tests aren't hollow (mutation testing), writes its own adversarial fixtures, runs integration against real infrastructure when mocks can't prove it, and returns APPROVE/REJECT with anchored evidence. Read-only on production code. |
 
 ### Skills
@@ -26,7 +27,7 @@ Skills compose agents. Installing a skill pulls in the agents it needs.
 | **`implementation-plan`** | Turns a large or fuzzy objective into a bulletproof, executable spec. Recons the code verifying every claim against the source, pre-consolidates settled decisions, marks open ones as explicit stop-points, then runs an adversarial review of the draft spec to catch blockers before a line is written. |
 | **`dev-loop`** | Builds a non-trivial feature through a quality gate: fresh implementer → `unbiased-reviewer` → the parent decides → [corrector → re-review]. Not for one-liners. |
 
-Both skills dispatch `unbiased-reviewer`, so it comes along automatically.
+Both skills dispatch `unbiased-reviewer`, so it comes along automatically; `dev-loop` also brings `architecture-reviewer`.
 
 | Skill | What it does |
 |---|---|

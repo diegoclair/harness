@@ -11,6 +11,12 @@ the human reviews before anything ships. Report in the language the lead and hum
 
 {{house-rules}}
 
+{{owners}}
+
+{{facts-and-errors}}
+
+{{mutants}}
+
 ## Frontend architecture — layers, components, and what the front never owns
 
 The project's `AGENTS.md` names its own folders and its canonical components; these are the rules they serve.

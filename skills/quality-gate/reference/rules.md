@@ -306,6 +306,9 @@ failure mode being avoided is a codebase cut into pieces to satisfy a linter.
 | CPX-03 | warn | both | Function > 120 lines **and** cyclomatic ≥ 8, outside tests |
 | CPX-04 | warn | both | Parameters > 6 (Go: `ctx` excluded; web: a props object counts as 1) |
 | CPX-05 | warn | web | React component > 250 lines or > 10 hook calls |
+| CPX-06 | warn | go | A `bool` parameter, outside tests |
+| CPX-07 | warn | go | Unexported function, one call site in its package, whose whole body forwards one call with plain arguments |
+| CPX-08 | warn | go | Closure that calls itself through a `var x func` declared for it |
 
 A component, for CPX-05, is a function whose name starts with a capital and
 whose body opened at least one element. Hooks are `useX(` calls counted into
@@ -314,6 +317,24 @@ every named function open at the time — `ProfilePage` in `app/` calls 50.
 A CPX warning is an invitation to ask one question: **does this function hold two
 different rules?** If yes, split by responsibility. If it is one long rule
 expressed linearly, leave it alone and suppress with that reason.
+
+CPX-06 to CPX-08 ask the same question from the signature and the body:
+
+- **CPX-06, a bool parameter.** `sendChosen(ctx, q, true)` does not say which
+  rule `true` picks, and the flag usually threads through several functions
+  before anything reads it. Split by the rule each value selects, or name the
+  choice with a type. A bool that is data being stored (`SetPushEnabled`) is a
+  fair answer; that is why it is `warn` — roughly one hit in four on a Go
+  backend was that shape.
+- **CPX-07, a single-caller forwarder.** One call site, a body that is one call
+  with plain arguments (identifiers, selectors, literals, `&x`, a no-argument
+  accessor): the function adds a hop and a name and no rule. A function handed
+  over as a value never counts — it cannot be inlined — and neither does one
+  whose call composes expressions, because naming a computation is what a
+  function is for. Callers are counted by name inside the package directory, so
+  a name shared by two methods only ever silences the rule.
+- **CPX-08, a recursive closure.** `var walk func(...)` then `walk = func…` is a
+  named function hiding inside another one, reaching state it should receive.
 
 ---
 
@@ -479,6 +500,8 @@ Rules that will **not** be added, recorded so nobody adds them later:
 
 - Maximum lines per file, maximum functions per file, maximum file size. These
   produce fragmentation, and fragmentation is the cost this project refuses.
+  Whether a file holds two or three scopes that should split is a reviewer's
+  judgement, not a number.
 - Mandatory doc comment on every exported symbol. That manufactures exactly the
   noise CMT-07 deletes.
 - Any style rule a formatter already owns (`gofmt`, Prettier).

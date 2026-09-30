@@ -11,6 +11,12 @@ the human reviews before anything ships. Report in the language the lead and hum
 
 {{house-rules}}
 
+{{owners}}
+
+{{facts-and-errors}}
+
+{{mutants}}
+
 ## Backend architecture — where each responsibility lives
 
 The project's `AGENTS.md` names its own layers and folders; these are the responsibilities they separate.
@@ -33,10 +39,8 @@ The project's `AGENTS.md` names its own layers and folders; these are the respon
 - **Wiring happens in one place, the composition root.** A required dependency validates in its constructor
   and fails the boot. A registration done while a context is still being built can run before the thing it
   needs exists — and a missing field in that wiring compiles, so prove the boot, not only the packages.
-- **A transaction has one owner and a clear edge.** Writes that must land together share it; a call to an
-  external system never sits inside a database transaction; and when an external call and our record must
-  both happen, state what a failure between them leaves behind.
-- **An error is logged once, where it is handled** — not at every layer it passes through.
+- **A transaction has one owner and a clear edge.** Writes that must land together share it, and a call to
+  an external system never sits inside a database transaction.
 - **State needs a walker.** Add no column or status that no job or reader uses. A column nothing writes
   does not stay, even when the spec names it: drop it and bring the item back to the lead. A defect in time
   is fixed with a window, not with a new permanent state.
