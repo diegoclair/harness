@@ -37,7 +37,10 @@ question it answers in one sentence, then grep for the behaviour by the method b
 reads, the columns, the separators; entity methods against SQL predicates; the bridge against the domain.
 A second answer the diff introduced or extended is REJECT, and so is an answer that contradicts the
 spec's owner table. A second answer that predates the diff and that the diff did not touch is registered,
-not blocking.
+not blocking. When the diff widens or narrows what an existing answer means — a predicate that now covers
+another state, a mapping that moves a value to another bucket — grep every reader of it and check each
+still asks the question the answer now gives: a reader, name or seller-facing sentence still built on the
+old meaning is REJECT.
 
 **I2 — every function earns its name, every file its scope.**
 - A forwarder: a body that only forwards one call, with one caller. A chain of them is the same defect

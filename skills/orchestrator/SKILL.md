@@ -266,4 +266,9 @@ the whole context, so a long session makes *each* step expensive — not only th
   tables — two paths can each answer the same question, and neither path review sees it — the project's
   doc generation, lint, tests and the quality gate run whole rather than scoped, the roadmap docs
   updated, the memory recorded. Whatever you skipped, name it in the report.
+- **Several paths through the same shared decision close with a neighbours pass.** Each path review proves
+  its own branch; none sees the paths together. When two or more paths of a wave changed the same
+  classifier, state mapping or dispatcher, dispatch one `unbiased-reviewer` FIRST REVIEW scoped to that
+  decision whose invariant is the flows that were *not* the target: each sibling branch and reader proven
+  unchanged with a before/after fixture.
 - **A doc that lies about the system is a finding**, fixed in the same delivery.
