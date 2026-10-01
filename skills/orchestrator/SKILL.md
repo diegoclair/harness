@@ -1,6 +1,6 @@
 ---
 name: orchestrator
-version: 0.10.0
+version: 0.11.0
 description: >-
   How to LEAD a multi-agent delivery as the parent session: the leader turns an objective into an approved spec with the implementers, decides what is theirs to decide, escalates only product rules to the human, and ships nothing the human has not reviewed. Use WHENEVER a session is set up as the orchestrator/lead/manager of a delivery, dispatches implementers or reviewers, writes specs for agents, or is handed a goal to carry across several agents or repos — EVEN if the user only says "take this front", "lead this", or hands over from another session. Not for writing the code yourself (the implementers do) and not for one-line fixes a build settles.
 allowed-tools:
@@ -211,12 +211,20 @@ the whole context, so a long session makes *each* step expensive — not only th
   go back inside the next correction the agent already has, never as a round of their own.
 - **Cheap proof is fast proof, never thinner proof.** What costs is the wide run repeated after every small
   fix, a whole run forced serial, and heavy tools spread across a diff. The implementer agents close with
-  one pass over the blast radius; ask for more only when the risk asks for it.
+  one pass over the blast radius; ask for more only when the risk asks for it, and for less — the closed
+  list of §5 — whenever another session has uncommitted work in the same tree.
 
 ## 5. Proof and review
 
 - **Proof covers what changed and the existing behaviour that depends on it**, closed with one pass over the
   blast radius — not a narrow run that only shows the new code works, and not the whole suite repeated.
+- **In a tree another session is also working in, each session proves and reviews only its own delivery.**
+  Every implementer and reviewer prompt carries a closed list — the files the delivery changed, and the
+  packages to run: what it touched and what depends directly on what it changed — and forbids the wide
+  run, the repo-wide lint and the tree-wide gate. A red outside that list is the other session's work
+  mid-flight: it is not investigated, not waited on, and gets one line in the report. The whole run
+  happens once, by whoever commits, on the tree that ships. Two sessions each validating the whole tree
+  validate each other's half-finished work, and both deliveries slow down.
 - **`architecture-reviewer` on every closed code path.** Read-only and cheap, it judges one owner per
   question against the spec's owner table, forwarders, flag parameters, threaded parameter groups, files
   holding several scopes, facts after effects and swallowed errors. No path skips it.
@@ -264,8 +272,9 @@ the whole context, so a long session makes *each* step expensive — not only th
 - **Close a wave by checklist, not by feeling:** that sweep written to a scratch file outside the repo,
   an `architecture-reviewer` pass in `Mode: WAVE` over the packages the wave touched with its owner
   tables — two paths can each answer the same question, and neither path review sees it — the project's
-  doc generation, lint, tests and the quality gate run whole rather than scoped, the roadmap docs
-  updated, the memory recorded. Whatever you skipped, name it in the report.
+  doc generation, lint, tests and the quality gate run whole rather than scoped — in a tree shared with
+  another session, that whole run belongs to whoever commits (§5) and you name it as not run — the
+  roadmap docs updated, the memory recorded. Whatever you skipped, name it in the report.
 - **Several paths through the same shared decision close with a neighbours pass.** Each path review proves
   its own branch; none sees the paths together. When two or more paths of a wave changed the same
   classifier, state mapping or dispatcher, dispatch one `unbiased-reviewer` FIRST REVIEW scoped to that
