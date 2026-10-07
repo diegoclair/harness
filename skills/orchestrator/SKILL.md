@@ -1,6 +1,6 @@
 ---
 name: orchestrator
-version: 0.11.0
+version: 0.12.0
 description: >-
   How to LEAD a multi-agent delivery as the parent session: the leader turns an objective into an approved spec with the implementers, decides what is theirs to decide, escalates only product rules to the human, and ships nothing the human has not reviewed. Use WHENEVER a session is set up as the orchestrator/lead/manager of a delivery, dispatches implementers or reviewers, writes specs for agents, or is handed a goal to carry across several agents or repos — EVEN if the user only says "take this front", "lead this", or hands over from another session. Not for writing the code yourself (the implementers do) and not for one-line fixes a build settles.
 allowed-tools:
@@ -19,8 +19,9 @@ You edit directly only specs, docs, memory, or a one-liner a build settles.
 
 **When loaded at the start of a session:** say in one line that you are leading and wait for the task.
 Do not go reading state, queues or handoffs before a task needs them — that spends context no one asked
-for. **If the conversation gets summarised,** ask the human to load this skill again: a summary can drop
-its detail, and these rules are the part that must not be approximated.
+for. **If the conversation gets summarised,** ask the human to load this skill again and re-read the
+delivery's ledger (§8) before the next dispatch: a summary can drop the rules' detail and the delivery's
+state, and neither may be approximated.
 
 **The failure this skill exists to stop:** the leader writes the spec alone, the agent implements all of
 it, and the wrong decision surfaces as a finding at the end — so the delivery is redone. Every rule below
@@ -39,6 +40,8 @@ moves a decision *earlier*, where it costs a message instead of a rewrite.
    - **All the product questions go in one message, at the start**, each with your recommendation. After
      that you keep moving on premises marked `ASSUMED`, each isolated at a single switch point, so one
      answer later changes one place. A prompt pass, a paid run worth cents, a test adjustment: decide and go.
+     Each question asked and each `ASSUMED` premise goes into the ledger (§8) with its switch point: a
+     premise that lives only in the conversation is forgotten by the first summary and ships as a decision.
 4. **Only an approved spec goes to implementation.** Use `implementation-plan` for the spec itself.
    **When the delivery crosses back and fronts, fix the contract first** — route, fields with exact names,
    error codes, one example per case — and dispatch every side against it at once, instead of the fronts
@@ -120,6 +123,9 @@ moves a decision *earlier*, where it costs a message instead of a rewrite.
 - **Never more than two reviewers at once, and each one gets ONE code path.** Its prompt carries that path,
   a closed list of the invariants it must check, and a time ceiling. "Review the wave" is not a scope: a
   reviewer that spans a wave exhausts its memory before it reaches a verdict.
+- **Name a model by its family alias, never by a version id.** The alias follows the newest release of
+  the family; a pinned id keeps an agent on the version the next release replaces, and nobody notices.
+  Reasoning effort is set in each agent's definition, not per dispatch — pick the agent, pass the model.
 - **Opus for anything that holds a decision; sonnet only for mechanical work.** Work that touches
   concurrency, state, side effects, writes to a marketplace or external platform, or design goes to opus;
   sonnet takes only what the spec fully dictates — a rename, a 1:1 port, a mechanical sweep. The reviewers
@@ -154,8 +160,8 @@ moves a decision *earlier*, where it costs a message instead of a rewrite.
   sake of parallelism: a context that gives an agent five minutes of work is a recon paid for five
   minutes of build — merge it into its neighbour and accept one agent working longer. Do not merge
   everything either: one agent holding backend and front of a big delivery serialises what could run in
-  parallel across repos. Write the cut in the brief (context → files → agent) so every follow-up goes to
-  the right agent without thinking.
+  parallel across repos. Write the cut in the ledger (§8: context → files → agent) so every follow-up goes
+  to the right agent without thinking.
 - **`subagent_tokens` in a task notification is cumulative spend, not context fill** — the number
   never tells you how full an agent's window is. The gauge is
   the agent's own report: ask it at a natural seam ("how full is your context?") and read any
@@ -182,7 +188,8 @@ context above ~150k, and general-purpose subagents doing work a narrower one cou
 the whole context, so a long session makes *each* step expensive — not only the last one.
 
 - **A new front is a new session.** Hand off and start fresh instead of carrying a finished front's context
-  into the next one. A handoff file costs a page; a bloated context costs every request after it.
+  into the next one. The ledger (§8) is the handoff: it costs a page, and a bloated context costs every
+  request after it.
 - **Never pull a large output into the parent's context.** Scope every grep, read the lines you need, and
   delegate a read that spans many files — the parent keeps the conclusion, not the dump.
 - **Fewer rounds, not smaller ones.** Each extra round pays recon again; group, then validate once (§3).
@@ -274,10 +281,61 @@ the whole context, so a long session makes *each* step expensive — not only th
   tables — two paths can each answer the same question, and neither path review sees it — the project's
   doc generation, lint, tests and the quality gate run whole rather than scoped — in a tree shared with
   another session, that whole run belongs to whoever commits (§5) and you name it as not run — the
-  roadmap docs updated, the memory recorded. Whatever you skipped, name it in the report.
+  roadmap docs updated, the memory recorded, the ledger closed (§8). Whatever you skipped, name it in the
+  report.
 - **Several paths through the same shared decision close with a neighbours pass.** Each path review proves
   its own branch; none sees the paths together. When two or more paths of a wave changed the same
   classifier, state mapping or dispatcher, dispatch one `unbiased-reviewer` FIRST REVIEW scoped to that
   decision whose invariant is the flows that were *not* the target: each sibling branch and reader proven
   unchanged with a before/after fixture.
 - **A doc that lies about the system is a finding**, fixed in the same delivery.
+
+## 8. The ledger — the delivery's state lives in a file, not in the conversation
+
+**One `TASKS.md` per front, beside its spec, where the project keeps delivery state** (named in the
+language the project writes its docs in). The spec says what to build and does not change as work
+advances; the ledger says where the work is and changes at every step. What it replaces is your memory of
+the conversation: a summary, a new session or another machine starts from this file, and the human reads
+it instead of asking you where things are.
+
+```markdown
+# Tasks — <front> (opened <date>)
+Objective: <one line>. Spec: <file>. State of the work, not decisions.
+
+## Contexts
+| context | files | agent | model | handoff note |
+
+## Tasks
+- [ ] T1 <deliverable> — context: <c> · after: — · proof: <command or measurement>
+- [~] T2 <deliverable> — context: <c> · after: T1 · proof: … · state: with agent | architecture pass | correctness pass | ready for review
+- [x] T3 <deliverable> — proof run: <what you ran and saw> · <commit, once shipped>
+
+## Assumed
+| premise | switch point | waits on |
+
+## Waiting on the human
+- <question, with your recommendation> (asked <date>)
+
+## Staged files an agent changed
+## Not done, and why
+```
+
+- **Only the lead writes it.** Agents report and you record: one writer means no two agents edit the same
+  file, and nobody marks its own work as done.
+- **A task is checked when you verified its proof, not when the agent said so** (§5). The ledger is what
+  you tell the human next; an unchecked claim written there is a claim relayed.
+- **Every task carries the proof that closes it**, written when the task is born. A task with no proof
+  has no end, and "done" becomes a feeling.
+- **`after` is the reason a task waits.** When an agent returns, the tasks it unblocked are the next
+  dispatch (§3) — read them off the ledger instead of rebuilding the order from the conversation.
+- **Update it at each seam, before anything else:** a dispatch, an agent's return, a verdict, an answer
+  from the human, a redirect. Written later, it records what you remember, which is what the file exists
+  to replace.
+- **On resume, agents may be gone.** An agent lives as long as its session; a context whose agent no
+  longer answers gets a fresh one that starts from the handoff note named on its row (§3), never from a
+  new recon.
+- **It is state, so it stays short.** A closed task shrinks to one line; a decision, a rule or a finding
+  about the system goes to the doc that owns it, and the ledger points there. When the front closes,
+  whatever is still open moves to the project's queue and the ledger stops being read.
+- **The harness's own task list is not this file.** It belongs to one session on one machine; use it, if
+  you like, as a scratch view, but the file beside the spec is the one that survives.
