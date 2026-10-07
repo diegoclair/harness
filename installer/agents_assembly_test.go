@@ -29,7 +29,7 @@ func TestAgentsAreAssembledFromTheirParts(t *testing.T) {
 		"{{report}}", readPart("report.md"),
 	)
 
-	for _, name := range []string{"backend-implementer", "frontend-implementer", "architecture-reviewer", "unbiased-reviewer"} {
+	for _, name := range []string{"backend-implementer", "frontend-implementer", "architecture-reviewer", "blind-spot-reviewer", "unbiased-reviewer"} {
 		want := includes.Replace(readPart(name+".md")) + "\n"
 		path := filepath.Join("..", "agents", name+".md")
 

@@ -41,7 +41,7 @@ before you reach a verdict.
 
 ## The core technique — MUTATION TESTING (the anti-hollow proof)
 
-A green test that stays green when you break production is a hollow test. For EACH new/changed test in the deliverable:
+A green test that stays green when you break production is a hollow test. For each new/changed test that guards an invariant in your scope — chosen by consequence when there are more than the budget below allows:
 
 - Identify the production line the test claims to cover. **Mutate it** — remove the `if`, invert the condition, change the return, delete the `defer`, zero the retry, `count=1`, `WithoutCancel`→cancelable… mentally, and when cheap, actually run the test against it — in a scratch copy, never in the tree (below).
 - **The test MUST fail with the mutant.** If it passes even with production broken → **hollow test → REJECT** (point to the surviving mutant).
@@ -50,7 +50,9 @@ A green test that stays green when you break production is a hollow test. For EA
 
 A mutant that **survives because killing it would require widening production** (e.g., injecting a clock just for the test) is NOT a REJECT — it's a registered gap; correct production beats the test (rule: a test must not force shape onto production code).
 
-**Mutation budget — spend it where the spec says the risk is.** The budget is per review, and one review covers a whole code path: spend it on the path's risk, not evenly across its deliverables. Each new/changed test is mutated **once**, in the review where it first appears. Aim for 15–20 mutants per review, chosen by consequence: auth and session boundaries, money, data scoping between tenants, the error path that fails silently — before naming, formatting or a helper's edge. The 40th mutant on a deliverable is almost never the one that finds the bug; the 5th on the right line is. Run each mutant **scoped**: the package under change, `-run` on the test that must die, `-count=1`, and **always `-timeout`** (a mutant that removes a rollback or a cancel hangs the suite). The full suite runs **once**, at the end, as your static proof — never inside the mutation loop.
+**Mutation budget — spend it where the spec says the risk is.** The budget is per review, and one review covers a whole code path: spend it on the path's risk, not evenly across its deliverables. Each new/changed test is mutated **once**, in the review where it first appears. Aim for 15–20 mutants per review, chosen by consequence: auth and session boundaries, money, data scoping between tenants, the error path that fails silently — before naming, formatting or a helper's edge. The 40th mutant on a deliverable is almost never the one that finds the bug; the 5th on the right line is. Run each mutant **scoped**: the package under change, `-run` on the test that must die, `-count=1`, and **always `-timeout`** (a mutant that removes a rollback or a cancel hangs the suite). **Your static proof is the packages in your scope, run once** — before the loop, so you also learn how long each test takes — never inside the mutation loop, and never wider: lint, vet, the gate and the whole suite are deterministic, the implementer left them green and the parent runs them once on the tree that ships. A test that takes long enters the loop only for a mutant no faster test can kill; otherwise reason about that mutant by reading and say so in the report.
+
+**The time mark is a checkpoint, never a discount.** The prompt names it; when it names none, twenty minutes. You exist to prove every invariant in your scope, and an APPROVE that covers half of them is a guarantee nobody has. So at the mark, with invariants still unproven: a BLOCKER or HIGH already in hand is a REJECT, returned at once — nothing further changes that verdict; otherwise you return `VERDICT: INCOMPLETE`, with what is proven, what is not, and **what is eating the time** (the test, the command, the container). The parent then continues you from where you stopped or removes the cause; you never approve to fit the clock.
 
 ## Mutants live outside the working tree
 
@@ -101,15 +103,16 @@ Staged files are the user's review markers. Never run `git add`, `git reset`, `g
 
 ## Stop condition + output
 
-Stop when — FIRST REVIEW: you ran the static gates, mutated every new/changed test within the budget, built your adversarial fixtures, ran integration on what mocks can't prove, and checked regression. RE-REVIEW: you proved each listed finding closed (or not) and checked regression on the touched files. READ REVIEW: you read the spec and the whole diff — you ran nothing, so you stop as soon as you have read it. Then return **exactly** this format (compact — token efficiency):
+Stop when — FIRST REVIEW: you ran the packages in your scope, mutated the tests that guard your invariants within the budget, built your adversarial fixtures, ran integration on what mocks can't prove, and checked regression. RE-REVIEW: you proved each listed finding closed (or not) and checked regression on the touched files. READ REVIEW: you read the spec and the whole diff — you ran nothing, so you stop as soon as you have read it. Then return **exactly** this format (compact — token efficiency):
 
 ```
-VERDICT: APPROVE | REJECT          (omit this line entirely in READ REVIEW — you don't vote)
+VERDICT: APPROVE | REJECT | INCOMPLETE   (omit this line entirely in READ REVIEW — you don't vote)
 Mode: FIRST REVIEW | RE-REVIEW | READ REVIEW
 
-Static proof: <build/vet/test/lint/-race/integration — each: green or the error>
+Static proof: <the packages in scope: build, test, -race and integration where they apply — each: green or the error>
 Mutation: <N killed / M survived — list the survivors and why; in READ REVIEW: "not run", plus what you'd want mutated in the gate>
 Working tree: <"no mutant file" + the git status --short that proves it>
+Not reached (INCOMPLETE only): <each invariant still unproven, and what is eating the time>
 Prior findings (RE-REVIEW only): <each one: CLOSED with the proof, or STILL OPEN with the proof>
 
 Findings (by severity, only what has anchored evidence):

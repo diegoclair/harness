@@ -55,6 +55,11 @@ var catalog = []Artifact{
 		Summary: "Structural reviewer before the correctness gate: one owner per question, shape, facts after effects, per-invariant verdict",
 	},
 	{
+		Name:    "blind-spot-reviewer",
+		Kind:    KindAgent,
+		Summary: "Observability reviewer: every error exit logged once, with the ids that find the case and the cause kept",
+	},
+	{
 		Name:    "backend-implementer",
 		Kind:    KindAgent,
 		Summary: "Implements backend code with responsibilities in their layer, and stops on product decisions",
@@ -68,7 +73,7 @@ var catalog = []Artifact{
 		Name:     "dev-loop",
 		Kind:     KindSkill,
 		Summary:  "Build a non-trivial feature through implement -> unbiased review -> decide",
-		Requires: []string{"backend-implementer", "frontend-implementer", "architecture-reviewer", "unbiased-reviewer"},
+		Requires: []string{"backend-implementer", "frontend-implementer", "architecture-reviewer", "blind-spot-reviewer", "unbiased-reviewer"},
 	},
 	{
 		Name:     "implementation-plan",
@@ -80,7 +85,7 @@ var catalog = []Artifact{
 		Name:     "orchestrator",
 		Kind:     KindSkill,
 		Summary:  "Lead a multi-agent delivery: co-built specs, decision triage, nothing shipped unreviewed",
-		Requires: []string{"implementation-plan", "dev-loop", "backend-implementer", "frontend-implementer", "architecture-reviewer", "unbiased-reviewer"},
+		Requires: []string{"implementation-plan", "dev-loop", "backend-implementer", "frontend-implementer", "architecture-reviewer", "blind-spot-reviewer", "unbiased-reviewer"},
 	},
 	{
 		Name:       "confluence-docs",

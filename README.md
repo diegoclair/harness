@@ -18,6 +18,7 @@ Skills compose agents. Installing a skill pulls in the agents it needs.
 | Agent | What it does |
 |---|---|
 | **`architecture-reviewer`** | Read-only structural reviewer that runs on every closed code path, before `unbiased-reviewer` where that one runs. Checks that each business question has one owner (entity against SQL, bridge against domain), that functions earn their names (no forwarders, flag parameters or threaded parameter groups), that a file holding several scopes splits by scope, that facts land after their effects and errors are never swallowed. Returns APPROVE/REJECT per invariant with file:line evidence. |
+| **`blind-spot-reviewer`** | Read-only observability reviewer for a closed code path that added or changed error handling. Follows each error exit of the diff up to the layer that logs and returns a per-invariant verdict: every exit logged once, with the identifiers that find the case, the cause kept, and no failure passed in silence. |
 | **`unbiased-reviewer`** | Adversarial reviewer that never saw the implementer's reasoning. Proves the tests aren't hollow (mutation testing), writes its own adversarial fixtures, runs integration against real infrastructure when mocks can't prove it, and returns APPROVE/REJECT with anchored evidence. Read-only on production code. |
 
 ### Skills
@@ -27,7 +28,7 @@ Skills compose agents. Installing a skill pulls in the agents it needs.
 | **`implementation-plan`** | Turns a large or fuzzy objective into a bulletproof, executable spec. Recons the code verifying every claim against the source, pre-consolidates settled decisions, marks open ones as explicit stop-points, then runs an adversarial review of the draft spec to catch blockers before a line is written. |
 | **`dev-loop`** | Builds a non-trivial feature through a quality gate: implementer → `architecture-reviewer` on every closed path → `unbiased-reviewer` where an error costs a lot → the parent decides → [correction → re-review]. Not for one-liners. |
 
-Both skills dispatch `unbiased-reviewer`, so it comes along automatically; `dev-loop` also brings `architecture-reviewer`.
+Both skills dispatch `unbiased-reviewer`, so it comes along automatically; `dev-loop` also brings `architecture-reviewer` and `blind-spot-reviewer`.
 
 | Skill | What it does |
 |---|---|

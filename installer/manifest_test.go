@@ -95,7 +95,7 @@ func TestResolveRequiresPullsInDependencies(t *testing.T) {
 	if err != nil {
 		t.Fatalf("resolveRequires: %v", err)
 	}
-	wantAgents := []string{"backend-implementer", "frontend-implementer", "architecture-reviewer", "unbiased-reviewer"}
+	wantAgents := []string{"backend-implementer", "frontend-implementer", "architecture-reviewer", "blind-spot-reviewer", "unbiased-reviewer"}
 	if len(added) != len(wantAgents) {
 		t.Errorf("added = %v, want %v", added, wantAgents)
 	}
@@ -117,17 +117,18 @@ func TestResolveRequiresIsIdempotent(t *testing.T) {
 	backend, _ := findArtifact("backend-implementer")
 	frontend, _ := findArtifact("frontend-implementer")
 	architecture, _ := findArtifact("architecture-reviewer")
+	blindSpot, _ := findArtifact("blind-spot-reviewer")
 	reviewer, _ := findArtifact("unbiased-reviewer")
 
-	got, added, err := resolveRequires([]Artifact{devLoop, backend, frontend, architecture, reviewer})
+	got, added, err := resolveRequires([]Artifact{devLoop, backend, frontend, architecture, blindSpot, reviewer})
 	if err != nil {
 		t.Fatalf("resolveRequires: %v", err)
 	}
 	if len(added) != 0 {
 		t.Errorf("added = %v, want none when the dependency is already selected", added)
 	}
-	if len(got) != 5 {
-		t.Errorf("selection = %v, want 5 entries with no duplicate", names(got))
+	if len(got) != 6 {
+		t.Errorf("selection = %v, want 6 entries with no duplicate", names(got))
 	}
 }
 
@@ -195,7 +196,7 @@ func TestResolveRequiresIsTransitive(t *testing.T) {
 	if err != nil {
 		t.Fatalf("resolveRequires: %v", err)
 	}
-	chain := []string{"dev-loop", "backend-implementer", "frontend-implementer", "architecture-reviewer", "unbiased-reviewer"}
+	chain := []string{"dev-loop", "backend-implementer", "frontend-implementer", "architecture-reviewer", "blind-spot-reviewer", "unbiased-reviewer"}
 	for _, want := range chain {
 		if !containsName(got, want) {
 			t.Errorf("selection %v is missing %q from the dependency chain", names(got), want)

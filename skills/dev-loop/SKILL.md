@@ -1,6 +1,6 @@
 ---
 name: dev-loop
-version: 0.6.0
+version: 0.7.0
 description: >-
   IMPLEMENTS (builds/refactors) a NON-trivial code feature with a built-in quality gate — the loop implementer → `architecture-reviewer` on every closed code path → `unbiased-reviewer` (mutation testing) where an error costs a lot → the parent decides → [correction → re-review], with the gate fired once per code path rather than per micro-deliverable. Use WHENEVER the task is to WRITE non-trivial code: a change spanning multiple files, new logic with state or concurrency, a feature with regression risk, or when the user wants the implementation done with rigor / doesn't trust "it compiled" alone — EVEN if they don't say "loop", "review" or "gate". Also when you (Claude) are about to implement a large feature yourself and a second unbiased pair of eyes is worth it. Do NOT use for: one-liners, renames, copy tweaks, 1:1 mechanical edits; and NOT for reviewing existing code, a PR, or a diff (that is the `unbiased-reviewer` agent on its own — this skill BUILDS, the review is only its inner gate).
 allowed-tools:
@@ -39,6 +39,7 @@ Split the feature into deliverables for IMPLEMENTATION, in dependency order — 
 ## Which review a closed path gets
 
 - **`architecture-reviewer` on every closed code path.** It reads and greps, runs nothing, and is cheap by construction — no path skips it.
+- **`blind-spot-reviewer` beside it, on a path that added or changed error handling.** Also read-only: it follows each error exit of the diff up to the layer that logs and says whether a failure there can be diagnosed — logged once, with the identifiers that find the case, the cause kept. Pass it the path's entry points, the files, and the doc and section where the project writes its logging rules, so it walks the exits instead of reading the path.
 - **`unbiased-reviewer` (mutation, adversarial fixtures, real infrastructure) only where an error costs a lot:** money, writes to a marketplace or any external platform, data transactions, concurrency. The mini-spec names which paths carry one of these; the rest close on the architecture pass plus the static gates.
 
 ## The loop, per code path

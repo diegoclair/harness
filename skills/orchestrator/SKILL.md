@@ -1,6 +1,6 @@
 ---
 name: orchestrator
-version: 0.12.0
+version: 0.13.0
 description: >-
   How to LEAD a multi-agent delivery as the parent session: the leader turns an objective into an approved spec with the implementers, decides what is theirs to decide, escalates only product rules to the human, and ships nothing the human has not reviewed. Use WHENEVER a session is set up as the orchestrator/lead/manager of a delivery, dispatches implementers or reviewers, writes specs for agents, or is handed a goal to carry across several agents or repos — EVEN if the user only says "take this front", "lead this", or hands over from another session. Not for writing the code yourself (the implementers do) and not for one-line fixes a build settles.
 allowed-tools:
@@ -119,10 +119,16 @@ moves a decision *earlier*, where it costs a message instead of a rewrite.
 
 ## 3. Agents
 
-- **Ceiling: 4 agents in total, reviewers included.** At most 2 validating, and then only 1 more running.
-- **Never more than two reviewers at once, and each one gets ONE code path.** Its prompt carries that path,
-  a closed list of the invariants it must check, and a time ceiling. "Review the wave" is not a scope: a
-  reviewer that spans a wave exhausts its memory before it reaches a verdict.
+- **Ceiling: 4 agents in total, reviewers included.** The number is the machine's memory and the quota,
+  so every agent counts toward it, whatever it does.
+- **Never more than two `unbiased-reviewer` at once, and never two in the same package.** It is the one
+  reviewer that runs things — suites, mutants, real infrastructure — and two of them fight for the same
+  machine and the same test database. The read-only reviewers (`architecture-reviewer`,
+  `blind-spot-reviewer`) run nothing and collide with nobody: they go out together on the same path and
+  count only toward the total.
+- **Every reviewer gets ONE code path.** Its prompt carries that path, a closed list of the invariants it
+  must check, and a time ceiling. "Review the wave" is not a scope: a reviewer that spans a wave exhausts
+  its memory before it reaches a verdict.
 - **Name a model by its family alias, never by a version id.** The alias follows the newest release of
   the family; a pinned id keeps an agent on the version the next release replaces, and nobody notices.
   Reasoning effort is set in each agent's definition, not per dispatch — pick the agent, pass the model.
@@ -235,11 +241,24 @@ the whole context, so a long session makes *each* step expensive — not only th
 - **`architecture-reviewer` on every closed code path.** Read-only and cheap, it judges one owner per
   question against the spec's owner table, forwarders, flag parameters, threaded parameter groups, files
   holding several scopes, facts after effects and swallowed errors. No path skips it.
+- **`blind-spot-reviewer` on every closed code path that added or changed error handling**, dispatched
+  beside the architecture pass. It answers whether a failure on this path can be diagnosed from the logs:
+  every error exit logged once, with the identifiers that find the case and the cause kept. Its prompt
+  carries the path's entry points, the files, and **the doc and section where the project writes who logs
+  and how a cause is wrapped** — handed the rule, it walks only the error exits of the diff; left to infer
+  it, it reads the path end to end and the review costs what it was meant to save.
 - **`unbiased-reviewer` only where an error costs a lot: money, writes to a marketplace or external
   platform, data transactions, concurrency.** It runs after the architecture pass and is handed its report;
   a REJECT from the first pass is corrected before it runs, so the correctness gate is never spent on a
   shape about to change. The spec names which paths carry that risk. Re-review is lean: one mutant per
   finding, with a time ceiling.
+- **The correctness gate's time goes to what it runs, so its prompt names what to run:** the packages of
+  its path and nothing wider, the invariants where the spec says the risk is, the tests known to be slow,
+  and a time mark. It proves its own packages once; lint, vet and the whole suite are deterministic and
+  run once at the close (§7), never per reviewer. **The mark is a checkpoint, not a discount:** a reviewer
+  that reaches it with invariants unproven returns `INCOMPLETE` and what is eating its time, never an
+  APPROVE on half the scope. `INCOMPLETE` is not a pass — remove the cause it names (a slow test, a scope
+  cut too wide) and continue the same reviewer by `SendMessage` until every invariant has a verdict.
 - **Test the seams, not only the pieces.** Per-package tests pass while the joint between two correct
   pieces is broken — a gate that blocks the action that starts a trial, a dependency registered before it
   exists, a job that never reads the switch. **Demand a journey test across the seam** for any change that
