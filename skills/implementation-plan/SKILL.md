@@ -1,8 +1,8 @@
 ---
 name: implementation-plan
-version: 0.1.0
+version: 0.2.0
 description: >-
-  Turns a large or fuzzy objective into a BULLETPROOF, executable SPEC — the spec that `dev-loop` or an autonomous goal then executes. It recons the code verifying every claim against the SOURCE (not docs/comments that lie), pre-consolidates the already-settled decisions the human points at (so the executor won't re-ask or reinvent), marks the open decisions as explicit stop-points, writes inviolable rules + verifiable exit criteria, and runs an ADVERSARIAL REVIEW of the draft spec (via the `unbiased-reviewer` agent) to catch BLOCKERs before a line is written. Use WHENEVER the user wants to plan, spec, scope, or think through a large/risky change; de-risk a big refactor; or set up an autonomous goal — EVEN if they just say 'let's plan X', 'how should we approach Y?', or 'I want to build a big feature'. Fire it BEFORE implementation, not during. Proven: the adversarial spec review caught real BLOCKERs on every run (wrong premise, internal contradiction, a contract comment that lied).
+  Turns a large or fuzzy objective into a BULLETPROOF, executable SPEC — the spec that the `orchestrator` skill or an autonomous goal then executes. It recons the code verifying every claim against the SOURCE (not docs/comments that lie), pre-consolidates the already-settled decisions the human points at (so the executor won't re-ask or reinvent), marks the open decisions as explicit stop-points, writes inviolable rules + verifiable exit criteria, and runs an ADVERSARIAL REVIEW of the draft spec (via the `unbiased-reviewer` agent) to catch BLOCKERs before a line is written. Use WHENEVER the user wants to plan, spec, scope, or think through a large/risky change; de-risk a big refactor; or set up an autonomous goal — EVEN if they just say 'let's plan X', 'how should we approach Y?', or 'I want to build a big feature'. Fire it BEFORE implementation, not during. Proven: the adversarial spec review caught real BLOCKERs on every run (wrong premise, internal contradiction, a contract comment that lied).
 allowed-tools:
   - Read
   - Grep
@@ -20,7 +20,7 @@ allowed-tools:
 
 (Instructions are in English so the model reasons robustly; respond to the user in their own language.)
 
-Planning is where disasters are cheap to avoid. Every BLOCKER an adversarial review catches **in the spec** costs one text edit; the same BLOCKER discovered mid-execution costs hours built on a wrong premise. This skill produces a spec that `dev-loop` (with you in the loop) or an autonomous goal executes without stalling or inventing.
+Planning is where disasters are cheap to avoid. Every BLOCKER an adversarial review catches **in the spec** costs one text edit; the same BLOCKER discovered mid-execution costs hours built on a wrong premise. This skill produces a spec that the `orchestrator` skill (with you in the loop) or an autonomous goal executes without stalling or inventing.
 
 ## The principle behind everything: CODE is the truth, docs are hints
 
@@ -53,11 +53,11 @@ Dispatch the **`unbiased-reviewer`** agent (or a fresh adversarial reviewer) aga
 - **Test/infra contradiction** — the spec asks for proof the test infra can't give (e.g., a "real concurrency test" in a mock-only repo) → resolve it in the text (authorize scoped ephemeral infra) or downgrade.
 
 ### 6. Apply the fixes, re-review if needed
-Fix the spec with the findings (architecture decisions that surface, the human settles). The result is the **bulletproof spec**, ready for `dev-loop` (execution with a human) or for an autonomous goal.
+Fix the spec with the findings (architecture decisions that surface, the human settles). The result is the **bulletproof spec**, ready for the `orchestrator` skill (execution with a human) or for an autonomous goal.
 
 ## Output
 A spec file on disk (the executor rereads it from there — survives compaction), with: verified state, inviolable rules, deliverables with verifiable criteria, pre-settled decisions, stop-points for the open ones, and the reference-doc paths. Plus a short summary for the human: what the adversarial review caught and what they still need to settle.
 
 ## Boundary with the other pieces
-- This skill **plans**; `dev-loop` **executes** (composing `unbiased-reviewer` on each deliverable's review).
-- An autonomous overnight goal = composes this skill (produces the spec) + `dev-loop` per deliverable + waves/gate/never-block/RUN-LOG. Its difference is **autonomy**: it decides on its own within the spec's bounds, never blocks (hits an open decision → records and skips), runs unattended.
+- This skill **plans**; the `orchestrator` skill **executes** (implementers build, and the reviewers gate each closed code path).
+- An autonomous overnight goal = composes this skill (produces the spec) + the `orchestrator` loop per code path + waves/gate/never-block/RUN-LOG. Its difference is **autonomy**: it decides on its own within the spec's bounds, never blocks (hits an open decision → records and skips), runs unattended.

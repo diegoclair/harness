@@ -1,8 +1,8 @@
 ---
 name: orchestrator
-version: 0.14.0
+version: 0.15.0
 description: >-
-  How to LEAD a multi-agent delivery as the parent session: the leader turns an objective into an approved spec with the implementers, decides what is theirs to decide, escalates only product rules to the human, and ships nothing the human has not reviewed. Use WHENEVER a session is set up as the orchestrator/lead/manager of a delivery, dispatches implementers or reviewers, writes specs for agents, or is handed a goal to carry across several agents or repos — EVEN if the user only says "take this front", "lead this", or hands over from another session. Not for writing the code yourself (the implementers do) and not for one-line fixes a build settles.
+  How to LEAD a multi-agent delivery as the parent session: the leader turns an objective into an approved spec with the implementers, decides what is theirs to decide, escalates only product rules to the human, and ships nothing the human has not reviewed. Use WHENEVER a session is set up as the orchestrator/lead/manager of a delivery, dispatches implementers or reviewers, writes specs for agents, is handed a goal to carry across several agents or repos, or is asked to build or refactor a non-trivial feature (several files, state or concurrency, regression risk) — EVEN if the user only says "take this front", "lead this", "implement X", or hands over from another session. Not for writing the code yourself (the implementers do), not for one-line fixes a build settles, and not for reviewing code that already exists (dispatch the reviewer on its own).
 allowed-tools:
   - Read
   - Grep
@@ -193,7 +193,10 @@ moves a decision *earlier*, where it costs a message instead of a rewrite.
   the message so the agent doesn't stop to ask.
 - **A contract crosses to the session that owns the other tree**, never your own agent into a tree someone
   else has mid-edit: it avoids the collision and the duplicated recon.
-- **Group neighbouring deliverables** (same code path, same files) and validate once at the end.
+- **Group neighbouring deliverables** (same code path, same files) and validate once at the end. A review
+  costs about the same on 2 lines as on 200, so the unit is the path, never the deliverable: a small
+  feature is one context, one path and one gate; a large one is a few paths, each gated once when it
+  closes.
 - **Dispatch `backend-implementer` or `frontend-implementer` to build, by the stack, and the reviewers of §5
   to judge.** The house rules — git index,
   comments, tests, naming, search before creating, one owner, stopping on product decisions — are built
@@ -264,8 +267,19 @@ the whole context, so a long session makes *each* step expensive — not only th
 - **`unbiased-reviewer` only where an error costs a lot: money, writes to a marketplace or external
   platform, data transactions, concurrency.** It runs after the architecture pass and is handed its report;
   a REJECT from the first pass is corrected before it runs, so the correctness gate is never spent on a
-  shape about to change. The spec names which paths carry that risk. Re-review is lean: one mutant per
-  finding, with a time ceiling.
+  shape about to change. The spec names which paths carry that risk.
+- **A correction is re-reviewed as a correction, never as the feature again.** Send the findings to the
+  path's implementer, then dispatch a new reviewer of the same kind with `Mode: RE-REVIEW`, the previous
+  verdict verbatim (its findings and its surviving mutants) and the correction's diff. A reviewer handed
+  no mode runs the full first pass a second time; handed this one, it proves each finding closed and
+  checks the files the correction touched, and its own definition holds the rest of the scope.
+- **Not every finding buys a round.** One you agree with and can fix in a line, you fix and re-run the
+  gate, with no re-review. One that contradicts the spec loses to the spec: refuse it and record why. A
+  decision the human makes mid-path is applied pointwise or goes into the spec for the next deliverable;
+  bundled into a correction, it reopens the review for work that was never in question.
+- **Two correction rounds per path, then you decide with what you have:** fix the residue pointwise, or
+  accept it with the gap registered in the spec. A third round says the spec is wrong, not that the code
+  needs another pass — reread the spec before spending more.
 - **The correctness gate's time goes to what it runs, so its prompt names what to run:** the packages of
   its path and nothing wider, the invariants where the spec says the risk is, the tests known to be slow,
   and a time mark. It proves its own packages once; lint, vet and the whole suite are deterministic and

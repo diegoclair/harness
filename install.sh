@@ -6,7 +6,7 @@
 # the Go binary, which is tested and identical on every OS.
 #
 #   curl -fsSL https://raw.githubusercontent.com/diegoclair/harness/main/install.sh | sh -s -- list
-#   curl -fsSL .../install.sh | sh -s -- install dev-loop unbiased-reviewer
+#   curl -fsSL .../install.sh | sh -s -- install orchestrator unbiased-reviewer
 #
 # Optional environment:
 #   HARNESS_INSTALLER_VERSION   Pin a tag (default: latest harness-v* release)
@@ -59,7 +59,7 @@ chmod +x "$BIN"
 if [ "$#" -eq 0 ]; then
   "$BIN" list
   echo
-  echo "Pick what you want, e.g.:  curl -fsSL .../install.sh | sh -s -- install dev-loop"
+  echo "Pick what you want, e.g.:  curl -fsSL .../install.sh | sh -s -- install orchestrator"
   exit 2
 fi
 exec "$BIN" "$@"

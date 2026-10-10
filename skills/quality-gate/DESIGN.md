@@ -171,7 +171,7 @@ The baseline is committed. It is the honest record of what the repo owes.
 
 1. Each repo's `AGENTS.md` gains one line in its commands section: run
    `quality-gate check` before delivering, next to the existing build gate.
-   `dev-loop` already reads the project's `AGENTS.md` for its static gates, so
+   The implementer agents already read the project's `AGENTS.md` for its gates, so
    this is all the wiring the loop needs.
 2. `SKILL.md` tells Claude what to do with the output: errors are fixed in the
    same delivery; warnings are reported to the user with the reasoning, never

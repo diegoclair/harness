@@ -3,7 +3,7 @@
 #   iwr -useb https://raw.githubusercontent.com/diegoclair/harness/main/install.ps1 | iex
 #
 # To choose artifacts, download this script first and pass arguments to it:
-#   .\install.ps1 install dev-loop unbiased-reviewer
+#   .\install.ps1 install orchestrator unbiased-reviewer
 
 $ErrorActionPreference = "Stop"
 
@@ -27,7 +27,7 @@ Invoke-WebRequest -Uri $url -OutFile $bin -UseBasicParsing
 if ($args.Count -eq 0) {
     & $bin list
     Write-Host ""
-    Write-Host "Pick what you want, e.g.:  .\install.ps1 install dev-loop"
+    Write-Host "Pick what you want, e.g.:  .\install.ps1 install orchestrator"
     exit 2
 }
 & $bin @args

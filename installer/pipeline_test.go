@@ -134,16 +134,16 @@ func TestOnePipelineHandlesBothWithAndWithoutABinary(t *testing.T) {
 	t.Run("no cli directory: files only", func(t *testing.T) {
 		home := sandboxHome(t)
 		tree := localTree{path: fixtureTree(t)}
-		skill, _ := findArtifact("dev-loop")
+		skill, _ := findArtifact("orchestrator")
 
 		if err := installOne(t, skill, tree, io.Discard); err != nil {
 			t.Fatalf("install: %v", err)
 		}
-		assertFile(t, filepath.Join(home, ".claude", "skills", "dev-loop", "SKILL.md"), "loop body")
-		if _, err := os.Stat(filepath.Join(home, ".claude", "skills", "dev-loop", "bin")); err == nil {
+		assertFile(t, filepath.Join(home, ".claude", "skills", "orchestrator", "SKILL.md"), "lead body")
+		if _, err := os.Stat(filepath.Join(home, ".claude", "skills", "orchestrator", "bin")); err == nil {
 			t.Error("a skill with no cli/ must not get a bin/ directory")
 		}
-		if _, err := os.Lstat(filepath.Join(home, ".local", "bin", "dev-loop")); err == nil {
+		if _, err := os.Lstat(filepath.Join(home, ".local", "bin", "orchestrator")); err == nil {
 			t.Error("a skill with no binary must not be linked onto PATH")
 		}
 	})
@@ -229,7 +229,7 @@ func TestVersionPinIsRejectedForAnArtifactWithoutABinary(t *testing.T) {
 	sandboxHome(t)
 	tree := fixtureTree(t)
 
-	code, _, stderr := runCLI(t, "install", "--from", tree, "--version", "v1.2.3", "dev-loop")
+	code, _, stderr := runCLI(t, "install", "--from", tree, "--version", "v1.2.3", "orchestrator")
 	if code != exitInputErr {
 		t.Fatalf("exit = %d, want %d", code, exitInputErr)
 	}
@@ -240,7 +240,7 @@ func TestVersionPinIsRejectedForAnArtifactWithoutABinary(t *testing.T) {
 	// but still before a single file is written.
 	home := os.Getenv("HOME")
 	for _, p := range []string{
-		filepath.Join(home, ".claude", "skills", "dev-loop"),
+		filepath.Join(home, ".claude", "skills", "orchestrator"),
 		filepath.Join(home, ".claude", "agents", "unbiased-reviewer.md"),
 	} {
 		if _, err := os.Stat(p); err == nil {

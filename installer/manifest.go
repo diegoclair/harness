@@ -70,12 +70,6 @@ var catalog = []Artifact{
 		Summary: "Implements frontend code with the right layers and components, and stops on product decisions",
 	},
 	{
-		Name:     "dev-loop",
-		Kind:     KindSkill,
-		Summary:  "Build a non-trivial feature through implement -> unbiased review -> decide",
-		Requires: []string{"backend-implementer", "frontend-implementer", "architecture-reviewer", "blind-spot-reviewer", "unbiased-reviewer"},
-	},
-	{
 		Name:     "implementation-plan",
 		Kind:     KindSkill,
 		Summary:  "Turn a fuzzy objective into a bulletproof spec, adversarially reviewed",
@@ -84,8 +78,8 @@ var catalog = []Artifact{
 	{
 		Name:     "orchestrator",
 		Kind:     KindSkill,
-		Summary:  "Lead a multi-agent delivery: co-built specs, decision triage, nothing shipped unreviewed",
-		Requires: []string{"implementation-plan", "dev-loop", "backend-implementer", "frontend-implementer", "architecture-reviewer", "blind-spot-reviewer", "unbiased-reviewer"},
+		Summary:  "Lead a delivery built by agents: co-built specs, decision triage, review per code path, nothing shipped unreviewed",
+		Requires: []string{"implementation-plan", "backend-implementer", "frontend-implementer", "architecture-reviewer", "blind-spot-reviewer", "unbiased-reviewer"},
 	},
 	{
 		Name:       "confluence-docs",

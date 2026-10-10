@@ -26,9 +26,9 @@ Skills compose agents. Installing a skill pulls in the agents it needs.
 | Skill | What it does |
 |---|---|
 | **`implementation-plan`** | Turns a large or fuzzy objective into a bulletproof, executable spec. Recons the code verifying every claim against the source, pre-consolidates settled decisions, marks open ones as explicit stop-points, then runs an adversarial review of the draft spec to catch blockers before a line is written. |
-| **`dev-loop`** | Builds a non-trivial feature through a quality gate: implementer → `architecture-reviewer` on every closed path → `unbiased-reviewer` where an error costs a lot → the parent decides → [correction → re-review]. Not for one-liners. |
+| **`orchestrator`** | Leads a delivery built by agents: the spec is built with the implementers, product decisions go to the human and the how stays with the lead, then implementer → `architecture-reviewer` on every closed path → `unbiased-reviewer` where an error costs a lot → the lead decides → [correction → re-review]. Nothing ships unreviewed. Not for one-liners. |
 
-Both skills dispatch `unbiased-reviewer`, so it comes along automatically; `dev-loop` also brings `architecture-reviewer` and `blind-spot-reviewer`.
+Both skills dispatch `unbiased-reviewer`, so it comes along automatically; `orchestrator` also brings `implementation-plan`, the two implementers, `architecture-reviewer` and `blind-spot-reviewer`.
 
 | Skill | What it does |
 |---|---|
@@ -49,7 +49,7 @@ Both skills dispatch `unbiased-reviewer`, so it comes along automatically; `dev-
 curl -fsSL https://raw.githubusercontent.com/diegoclair/harness/main/install.sh | sh
 
 # pick what you want — skills and agents mix freely
-curl -fsSL .../install.sh | sh -s -- install dev-loop implementation-plan
+curl -fsSL .../install.sh | sh -s -- install orchestrator implementation-plan
 
 # or take a whole category
 curl -fsSL .../install.sh | sh -s -- install --all-skills
@@ -67,7 +67,7 @@ A bare pipe with no arguments lists the catalog and exits — it never writes in
 ```bash
 git clone https://github.com/diegoclair/harness.git && cd harness
 go run ./installer list
-go run ./installer install --from . dev-loop
+go run ./installer install --from . orchestrator
 ```
 
 `--from .` reads the working tree directly, so editing a skill and reinstalling is instant — no release, no symlink workaround. A skill that ships a `cli/` is the exception: its binary only exists in a release, so `--from` still fetches that release for it.

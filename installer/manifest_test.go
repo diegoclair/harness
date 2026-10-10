@@ -86,49 +86,50 @@ func TestEveryRequirementExists(t *testing.T) {
 }
 
 func TestResolveRequiresPullsInDependencies(t *testing.T) {
-	devLoop, ok := findArtifact("dev-loop")
+	lead, ok := findArtifact("orchestrator")
 	if !ok {
-		t.Fatal("dev-loop missing from catalog")
+		t.Fatal("orchestrator missing from catalog")
 	}
 
-	got, added, err := resolveRequires([]Artifact{devLoop})
+	got, added, err := resolveRequires([]Artifact{lead})
 	if err != nil {
 		t.Fatalf("resolveRequires: %v", err)
 	}
-	wantAgents := []string{"backend-implementer", "frontend-implementer", "architecture-reviewer", "blind-spot-reviewer", "unbiased-reviewer"}
-	if len(added) != len(wantAgents) {
-		t.Errorf("added = %v, want %v", added, wantAgents)
+	wantRequired := []string{"implementation-plan", "backend-implementer", "frontend-implementer", "architecture-reviewer", "blind-spot-reviewer", "unbiased-reviewer"}
+	if len(added) != len(wantRequired) {
+		t.Errorf("added = %v, want %v", added, wantRequired)
 	}
-	for _, want := range wantAgents {
+	for _, want := range wantRequired {
 		if !containsString(added, want) {
 			t.Errorf("added = %v is missing %q", added, want)
 		}
 		if !containsName(got, want) {
-			t.Errorf("selection %v is missing the required agent %q", names(got), want)
+			t.Errorf("selection %v is missing the required artifact %q", names(got), want)
 		}
 	}
-	if got[0].Name != "dev-loop" {
+	if got[0].Name != "orchestrator" {
 		t.Errorf("original selection should stay first, got %v", names(got))
 	}
 }
 
 func TestResolveRequiresIsIdempotent(t *testing.T) {
-	devLoop, _ := findArtifact("dev-loop")
+	lead, _ := findArtifact("orchestrator")
+	plan, _ := findArtifact("implementation-plan")
 	backend, _ := findArtifact("backend-implementer")
 	frontend, _ := findArtifact("frontend-implementer")
 	architecture, _ := findArtifact("architecture-reviewer")
 	blindSpot, _ := findArtifact("blind-spot-reviewer")
 	reviewer, _ := findArtifact("unbiased-reviewer")
 
-	got, added, err := resolveRequires([]Artifact{devLoop, backend, frontend, architecture, blindSpot, reviewer})
+	got, added, err := resolveRequires([]Artifact{lead, plan, backend, frontend, architecture, blindSpot, reviewer})
 	if err != nil {
 		t.Fatalf("resolveRequires: %v", err)
 	}
 	if len(added) != 0 {
 		t.Errorf("added = %v, want none when the dependency is already selected", added)
 	}
-	if len(got) != 6 {
-		t.Errorf("selection = %v, want 6 entries with no duplicate", names(got))
+	if len(got) != 7 {
+		t.Errorf("selection = %v, want 7 entries with no duplicate", names(got))
 	}
 }
 
@@ -189,14 +190,14 @@ func TestSkillsDeclareTheAgentsTheyDispatch(t *testing.T) {
 // A dependency can itself have dependencies; expanding only the original
 // selection would leave the chain half-installed.
 func TestResolveRequiresIsTransitive(t *testing.T) {
-	// dev-loop requires its agents, so requiring dev-loop makes a real two-hop chain.
-	meta := Artifact{Name: "meta-skill", Kind: KindSkill, Requires: []string{"dev-loop"}}
+	// orchestrator requires its agents, so requiring orchestrator makes a real two-hop chain.
+	meta := Artifact{Name: "meta-skill", Kind: KindSkill, Requires: []string{"orchestrator"}}
 
 	got, added, err := resolveRequires([]Artifact{meta})
 	if err != nil {
 		t.Fatalf("resolveRequires: %v", err)
 	}
-	chain := []string{"dev-loop", "backend-implementer", "frontend-implementer", "architecture-reviewer", "blind-spot-reviewer", "unbiased-reviewer"}
+	chain := []string{"orchestrator", "implementation-plan", "backend-implementer", "frontend-implementer", "architecture-reviewer", "blind-spot-reviewer", "unbiased-reviewer"}
 	for _, want := range chain {
 		if !containsName(got, want) {
 			t.Errorf("selection %v is missing %q from the dependency chain", names(got), want)

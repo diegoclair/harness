@@ -21,7 +21,7 @@ func TestListShowsBothKinds(t *testing.T) {
 	if code != exitOK {
 		t.Fatalf("exit = %d", code)
 	}
-	for _, want := range []string{"Skills:", "Agents:", "dev-loop", "implementation-plan", "unbiased-reviewer"} {
+	for _, want := range []string{"Skills:", "Agents:", "orchestrator", "implementation-plan", "unbiased-reviewer"} {
 		if !strings.Contains(stdout, want) {
 			t.Errorf("list output is missing %q\n%s", want, stdout)
 		}
@@ -49,9 +49,9 @@ func TestInputErrorsAreRejectedWithASpecificMessage(t *testing.T) {
 		args     []string
 		wantHint string
 	}{
-		{"unknown artifact", []string{"install", "dev-loop", "bogus"}, "unknown artifact"},
+		{"unknown artifact", []string{"install", "orchestrator", "bogus"}, "unknown artifact"},
 		{"no name", []string{"install"}, "no artifact given"},
-		{"names with --all", []string{"install", "--all", "dev-loop"}, "take no artifact names"},
+		{"names with --all", []string{"install", "--all", "orchestrator"}, "take no artifact names"},
 		{"unknown flag", []string{"install", "--nope"}, "unknown flag"},
 		{"unknown command", []string{"frobnicate"}, "unknown command"},
 	}
@@ -75,7 +75,7 @@ func TestInstallingASkillPullsInItsRequiredAgent(t *testing.T) {
 	home := sandboxHome(t)
 	tree := fixtureTree(t)
 
-	code, stdout, stderr := runCLI(t, "install", "--from", tree, "dev-loop")
+	code, stdout, stderr := runCLI(t, "install", "--from", tree, "orchestrator")
 	if code != exitOK {
 		t.Fatalf("exit = %d\nstdout:%s\nstderr:%s", code, stdout, stderr)
 	}
@@ -156,8 +156,8 @@ func TestValidateCatchesANameLocationMismatch(t *testing.T) {
 func TestFlagWithoutAValueIsAUsageError(t *testing.T) {
 	for _, args := range [][]string{
 		{"install", "--ref"}, {"install", "--from"}, {"install", "--version"}, {"install", "--repo"},
-		{"install", "--ref=", "dev-loop"}, {"install", "--from=", "dev-loop"},
-		{"install", "--repo=", "dev-loop"}, {"install", "--version=", "dev-loop"},
+		{"install", "--ref=", "orchestrator"}, {"install", "--from=", "orchestrator"},
+		{"install", "--repo=", "orchestrator"}, {"install", "--version=", "orchestrator"},
 	} {
 		t.Run(strings.Join(args, " "), func(t *testing.T) {
 			sandboxHome(t)
@@ -184,7 +184,7 @@ func TestWildcardsCombineAsAUnion(t *testing.T) {
 		t.Fatalf("exit = %d\nstderr:%s", code, stderr)
 	}
 	for _, p := range []string{
-		filepath.Join(home, ".claude", "skills", "dev-loop", "SKILL.md"),
+		filepath.Join(home, ".claude", "skills", "orchestrator", "SKILL.md"),
 		filepath.Join(home, ".claude", "agents", "unbiased-reviewer.md"),
 	} {
 		if _, err := os.Stat(p); err != nil {
@@ -203,8 +203,8 @@ func TestWildcardsCombineAsAUnion(t *testing.T) {
 		}
 	}
 	// ...while the plain skills get neither.
-	if _, err := os.Stat(filepath.Join(home, ".claude", "skills", "dev-loop", "bin")); err == nil {
-		t.Error("dev-loop ships no cli/ and must not get a bin/")
+	if _, err := os.Stat(filepath.Join(home, ".claude", "skills", "orchestrator", "bin")); err == nil {
+		t.Error("orchestrator ships no cli/ and must not get a bin/")
 	}
 }
 
@@ -255,7 +255,7 @@ func TestAFailedArtifactIsReportedAndChangesTheExitCode(t *testing.T) {
 	tree := fixtureTree(t)
 	serveReleases(t)
 	// A skill missing from the tree makes exactly one artifact fail.
-	if err := os.Remove(filepath.Join(tree, "skills", "dev-loop", "SKILL.md")); err != nil {
+	if err := os.Remove(filepath.Join(tree, "skills", "orchestrator", "SKILL.md")); err != nil {
 		t.Fatal(err)
 	}
 
@@ -278,18 +278,18 @@ func TestAFailedArtifactIsReportedAndChangesTheExitCode(t *testing.T) {
 func TestMissingSkillFileIsReportedClearly(t *testing.T) {
 	home := sandboxHome(t)
 	root := fixtureTree(t)
-	if err := os.Remove(filepath.Join(root, "skills", "dev-loop", "SKILL.md")); err != nil {
+	if err := os.Remove(filepath.Join(root, "skills", "orchestrator", "SKILL.md")); err != nil {
 		t.Fatal(err)
 	}
 
-	code, _, stderr := runCLI(t, "install", "--from", root, "dev-loop")
+	code, _, stderr := runCLI(t, "install", "--from", root, "orchestrator")
 	if code != exitErr {
 		t.Errorf("exit = %d, want %d", code, exitErr)
 	}
 	if !strings.Contains(stderr, "SKILL.md") {
 		t.Errorf("stderr = %q, want it to name the missing file", stderr)
 	}
-	if _, err := os.Stat(filepath.Join(home, ".claude", "skills", "dev-loop")); err == nil {
+	if _, err := os.Stat(filepath.Join(home, ".claude", "skills", "orchestrator")); err == nil {
 		t.Error("a failed install must not leave a stray skill directory")
 	}
 }

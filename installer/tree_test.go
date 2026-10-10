@@ -96,8 +96,8 @@ func TestRemoteTreeStripsTheCodeloadRootPrefix(t *testing.T) {
 	payload := makeTarGz(t, []tarEntry{
 		{name: "harness-0.1.0/", dir: true},
 		{name: "harness-0.1.0/skills/", dir: true},
-		{name: "harness-0.1.0/skills/dev-loop/", dir: true},
-		{name: "harness-0.1.0/skills/dev-loop/SKILL.md", body: "---\nname: dev-loop\n---\nbody\n"},
+		{name: "harness-0.1.0/skills/orchestrator/", dir: true},
+		{name: "harness-0.1.0/skills/orchestrator/SKILL.md", body: "---\nname: orchestrator\n---\nbody\n"},
 	})
 	serveTarball(t, payload)
 
@@ -109,7 +109,7 @@ func TestRemoteTreeStripsTheCodeloadRootPrefix(t *testing.T) {
 	if filepath.Base(root) != "harness-0.1.0" {
 		t.Errorf("root = %s, want the archive's single top-level directory", root)
 	}
-	if _, err := os.Stat(filepath.Join(root, "skills", "dev-loop", "SKILL.md")); err != nil {
+	if _, err := os.Stat(filepath.Join(root, "skills", "orchestrator", "SKILL.md")); err != nil {
 		t.Errorf("prefix strip did not expose skills/: %v", err)
 	}
 }
@@ -204,7 +204,7 @@ func fixtureTree(t *testing.T) string {
 	// Bodies the assertions below identify artifacts by; anything else is
 	// generic, so a new catalog entry needs no fixture edit.
 	bodies := map[string]string{
-		"dev-loop":            "loop body",
+		"orchestrator":        "lead body",
 		"implementation-plan": "plan body",
 		"unbiased-reviewer":   "reviewer body",
 	}
@@ -224,7 +224,7 @@ func fixtureTree(t *testing.T) string {
 			mustWrite(t, filepath.Join(root, "skills", a.Name, "cli", "main.go"), "package main\n")
 		}
 	}
-	mustWrite(t, filepath.Join(root, "skills", "dev-loop", "reference", "notes.md"), "notes\n")
+	mustWrite(t, filepath.Join(root, "skills", "orchestrator", "reference", "notes.md"), "notes\n")
 	return root
 }
 
@@ -242,7 +242,7 @@ func TestInstallPlacesSkillAndAgent(t *testing.T) {
 	home := sandboxHome(t)
 	tree := localTree{path: fixtureTree(t)}
 
-	skill, _ := findArtifact("dev-loop")
+	skill, _ := findArtifact("orchestrator")
 	agent, _ := findArtifact("unbiased-reviewer")
 	for _, a := range []Artifact{skill, agent} {
 		if err := installOne(t, a, tree, io.Discard); err != nil {
@@ -250,8 +250,8 @@ func TestInstallPlacesSkillAndAgent(t *testing.T) {
 		}
 	}
 
-	assertFile(t, filepath.Join(home, ".claude", "skills", "dev-loop", "SKILL.md"), "loop body")
-	assertFile(t, filepath.Join(home, ".claude", "skills", "dev-loop", "reference", "notes.md"), "notes")
+	assertFile(t, filepath.Join(home, ".claude", "skills", "orchestrator", "SKILL.md"), "lead body")
+	assertFile(t, filepath.Join(home, ".claude", "skills", "orchestrator", "reference", "notes.md"), "notes")
 	assertFile(t, filepath.Join(home, ".claude", "agents", "unbiased-reviewer.md"), "reviewer body")
 }
 
@@ -260,16 +260,16 @@ func TestInstallPlacesSkillAndAgent(t *testing.T) {
 func TestPlainSkillInstallClearsStaleFiles(t *testing.T) {
 	home := sandboxHome(t)
 	tree := localTree{path: fixtureTree(t)}
-	skill, _ := findArtifact("dev-loop")
+	skill, _ := findArtifact("orchestrator")
 
-	dst := filepath.Join(home, ".claude", "skills", "dev-loop")
-	mustWrite(t, filepath.Join(dst, markerFile), "dev-loop\n")
+	dst := filepath.Join(home, ".claude", "skills", "orchestrator")
+	mustWrite(t, filepath.Join(dst, markerFile), "orchestrator\n")
 	mustWrite(t, filepath.Join(dst, "stale-reference.md"), "old")
 
 	if err := installOne(t, skill, tree, io.Discard); err != nil {
 		t.Fatalf("install: %v", err)
 	}
-	assertFile(t, filepath.Join(dst, "SKILL.md"), "loop body")
+	assertFile(t, filepath.Join(dst, "SKILL.md"), "lead body")
 	if _, err := os.Stat(filepath.Join(dst, "stale-reference.md")); err == nil {
 		t.Error("a renamed/removed file lingered; the skill directory must be clean-slated")
 	}
@@ -280,9 +280,9 @@ func TestPlainSkillInstallClearsStaleFiles(t *testing.T) {
 func TestForeignDirectoryIsMovedAsideNotDestroyed(t *testing.T) {
 	home := sandboxHome(t)
 	tree := localTree{path: fixtureTree(t)}
-	skill, _ := findArtifact("dev-loop")
+	skill, _ := findArtifact("orchestrator")
 
-	dst := filepath.Join(home, ".claude", "skills", "dev-loop")
+	dst := filepath.Join(home, ".claude", "skills", "orchestrator")
 	mustWrite(t, filepath.Join(dst, "SKILL.md"), "hand-written, not ours")
 	mustWrite(t, filepath.Join(dst, "notes.md"), "my notes")
 
@@ -290,7 +290,7 @@ func TestForeignDirectoryIsMovedAsideNotDestroyed(t *testing.T) {
 	if err := installOne(t, skill, tree, &out); err != nil {
 		t.Fatalf("install should proceed: %v", err)
 	}
-	assertFile(t, filepath.Join(dst, "SKILL.md"), "loop body")
+	assertFile(t, filepath.Join(dst, "SKILL.md"), "lead body")
 	assertFile(t, dst+".bak/SKILL.md", "hand-written, not ours")
 	assertFile(t, dst+".bak/notes.md", "my notes")
 	if !strings.Contains(out.String(), "kept the previous contents") {
@@ -361,15 +361,15 @@ func assertFile(t *testing.T, path, wantSubstring string) {
 func TestInstallIsIdempotent(t *testing.T) {
 	home := sandboxHome(t)
 	tree := localTree{path: fixtureTree(t)}
-	skill, _ := findArtifact("dev-loop")
+	skill, _ := findArtifact("orchestrator")
 
 	for i := range 2 {
 		if err := installOne(t, skill, tree, io.Discard); err != nil {
 			t.Fatalf("install #%d: %v", i+1, err)
 		}
 	}
-	assertFile(t, filepath.Join(home, ".claude", "skills", "dev-loop", "SKILL.md"), "loop body")
-	assertFile(t, filepath.Join(home, ".claude", "skills", "dev-loop", markerFile), "dev-loop")
+	assertFile(t, filepath.Join(home, ".claude", "skills", "orchestrator", "SKILL.md"), "lead body")
+	assertFile(t, filepath.Join(home, ".claude", "skills", "orchestrator", markerFile), "orchestrator")
 }
 
 // An agent is a bare file with nowhere to keep a marker, and a skill can pull

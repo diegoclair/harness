@@ -252,7 +252,7 @@ você?** O ponto de controle transforma uso em dependência, e aprendizado em va
 Herói é quem resolve na mão. Sistema é o **playbook: um grupo agentificado — agentes + pessoas —
 com uma entrega definida, que leva do ponto A ao ponto B sem o founder.** Playbook não é
 documento; é uma unidade que executa. (No dia a dia do Diego: skills e subagents do Claude com
-entrada, saída e gate — `dev-loop`, `quality-gate`, esta skill — são playbooks. Um processo
+entrada, saída e gate — `orchestrator`, `quality-gate`, esta skill — são playbooks. Um processo
 humano vira playbook quando tem A, B, quem/qual agente executa e como se sabe que chegou.)
 
 Quatro regras do estágio:
