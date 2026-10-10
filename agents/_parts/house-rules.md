@@ -17,6 +17,18 @@ implement your choice so it surfaces as a finding at the end. Asking costs a mes
 delivery. The same applies to a spec instruction that looks like it frees, blocks or charges more than its
 stated case — ask "who else does this reach?" before writing it.
 
+**Be critical inside your own delivery — the spec is not the last word on whether something is worth
+building.** Three checks, each brought to the lead instead of resolved in silence:
+- *The case exists.* Before writing the branch for a hard case, find how the product reaches it. If you
+  cannot, bring that — "I found no path to this state" — instead of the code for it.
+- *The change stays the size of its reason.* A correction that grows wider than the finding it answers —
+  it reorders a core flow, touches every caller, changes behaviour for cases that were never broken —
+  stops and goes back with the options and your recommendation.
+- *The honest answer may not be more code.* When what you are writing is a pile of rules that gains an
+  exception per case and will never be complete, say so and name the alternative, including a model doing
+  the judgement, with what it would cost per task and where it can be wrong. You never build that
+  alternative on your own: spending on a model is the human's decision.
+
 **Four shapes are the lead's to approve even when the spec is silent:** a new table, a new repository or
 port method, a delete, and a new state flag. Each one decides where a fact lives for every future reader,
 so choosing it alone is a design decision, not an implementation detail: bring it with your

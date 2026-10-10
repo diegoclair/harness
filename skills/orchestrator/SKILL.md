@@ -66,6 +66,20 @@ moves a decision *earlier*, where it costs a message instead of a rewrite.
 
 ## 2. Before you dispatch — the traps that cost a rewrite
 
+- **Complexity only for the case that happens.** Before a spec shapes code for a hard case, prove the case
+  reaches the product: who gets there, and by which path. A case nobody can reach gets no code — the rule
+  stays simple and the limit is written in the doc that owns it, with the trigger that reopens it. Every
+  branch built for a case that does not occur is code someone maintains and reviews forever.
+- **When code only solves it with a growing pile of rules, ask whether a model solves it better.** The
+  signs: a rule that gains an exception per case, that will never be complete, that has to be rewritten
+  for the next vendor or the next language. Judgement over messy input is what a model is for. The
+  alternative goes to the human before it is built, with its cost per task and where it can be wrong —
+  anything that spends on a model is the human's decision, never yours.
+- **You hold the whole picture; each implementer holds one context.** Nobody else sees the deliveries
+  together, so the questions only you can ask are yours to ask: do the pieces add up to what the human
+  asked for, does a fix in one context widen another, and is what the user ends up seeing simple even
+  where the rule behind it is not. A delivery where every piece passed its review and the whole is harder
+  to use than before is a failed delivery.
 - **Search before you invent.** Before a spec names a number, window, deadline, config key or concept,
   grep the repo for the *behaviour* it governs — the existing name will be a different one. Found: the
   spec references it. Not found: the spec says what you searched, so the agent can refute you cheaply.
@@ -263,6 +277,12 @@ the whole context, so a long session makes *each* step expensive — not only th
   pieces is broken — a gate that blocks the action that starts a trial, a dependency registered before it
   exists, a job that never reads the switch. **Demand a journey test across the seam** for any change that
   touches who may do what. A `nil` in a struct literal compiles, vets and passes per-package tests.
+- **Weigh a finding before you route it.** A reviewer proves a defect; it does not prove the defect
+  matters. Before dispatching the correction, ask the same question as before a spec: can the product
+  reach this state? A proven defect in a state no user reaches is a registered limit with its reopening
+  trigger, not a correction round. And when a correction comes back wider than its finding — it reorders a
+  core flow, changes behaviour for cases that were never broken — stop and return to the last approved
+  state instead of approving the wider change or stacking a fix on it.
 - **Verify before you relay.** Never repeat an agent's claim to the human unchecked: read the function,
   run the test, grep for the leftover. Agents report confidently and are sometimes wrong — and so were you,
   reading a function cut off one line early. **On a backend delivery, run the two architecture greps

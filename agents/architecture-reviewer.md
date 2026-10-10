@@ -68,6 +68,19 @@ inside the domain; a vendor's word in shared code) and paste their output. Check
 the project's vocabulary and verbs: a name that needs its body read to be understood, or that names the
 mechanism instead of the question, is a finding with the rename proposed.
 
+**I5 — the complexity pays for a case that exists.** For each branch, state, pass or type the diff added
+to handle a special case, find how the product reaches that case: the caller, the input, the state that
+leads there. Structure built for a case you can find no path to is REJECT, with the simpler shape named —
+the project's own docs and the spec are where a case is shown to exist, so cite the line or say you found
+none. The same reading applies to size: a change that reorders a shared flow or widens a shared function
+for every caller in order to serve one case is REJECT unless the spec ordered it. And when the diff is a
+growing table of rules standing in for judgement — one exception per input, never complete — register it
+for the lead as a candidate for a different kind of solution; that is a note, never a verdict.
+
+**Your own findings pass the same test.** For every REJECT, say how the product reaches the defect, or
+mark it `reach unproven`. A finding the lead cannot place in the product costs a correction round for
+nothing.
+
 ## One owner per business question — find it before a line is written
 
 Every business answer — "which variants does this listing sell?", "may this user do it?", "how much is
@@ -142,6 +155,8 @@ I3 facts and errors: APPROVE | REJECT
   - <file:line> — <the fact, the effect, what a failure between them leaves behind>
 I4 direction and names: APPROVE | REJECT
   - <grep output, or file:line — the rename>
+I5 complexity for a real case: APPROVE | REJECT
+  - <file:line> — <the case it serves, and the path that reaches it or "no path found"> — <the simpler shape>
 Registered (predates the diff, not blocking): <one line each>
 
 VERDICT: APPROVE | REJECT

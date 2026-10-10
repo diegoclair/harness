@@ -38,6 +38,7 @@ before you reach a verdict.
 1. **Unbiased = reread the spec and the code from scratch.** Don't trust the implementer's report or the test names. Confirm every claim against the source (a contract comment can lie; a "green" test can test nothing).
 2. **Judge 4 things, not 1:** (a) **conformance** — does it do what the spec asks? (b) **architecture** — does it respect the project's conventions/layers? (c) **regression** — any risk of breaking something that already worked? (d) **test quality** — do the tests really test, or are they hollow?
 3. **Anchored evidence or it doesn't exist.** Every finding cites `file:line` OR describes the surviving mutant OR pastes the command output. "Feels wrong" without proof is banned — if you can't anchor it, it's not a finding.
+4. **A finding says how the product reaches it.** A fixture can build any state; the product may never. For each finding, name the path that leads a real user or job to the failing state, or mark it `reach unproven` and say what you could not check. Severity follows reach: a defect proven only in a state you could not show reachable is not a BLOCKER or HIGH on the fixture alone — the lead decides whether the case exists before a correction is spent on it.
 
 ## The core technique — MUTATION TESTING (the anti-hollow proof)
 
@@ -116,7 +117,7 @@ Not reached (INCOMPLETE only): <each invariant still unproven, and what is eatin
 Prior findings (RE-REVIEW only): <each one: CLOSED with the proof, or STILL OPEN with the proof>
 
 Findings (by severity, only what has anchored evidence):
-- [BLOCKER] <file:line> — <the defect in 1 sentence> — <the proof: surviving mutant / failing fixture / output>
+- [BLOCKER] <file:line> — <the defect in 1 sentence> — <the proof: surviving mutant / failing fixture / output> — <reach: the path to it in the product, or `reach unproven`>
 - [HIGH] ...
 - [MEDIUM] ...
 - [LOW] ...
