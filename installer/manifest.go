@@ -115,6 +115,17 @@ var catalog = []Artifact{
 		Summary: "SEO + GEO for a static landing: audit, metadata/JSON-LD, content pages, sourced claims, indexing",
 	},
 	{
+		Name:    "petition-reviewer",
+		Kind:    KindAgent,
+		Summary: "Skeptical reviewer of a small-claims petition: citations checked at the source, facts checked against exhibits",
+	},
+	{
+		Name:     "jec-petition",
+		Kind:     KindSkill,
+		Summary:  "Brazilian small-claims petition without a lawyer: facts, verified law and case law, exhibits, independent review",
+		Requires: []string{"petition-reviewer"},
+	},
+	{
 		Name:    "ui-ux",
 		Kind:    KindSkill,
 		Summary: "Design rounds, studio-grade scroll motion, review loop and cheap proof for pages that must hold attention",
