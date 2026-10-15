@@ -1,6 +1,6 @@
 ---
 name: orchestrator
-version: 0.15.0
+version: 0.16.0
 description: >-
   How to LEAD a multi-agent delivery as the parent session: the leader turns an objective into an approved spec with the implementers, decides what is theirs to decide, escalates only product rules to the human, and ships nothing the human has not reviewed. Use WHENEVER a session is set up as the orchestrator/lead/manager of a delivery, dispatches implementers or reviewers, writes specs for agents, is handed a goal to carry across several agents or repos, or is asked to build or refactor a non-trivial feature (several files, state or concurrency, regression risk) — EVEN if the user only says "take this front", "lead this", "implement X", or hands over from another session. Not for writing the code yourself (the implementers do), not for one-line fixes a build settles, and not for reviewing code that already exists (dispatch the reviewer on its own).
 allowed-tools:
@@ -63,13 +63,19 @@ moves a decision *earlier*, where it costs a message instead of a rewrite.
    Your own acceptance criteria only measure them; inventing and swapping criteria of your own breaks the
    previous state on every round. On a side effect, go back to the last approved state instead of stacking
    a fix on top.
+10. **Scope never leaves as "the next wave" on your own.** Pushing a deliverable out of the wave is a
+   decision the human makes, in so many words; an item you parked without that word is an item cut.
+   When a wave is too big, say which items you propose to defer and why, and wait.
 
 ## 2. Before you dispatch — the traps that cost a rewrite
 
 - **Complexity only for the case that happens.** Before a spec shapes code for a hard case, prove the case
   reaches the product: who gets there, and by which path. A case nobody can reach gets no code — the rule
   stays simple and the limit is written in the doc that owns it, with the trigger that reopens it. Every
-  branch built for a case that does not occur is code someone maintains and reviews forever.
+  branch built for a case that does not occur is code someone maintains and reviews forever. The
+  commonest shape of this waste: a rule that follows the vendor per category, per account or per
+  marketplace where one fixed, generous limit solves the case seen — ask "what is the one-line fix?"
+  before approving any rule that will need an exception per case.
 - **When code only solves it with a growing pile of rules, ask whether a model solves it better.** The
   signs: a rule that gains an exception per case, that will never be complete, that has to be rewritten
   for the next vendor or the next language. Judgement over messy input is what a model is for. The
@@ -126,7 +132,15 @@ moves a decision *earlier*, where it costs a message instead of a rewrite.
   side table and a delete. The spec says which row carries the flag, that undoing it is an update, that
   what should not exist is never written, and that the fact lands after its effect — or in the same
   transaction under a condition. "Mark paid, then advance the plan" in two steps is a lie waiting for the
-  first failure between them.
+  first failure between them. The same spec says **how the rows that already exist get the fact** —
+  on their next read, by a one-off mark the human runs, or not at all with null meaning unknown — and
+  checks that the read which fills it really reaches every legacy row (a sweep that only re-reads what a
+  notification marked fills nothing). A fact one bridge records is checked in every sibling bridge in
+  the same delivery: the gap shows up only when something downstream starts depending on it.
+- **A feature whose value depends on a vendor accepting something is measured before it is specified**,
+  on a real account, not a test one: the vendor accepting the write (a video on an item, a field on an
+  order) is the proof, and until it exists there is nothing to build — storage, compression and screens
+  for a thing no vendor receives are a feature without a destination.
 - **A change to what a shared function returns lists its callers in the spec.** A new error decided for
   one flow reaches every flow that calls the function; write what each caller does with it before
   dispatching.
@@ -314,6 +328,11 @@ the whole context, so a long session makes *each* step expensive — not only th
 - **The index is the human's review marker.** Never `git add`, `reset`, `restore`, `stash` or `mv` on your
   own. If an agent edits a staged file, report which.
 - **Ready work stays local**, with its proof run, and the report says "ready for you to review".
+- **In a tree another session also works in, "commit the index" is a build first.** Files staged earlier
+  and changed since, and the other session's staged work, may not compile together: build the index's
+  state in a scratch worktree (`git worktree add --detach`, `git diff --cached --binary | git apply
+  --index`) before `git commit`, and commit by explicit paths when only your delivery is authorised —
+  never `-a`, `-u` or `-A`. A file whose hunks mix two deliveries is the human's to split, not yours.
 - **Commit and push only with explicit authorization for that delivery**, in so many words. A broad
   "take the decisions from here" delegates design, never shipping.
 - **Push is not deploy.** Say "in production" only when the commit's deploy status reads success — a health
@@ -325,6 +344,7 @@ the whole context, so a long session makes *each* step expensive — not only th
 - **Short, result first.** What was delivered, what was not and why, what the human must decide.
 - **With several agents running, the human hears only three things:** a decision that is theirs, work ready
   for their review, and a result from production. Progress narration buries the question they must answer.
+  The close is one table — item → state → what the human does — and the detail waits for a question.
 - **Correct yourself plainly** when a claim you made was wrong and it changes the human's picture.
 - **Before calling a front done, sweep decided against built** against the code: each claim in the docs
   becomes *built*, *not built* or *divergent*, verified in the function body, never in a name, comment or
