@@ -379,15 +379,12 @@ func checkDuplication(cfg *Config, idx *dupIndex, f *File, add func(Finding)) {
 		case "DUP-03":
 			shape = fmt.Sprintf(" (%d-element markup subtree)", c.tokens)
 		}
-		// Canonical across the pair and free of line numbers: both sides report
-		// the clone once, and moving it down a file keeps its baseline entry.
-		ends := []string{f.Path, c.other.file}
-		sort.Strings(ends)
 		add(Finding{
 			Rule: rule, Sev: severityOf(cfg, rule), File: f.Path, Line: c.line,
 			Message: fmt.Sprintf("lines %d-%d duplicate %s:%d-%d%s — import the original instead",
 				c.line, c.endLine, c.other.file, c.other.line, c.otherEnd, shape),
-			Signature: signature(rule, ends[0], ends[1]),
+			Signature: pairSignature(rule, f.Path, c.other.file),
+			clonePeer: c.other.file,
 		})
 	}
 }

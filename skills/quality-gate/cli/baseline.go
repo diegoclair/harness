@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 )
 
 const baselineName = ".quality-gate-baseline.json"
@@ -91,15 +92,7 @@ func writeBaseline(root string, findings []Finding) (int, error) {
 			Rule: f.Rule, File: f.File, Signature: f.Signature, Note: f.Message,
 		})
 	}
-	sort.Slice(b.Entries, func(i, j int) bool {
-		if b.Entries[i].File != b.Entries[j].File {
-			return b.Entries[i].File < b.Entries[j].File
-		}
-		if b.Entries[i].Rule != b.Entries[j].Rule {
-			return b.Entries[i].Rule < b.Entries[j].Rule
-		}
-		return b.Entries[i].Signature < b.Entries[j].Signature
-	})
+	sortEntries(b.Entries)
 
 	raw, err := encodeBaseline(b)
 	if err != nil {
@@ -128,4 +121,132 @@ func encodeBaseline(b Baseline) ([]byte, error) {
 	}
 	out.WriteString("  ]\n}\n")
 	return out.Bytes(), nil
+}
+
+type remapResult struct {
+	Remapped  int
+	Unmatched []BaselineEntry
+	Fresh     int
+}
+
+// An entry is only ever carried to a new signature, never created: a remap
+// freezes no debt.
+func remapBaseline(cfg *Config, from []string, to string) (*remapResult, error) {
+	b, err := loadBaseline(cfg.Root)
+	if err != nil {
+		return nil, err
+	}
+	indexed, err := allSourceFiles(cfg)
+	if err != nil {
+		return nil, err
+	}
+	for _, old := range from {
+		if _, err := os.Stat(filepath.Join(cfg.Root, old)); err == nil {
+			return nil, fmt.Errorf("%s still exists: remap carries code that moved away from it", old)
+		}
+	}
+	repo := indexRepo(cfg, indexed, &checkResult{})
+	f, ok := repo.parsed[to]
+	if !ok {
+		return nil, fmt.Errorf("%s is not a source file the gate reads", to)
+	}
+	current := repo.findingsIn(cfg, f, nil)
+	renamed := signaturesAtOldPaths(to, current, from)
+
+	res := &remapResult{}
+	res.Remapped, res.Unmatched = b.carry(renamed, from, to)
+	kept := map[string]bool{}
+	for _, e := range b.Entries {
+		kept[e.Signature] = true
+	}
+	for _, fi := range current {
+		if !kept[fi.Signature] {
+			res.Fresh++
+		}
+	}
+
+	sortEntries(b.Entries)
+	raw, err := encodeBaseline(*b)
+	if err != nil {
+		return nil, err
+	}
+	return res, os.WriteFile(filepath.Join(cfg.Root, baselineName), raw, 0o644)
+}
+
+// An entry whose new signature another entry already holds or also claims is
+// left as it was: one signature never excuses two findings.
+func (b *Baseline) carry(renamed map[string]string, from []string, to string) (int, []BaselineEntry) {
+	existing := map[string]bool{}
+	claims := map[string]int{}
+	for _, e := range b.Entries {
+		existing[e.Signature] = true
+		if next, ok := renamed[e.Signature]; ok {
+			claims[next]++
+		}
+	}
+	remapped := 0
+	var unmatched []BaselineEntry
+	for i, e := range b.Entries {
+		next, ok := renamed[e.Signature]
+		if !ok || claims[next] > 1 || existing[next] {
+			if mentionsAny(e, from) {
+				unmatched = append(unmatched, e)
+			}
+			continue
+		}
+		b.Entries[i].Signature = next
+		if contains(from, e.File) {
+			b.Entries[i].File = to
+		}
+		remapped++
+	}
+	return remapped, unmatched
+}
+
+// A numbered signature depends on its neighbours' order, so it is never carried.
+// The old paths are gone, so no clone peer is one and no old signature has two sources.
+func signaturesAtOldPaths(to string, current []Finding, from []string) map[string]string {
+	out := map[string]string{}
+	for _, fi := range current {
+		if strings.Contains(fi.Signature, "#") {
+			continue
+		}
+		if !strings.HasPrefix(fi.Rule, "DUP-") {
+			for _, old := range from {
+				out[fileSignature(fi.Rule, old, fi.subject)] = fi.Signature
+			}
+			continue
+		}
+		peers := []string{fi.clonePeer}
+		if fi.clonePeer == to {
+			peers = from
+		}
+		for _, old := range from {
+			for _, peer := range peers {
+				out[pairSignature(fi.Rule, old, peer)] = fi.Signature
+			}
+		}
+	}
+	return out
+}
+
+func mentionsAny(e BaselineEntry, paths []string) bool {
+	for _, p := range paths {
+		if e.File == p || (strings.HasPrefix(e.Rule, "DUP-") && e.Signature == pairSignature(e.Rule, e.File, p)) {
+			return true
+		}
+	}
+	return false
+}
+
+func sortEntries(entries []BaselineEntry) {
+	sort.Slice(entries, func(i, j int) bool {
+		if entries[i].File != entries[j].File {
+			return entries[i].File < entries[j].File
+		}
+		if entries[i].Rule != entries[j].Rule {
+			return entries[i].Rule < entries[j].Rule
+		}
+		return entries[i].Signature < entries[j].Signature
+	})
 }

@@ -212,6 +212,8 @@ type File struct {
 	Elements []Element
 	JSXNodes []JSXNode
 
+	Decls []string
+
 	// Go only; Refs never counts a function's own declaration.
 	Refs              map[string]int
 	Calls             map[string]int

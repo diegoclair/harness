@@ -1,6 +1,6 @@
 ---
 name: orchestrator
-version: 0.16.0
+version: 0.17.0
 description: >-
   How to LEAD a multi-agent delivery as the parent session: the leader turns an objective into an approved spec with the implementers, decides what is theirs to decide, escalates only product rules to the human, and ships nothing the human has not reviewed. Use WHENEVER a session is set up as the orchestrator/lead/manager of a delivery, dispatches implementers or reviewers, writes specs for agents, is handed a goal to carry across several agents or repos, or is asked to build or refactor a non-trivial feature (several files, state or concurrency, regression risk) — EVEN if the user only says "take this front", "lead this", "implement X", or hands over from another session. Not for writing the code yourself (the implementers do), not for one-line fixes a build settles, and not for reviewing code that already exists (dispatch the reviewer on its own).
 allowed-tools:
@@ -112,6 +112,11 @@ moves a decision *earlier*, where it costs a message instead of a rewrite.
   a place already holding others, the spec draws the split: the questions it answers, where each one
   lives, what moves and in which order. Work piled in without that step is how one package ends up
   answering the same question five times.
+- **The other half: a new function goes into the file of its subject, and a new file is born only for
+  a subject that has no home yet.** The file name is the subject, the owner first and the piece after, so
+  one owner's subjects sit together; a package named for a role (`common`, `helpers`, `shared`, `core`, `utils`)
+  does not exist — the code goes to the owner, or to a sibling named for the question it answers. The
+  spec names the file each new function lands in, and a new file is a line the spec justifies.
 - **A fix that creates new state is at the wrong level.** A time defect is solved with a window; never
   create state that no job walks.
 - **A numeric fuse in config that stops a flow is the wrong answer.** What a run may cost is the

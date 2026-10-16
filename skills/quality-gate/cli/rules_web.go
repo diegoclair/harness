@@ -31,7 +31,7 @@ func checkHTTPBoundary(cfg *Config, f *File, add func(Finding)) {
 			Rule: "ARC-12", Sev: severityOf(cfg, "ARC-12"), File: f.Path, Line: line,
 			Message: what + " — HTTP lives in " + strings.Join(layers, "/") +
 				"; a component asks a hook, the hook asks a service",
-			Signature: signature("ARC-12", f.Path, what),
+			subject: []string{what},
 		})
 	}
 	// The rule is about a call, not an import: `import { HTTPError } from "ky"`
@@ -94,20 +94,10 @@ func (r *CanonicalRow) hits(text string) bool {
 // A row polices everything unless it says otherwise, and `except` always wins:
 // a rule scoped to a tree still has holes inside it.
 func (r *CanonicalRow) excepts(path string) bool {
-	for _, p := range r.Except {
-		if globMatch(p, path) {
-			return true
-		}
+	if matchesAnyGlob(r.Except, path) {
+		return true
 	}
-	if len(r.Only) == 0 {
-		return false
-	}
-	for _, p := range r.Only {
-		if globMatch(p, path) {
-			return false
-		}
-	}
-	return true
+	return len(r.Only) > 0 && !matchesAnyGlob(r.Only, path)
 }
 
 func emitCanonical(cfg *Config, f *File, row *CanonicalRow, line int, where string, add func(Finding)) {
@@ -122,8 +112,8 @@ func emitCanonical(cfg *Config, f *File, row *CanonicalRow, line int, where stri
 	}
 	add(Finding{
 		Rule: "ARC-13", Sev: sev, File: f.Path, Line: line,
-		Message:   row.ID + ": " + msg,
-		Signature: signature("ARC-13", f.Path, row.ID, strings.TrimSpace(where)),
+		Message: row.ID + ": " + msg,
+		subject: []string{row.ID, strings.TrimSpace(where)},
 	})
 }
 
@@ -171,8 +161,8 @@ func checkComponentDomainRules(cfg *Config, f *File, add func(Finding)) {
 	emit := func(line int, src, what string) {
 		add(Finding{
 			Rule: "ARC-14", Sev: severityOf(cfg, "ARC-14"), File: f.Path, Line: line,
-			Message:   what + " — a component renders; the rule belongs in a hook, a service or the backend",
-			Signature: signature("ARC-14", f.Path, what, src),
+			Message: what + " — a component renders; the rule belongs in a hook, a service or the backend",
+			subject: []string{what, src},
 		})
 	}
 	for n, line := range f.codeSource() {
@@ -218,7 +208,7 @@ func checkComponentSize(cfg *Config, f *File, add func(Finding)) {
 		emit := func(msg string) {
 			add(Finding{
 				Rule: "CPX-05", Sev: severityOf(cfg, "CPX-05"), File: f.Path, Line: fn.Line,
-				Message: msg, Signature: signature("CPX-05", f.Path, fn.Name),
+				Message: msg, subject: []string{fn.Name},
 			})
 		}
 		if n := fn.EndLine - fn.Line + 1; n > lineLimit {

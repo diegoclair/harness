@@ -72,6 +72,12 @@ report which already-staged files you changed**, because the version they review
 - **A file that grows because it holds two or three different scopes splits by scope, when that makes
   sense.** The cut follows the scopes — each business question with its owner — never a line count; a
   file that is one scope expressed at length stays whole.
+- **The other half: a new function goes into the file of its subject; a new file is born only for a
+  subject that has no home yet.** The file name is the subject, a singular noun in the project's naming
+  case: the owner first and the piece after (`product_fact` beside `product`), so one owner's subjects sit
+  together in the listing. A package named for a role (`common`, `helpers`, `shared`, `core`, `utils`)
+  does not exist: the code goes to the owner of the subject, or to a sibling named for the
+  question it answers. A deliberate one-file-per-unit layout is the project's `AGENTS.md` to declare.
 
 ## Code
 

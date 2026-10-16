@@ -33,7 +33,9 @@ A suppression without a reason is itself an error (`GATE-01`).
    satisfy a number produces worse code than leaving it alone, so every CPX rule
    is `warn` and every threshold is generous.
 5. **Nothing here may push toward file fragmentation.** Hundreds of tiny files
-   are not a quality signal — they are a navigation cost. See Non-goals.
+   are not a quality signal — they are a navigation cost. See Non-goals. A rule
+   that points at fragmentation is allowed, because it pushes the other way
+   (CPX-09).
 6. **Duplication and misplaced domain rules are the real errors.** They are also
    the two things a human reviewer misses most reliably, because catching them
    requires holding the whole repo in your head.
@@ -309,6 +311,7 @@ failure mode being avoided is a codebase cut into pieces to satisfy a linter.
 | CPX-06 | warn | go | A `bool` parameter, outside tests |
 | CPX-07 | warn | go | Unexported function, one call site in its package, whose whole body forwards one call with plain arguments |
 | CPX-08 | warn | go | Closure that calls itself through a `var x func` declared for it |
+| CPX-09 | warn | go | Diff mode only: a new file of ≤ 2 functions and ≤ 60 lines whose name shares its prefix with a sibling |
 
 A component, for CPX-05, is a function whose name starts with a capital and
 whose body opened at least one element. Hooks are `useX(` calls counted into
@@ -335,6 +338,20 @@ CPX-06 to CPX-08 ask the same question from the signature and the body:
   a name shared by two methods only ever silences the rule.
 - **CPX-08, a recursive closure.** `var walk func(...)` then `walk = func…` is a
   named function hiding inside another one, reaching state it should receive.
+
+CPX-09 reads the file instead of the function. A new file of at most
+`cpx.tiny_file_funcs` functions and `cpx.tiny_file_lines` lines, whose prefix
+(the name before its first `_`, or the whole name) is another file's in the same
+directory, may be a piece of that subject: join it there unless it is a
+subject of its own. **New**
+means none of its top-level declarations (by name, first letter's case folded
+and the receiver ignored, because a move often exports a name or makes a
+function a method) existed anywhere in the module at the merge-base, and the path did not exist
+there either; so a rename, a merge or a move into another package never fires,
+and the answer does not change with what is staged. The merge-base is read only
+when a candidate exists; when git cannot find one for an existing base branch
+(a shallow clone, an unrelated history), the report says CPX-09 did not run. A layout that is one small file per subject by design
+is declared under `tiny_file.except`.
 
 ---
 
@@ -503,7 +520,8 @@ Rules that will **not** be added, recorded so nobody adds them later:
 - Maximum lines per file, maximum functions per file, maximum file size. These
   produce fragmentation, and fragmentation is the cost this project refuses.
   Whether a file holds two or three scopes that should split is a reviewer's
-  judgement, not a number.
+  judgement, not a number. The other half is allowed: a rule that points at
+  fragmentation pushes the other way, which is what CPX-09 does.
 - Mandatory doc comment on every exported symbol. That manufactures exactly the
   noise CMT-07 deletes.
 - Any style rule a formatter already owns (`gofmt`, Prettier).

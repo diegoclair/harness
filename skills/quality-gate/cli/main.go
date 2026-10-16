@@ -12,9 +12,10 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
-var version = "v0.3.2"
+var version = "v0.4.0"
 
 const (
 	exitOK       = 0
@@ -27,6 +28,7 @@ const helpText = `quality-gate — the review pass a linter can actually do.
 USAGE:
   quality-gate check     [--all] [--since REF] [--format text|json] [--quiet]
   quality-gate baseline  [--prune] [--dir PATH]
+  quality-gate baseline remap --from OLD... --to NEW [--dir PATH]
   quality-gate explain   RULE-ID
   quality-gate rules
   quality-gate init      [--ruleset go|web|auto]
@@ -54,6 +56,10 @@ BASELINE:
   --prune drops the entries whose code is gone and freezes nothing new. That is
   the safe move after upgrading the binary: new rules retire old findings, and a
   full regenerate would silently re-freeze debt introduced since.
+
+  remap carries the entries of moved code to the file it now lives in: a
+  rename names one OLD, a merge names several. An entry that matches no
+  finding of NEW is listed and kept as it was, never regenerated.
 
 EXPLAIN / RULES:
   rules lists the catalog; explain gives one rule's reasoning and how to fix it.
@@ -145,6 +151,9 @@ func cmdCheck(args []string, stdout, stderr io.Writer) int {
 }
 
 func cmdBaseline(args []string, stdout, stderr io.Writer) int {
+	if len(args) > 0 && args[0] == "remap" {
+		return cmdRemap(args[1:], stdout, stderr)
+	}
 	fs := flag.NewFlagSet("baseline", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	dir := fs.String("dir", ".", "directory to resolve the config from")
@@ -214,6 +223,62 @@ func cmdPrune(cfg *Config, stdout, stderr io.Writer) int {
 		return exitUsage
 	}
 	fmt.Fprintf(stdout, "pruned %d stale entr(ies); %d remain. Nothing new was frozen.\n", dropped, len(kept.Entries))
+	return exitOK
+}
+
+// The flag package takes one value per flag, and a merge names every old file after one --from.
+func cmdRemap(args []string, stdout, stderr io.Writer) int {
+	var from []string
+	to, dir := "", "."
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
+		case "--from":
+			for i+1 < len(args) && !strings.HasPrefix(args[i+1], "--") {
+				i++
+				from = append(from, filepath.ToSlash(args[i]))
+			}
+		case "--to", "--dir":
+			if i+1 >= len(args) {
+				fmt.Fprintf(stderr, "%s needs a value\n", args[i])
+				return exitUsage
+			}
+			if args[i] == "--to" {
+				to = filepath.ToSlash(args[i+1])
+			} else {
+				dir = args[i+1]
+			}
+			i++
+		default:
+			fmt.Fprintf(stderr, "unknown argument %q\n", args[i])
+			return exitUsage
+		}
+	}
+	if len(from) == 0 || to == "" {
+		fmt.Fprintln(stderr, "usage: quality-gate baseline remap --from OLD... --to NEW [--dir PATH]")
+		return exitUsage
+	}
+	cfg, err := loadConfig(dir)
+	if err != nil {
+		fmt.Fprintln(stderr, err)
+		return exitUsage
+	}
+	res, err := remapBaseline(cfg, from, to)
+	if err != nil {
+		fmt.Fprintln(stderr, err)
+		return exitUsage
+	}
+	fmt.Fprintf(stdout, "remapped %d entr(ies) to %s. Nothing new was frozen.\n", res.Remapped, to)
+	if res.Fresh > 0 {
+		fmt.Fprintf(stdout, "%d finding(s) in %s match no entry: `check` reports them.\n", res.Fresh, to)
+	}
+	if len(res.Unmatched) == 0 {
+		return exitOK
+	}
+	fmt.Fprintln(stdout, "unmatched — kept as they were, for a person to decide:")
+	for _, e := range res.Unmatched {
+		fmt.Fprintf(stdout, "  %s %s %s\n", e.Rule, e.File, e.Note)
+	}
+	fmt.Fprintln(stdout, "an entry whose code is gone leaves with `quality-gate baseline --prune`.")
 	return exitOK
 }
 

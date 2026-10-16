@@ -9,7 +9,7 @@ func checkComplexity(cfg *Config, f *File, add func(Finding)) {
 		emit := func(rule, msg string) {
 			add(Finding{
 				Rule: rule, Sev: severityOf(cfg, rule), File: f.Path, Line: fn.Line,
-				Message: msg, Signature: signature(rule, f.Path, fn.Name),
+				Message: msg, subject: []string{fn.Name},
 			})
 		}
 		if limit := int(cfg.threshold("cpx.cyclomatic")); fn.Cyclomatic > limit {

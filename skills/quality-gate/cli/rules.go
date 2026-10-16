@@ -30,6 +30,10 @@ type Finding struct {
 
 	// Content-derived, never line-derived: the baseline is matched on it.
 	Signature string `json:"-"`
+
+	// Hashed after rule and file, so remap can recompute the signature at an old path.
+	subject   []string
+	clonePeer string
 }
 
 var catalog = map[string]Rule{
@@ -80,6 +84,8 @@ var catalog = map[string]Rule{
 		"An unexported function whose whole body forwards one call, called from one place, adds a hop and a name without adding a rule. Inline it, or move the rule its name promises into it."},
 	"CPX-08": {"CPX-08", SevWarn, "go", "recursive closure declared as `var x func`",
 		"A closure that calls itself through a variable is a named function hiding inside another one, usually with state it captures instead of receiving. Extract the function, or a type when the captured state is shared."},
+	"CPX-09": {"CPX-09", SevWarn, "go", "new small file that may be a piece of a sibling's subject",
+		"A new file of at most two functions and sixty lines whose name shares its prefix with a sibling (fact_x.go beside fact_key.go) may be a piece of a subject a sibling already owns: join it there unless it is a subject of its own. New means neither its path nor any of its top-level declarations existed anywhere in the module at the merge-base, so a rename, a merge or a move never fires. Diff mode only. A deliberate one-per-file layout is declared under tiny_file.except."},
 
 	"ARC-01": {"ARC-01", SevError, "go", "domain imports an outer layer",
 		"The domain names its ports; it never reaches for an adapter. Verified at zero violations when the rule was written."},

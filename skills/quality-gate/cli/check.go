@@ -21,6 +21,7 @@ type checkResult struct {
 	Stale        int
 	StaleEntries []BaselineEntry
 	ParseErrors  []string
+	Notices      []string
 }
 
 func runCheck(cfg *Config, opts checkOptions) (*checkResult, error) {
@@ -30,9 +31,10 @@ func runCheck(cfg *Config, opts checkOptions) (*checkResult, error) {
 	}
 
 	res := &checkResult{Indexed: len(indexed)}
-	parsed, idx := indexRepo(cfg, indexed, res)
+	repo := indexRepo(cfg, indexed, res)
 
 	targets := indexed
+	var pieces map[string]bool
 	if !opts.all {
 		changed, err := changedFiles(cfg, opts.since)
 		if err != nil {
@@ -40,45 +42,24 @@ func runCheck(cfg *Config, opts checkOptions) (*checkResult, error) {
 		}
 		targets = changed
 		for path, ranges := range addedLineRanges(cfg, opts.since) {
-			if f, ok := parsed[path]; ok {
+			if f, ok := repo.parsed[path]; ok {
 				f.AddedLines = ranges
 			}
 		}
+		pieces, err = repo.newSubjectPieces(cfg, targets, opts.since, res)
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	pkgs := indexGoPackages(parsed)
 	var findings []Finding
 	for _, path := range targets {
-		f, ok := parsed[path]
+		f, ok := repo.parsed[path]
 		if !ok {
 			continue
 		}
 		res.Scanned++
-
-		var fileFindings []Finding
-		add := func(fi Finding) { fileFindings = append(fileFindings, fi) }
-
-		sups := collectSuppressions(cfg, f, add)
-		checkComments(cfg, f, add)
-		checkComplexity(cfg, f, add)
-		checkNaming(cfg, f, add)
-		checkShape(cfg, pkgs, f, add)
-		checkArchitecture(cfg, f, add)
-		checkDuplication(cfg, idx, f, add)
-
-		// Identical comments in one file must not share a signature: one
-		// baseline entry would excuse both, and fixing one hides the other.
-		seen := map[string]int{}
-		for _, fi := range fileFindings {
-			if fi.Rule != "GATE-01" && suppressed(sups, fi) {
-				continue
-			}
-			seen[fi.Signature]++
-			if n := seen[fi.Signature]; n > 1 {
-				fi.Signature = fmt.Sprintf("%s#%d", fi.Signature, n)
-			}
-			findings = append(findings, fi)
-		}
+		findings = append(findings, repo.findingsIn(cfg, f, pieces)...)
 	}
 
 	if !opts.all {
@@ -130,9 +111,15 @@ func runCheck(cfg *Config, opts checkOptions) (*checkResult, error) {
 	return res, nil
 }
 
+type repoIndex struct {
+	parsed map[string]*File
+	dup    *dupIndex
+	pkgs   map[string]*goPackage
+}
+
 // indexRepo parses every file in the repo and feeds the duplication index,
 // which is what lets a one-file delivery still be compared against everything.
-func indexRepo(cfg *Config, paths []string, res *checkResult) (map[string]*File, *dupIndex) {
+func indexRepo(cfg *Config, paths []string, res *checkResult) *repoIndex {
 	idx := newDupIndex(int(cfg.threshold("dup.min_tokens")), int(cfg.threshold("dup.min_tokens_shape")),
 		int(cfg.threshold("dup.min_jsx_nodes")))
 	parsed := make(map[string]*File, len(paths))
@@ -149,7 +136,40 @@ func indexRepo(cfg *Config, paths []string, res *checkResult) (map[string]*File,
 		idx.add(f)
 		idx.addJSX(f)
 	}
-	return parsed, idx
+	return &repoIndex{parsed: parsed, dup: idx, pkgs: indexGoPackages(parsed)}
+}
+
+func (r *repoIndex) findingsIn(cfg *Config, f *File, pieces map[string]bool) []Finding {
+	var fileFindings []Finding
+	add := func(fi Finding) { fileFindings = append(fileFindings, fi) }
+
+	sups := collectSuppressions(cfg, f, add)
+	checkComments(cfg, f, add)
+	checkComplexity(cfg, f, add)
+	checkNaming(cfg, f, add)
+	checkShape(cfg, r.pkgs, f, add)
+	checkNewPiece(cfg, pieces, f, add)
+	checkArchitecture(cfg, f, add)
+	checkDuplication(cfg, r.dup, f, add)
+
+	// Identical comments in one file must not share a signature: one
+	// baseline entry would excuse both, and fixing one hides the other.
+	var out []Finding
+	seen := map[string]int{}
+	for _, fi := range fileFindings {
+		if fi.Rule != "GATE-01" && suppressed(sups, fi) {
+			continue
+		}
+		if fi.Signature == "" {
+			fi.Signature = fileSignature(fi.Rule, f.Path, fi.subject)
+		}
+		seen[fi.Signature]++
+		if n := seen[fi.Signature]; n > 1 {
+			fi.Signature = fmt.Sprintf("%s#%d", fi.Signature, n)
+		}
+		out = append(out, fi)
+	}
+	return out
 }
 
 // parseFile returns nil when the file's language has no front-end yet, so a

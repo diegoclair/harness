@@ -161,7 +161,10 @@ Editing the code loses the pass; everything around it moving does not.
 path-free signature would let a violation copied into a new file inherit the
 original's excuse, which is exactly the failure the gate exists to prevent.
 Identical findings within one file are numbered, for the same reason — one entry
-must never excuse two.
+must never excuse two. A deliberate move carries its excuses with
+`quality-gate baseline remap --from OLD... --to NEW`, which matches each entry by
+recomputing the finding's signature at the old path; what it cannot match is listed, never
+regenerated.
 
 `GATE-02` reports entries whose code is gone, so the file can only shrink.
 

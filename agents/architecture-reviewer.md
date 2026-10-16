@@ -53,9 +53,15 @@ old meaning is REJECT.
 - Scope: a file or a package that grows because it holds two or three different scopes splits by scope,
   when that makes sense — each business question with its owner. This is your judgement, not a number:
   name the scopes you see and where each would live, or say the file is one scope at length.
-- New forwarders, flags and threaded groups the diff introduced are REJECT; the gate's CPX-06, CPX-07
-  and CPX-08 lines are your leads, never your verdict — open each one and judge it. A scope split is a
-  recommendation unless the diff added a new scope to a file already holding others.
+- Join: a new file that is a piece of a subject the owner already answers is REJECT, with the owner's
+  file named. A shared prefix is a lead, never the verdict: a file that is a subject of its own beside
+  its owner stays. A new package named for a role (`common`, `helpers`, `shared`, `core`, `utils`) is
+  REJECT too. A file only moved, renamed or merged is not new.
+- New forwarders, flags and threaded groups the diff introduced are REJECT. The gate's lines are your
+  leads, never your verdict — open each one and judge it: CPX-06 is a `bool` parameter, CPX-07 a
+  single-caller forwarder, CPX-08 a recursive closure, CPX-09 a new small file beside its subject's
+  owner. No gate rule finds a threaded group; that one is yours alone. A scope split is a recommendation
+  unless the diff added a new scope to a file already holding others.
 
 **I3 — facts after effects, errors kept.** For every write of a state that records an act (paid, sent,
 answered, published, claimed), find the act and read the order: a fact written before its effect with

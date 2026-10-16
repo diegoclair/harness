@@ -43,6 +43,7 @@ func parseGo(root, relPath string) (*File, error) {
 	f.CodeLines = goCodeLines(f.SrcLines, af, fset)
 	f.Comments = goComments(af, f.SrcLines, line)
 	collectGoDecls(af, f, line)
+	f.Decls = topLevelDecls(af)
 	// Import blocks are near-identical across files by nature; leaving them in
 	// the token stream would make every file a clone of its neighbours.
 	f.Tokens = goTokens(fset, relPath, src, importRanges(af, line))
@@ -299,6 +300,51 @@ func collectGoDecls(af *ast.File, f *File, line func(token.Pos) int) {
 		}
 		return true
 	})
+}
+
+func goTopLevelDecls(path string, src []byte) ([]string, error) {
+	af, err := parser.ParseFile(token.NewFileSet(), path, src, parser.SkipObjectResolution)
+	if err != nil {
+		return nil, err
+	}
+	return topLevelDecls(af), nil
+}
+
+// The blank identifier and init are declared in every package, so they say
+// nothing about where a declaration came from.
+func topLevelDecls(af *ast.File) []string {
+	var out []string
+	keep := func(name string) {
+		if name != "_" && name != "init" {
+			out = append(out, name)
+		}
+	}
+	for _, d := range af.Decls {
+		switch d := d.(type) {
+		case *ast.FuncDecl:
+			keep(d.Name.Name)
+		case *ast.GenDecl:
+			for _, name := range specNames(d) {
+				keep(name)
+			}
+		}
+	}
+	return out
+}
+
+func specNames(d *ast.GenDecl) []string {
+	var out []string
+	for _, spec := range d.Specs {
+		switch s := spec.(type) {
+		case *ast.TypeSpec:
+			out = append(out, s.Name.Name)
+		case *ast.ValueSpec:
+			for _, n := range s.Names {
+				out = append(out, n.Name)
+			}
+		}
+	}
+	return out
 }
 
 func condOf(expr ast.Expr, ln int, srcLines []string) Cond {

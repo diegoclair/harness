@@ -1,6 +1,10 @@
 package main
 
 import (
+	"bufio"
+	"bytes"
+	"fmt"
+	"io"
 	"io/fs"
 	"os/exec"
 	"path/filepath"
@@ -74,21 +78,31 @@ func baseRef(cfg *Config) string {
 	return ""
 }
 
-// changedFiles is the delivery: everything different from the base branch plus
-// everything still uncommitted, because a gate that only sees commits is a gate
-// you run too late.
-func changedFiles(cfg *Config, since string) ([]string, error) {
+// Empty with no error when the repo has no base branch. An error means a base
+// exists and git could not relate HEAD to it: a shallow clone, an unrelated history.
+func mergeBase(cfg *Config, since string) (string, error) {
 	base := since
 	if base == "" {
 		base = baseRef(cfg)
 	}
-	set := map[string]bool{}
+	if base == "" {
+		return "", nil
+	}
+	mb, err := git(cfg.Root, "merge-base", "HEAD", base)
+	if err != nil {
+		return "", fmt.Errorf("git merge-base HEAD %s: %w", base, err)
+	}
+	return mb, nil
+}
 
-	if base != "" {
-		if mb, err := git(cfg.Root, "merge-base", "HEAD", base); err == nil && mb != "" {
-			if out, err := git(cfg.Root, "diff", "--name-only", "--diff-filter=ACMR", mb); err == nil {
-				addLines(set, out)
-			}
+// changedFiles is the delivery: everything different from the base branch plus
+// everything still uncommitted, because a gate that only sees commits is a gate
+// you run too late.
+func changedFiles(cfg *Config, since string) ([]string, error) {
+	set := map[string]bool{}
+	if mb, err := mergeBase(cfg, since); err == nil && mb != "" {
+		if out, err := git(cfg.Root, "diff", "--name-only", "--diff-filter=ACMR", mb); err == nil {
+			addLines(set, out)
 		}
 	}
 	if out, err := git(cfg.Root, "status", "--porcelain"); err == nil {
@@ -163,14 +177,7 @@ func parseHunk(line string) (lineRange, bool) {
 }
 
 func deliveryDiff(cfg *Config, since string) (string, bool) {
-	base := since
-	if base == "" {
-		base = baseRef(cfg)
-	}
-	if base == "" {
-		return "", false
-	}
-	mb, err := git(cfg.Root, "merge-base", "HEAD", base)
+	mb, err := mergeBase(cfg, since)
 	if err != nil || mb == "" {
 		return "", false
 	}
@@ -186,14 +193,7 @@ func deliveryDiff(cfg *Config, since string) (string, bool) {
 // addedLineRatio measures the delivery's comment budget (CMT-08) from the diff
 // itself: what the delivery added, not what the file already carried.
 func addedLineRatio(cfg *Config, since string) (comments, code int, worst []string) {
-	base := since
-	if base == "" {
-		base = baseRef(cfg)
-	}
-	if base == "" {
-		return 0, 0, nil
-	}
-	mb, err := git(cfg.Root, "merge-base", "HEAD", base)
+	mb, err := mergeBase(cfg, since)
 	if err != nil || mb == "" {
 		return 0, 0, nil
 	}
@@ -254,4 +254,80 @@ func topFiles(counts map[string]int, n int) []string {
 		out = append(out, e.file)
 	}
 	return out
+}
+
+// Keyed by the root-relative path a parsed File carries, so the two compare.
+func goBlobsAt(cfg *Config, rev string) (map[string]string, error) {
+	out, err := git(cfg.Root, "ls-tree", "-r", "-z", rev, "--", ".")
+	if err != nil {
+		return nil, fmt.Errorf("git ls-tree %s: %w", rev, err)
+	}
+	blobs := map[string]string{}
+	for _, entry := range strings.Split(out, "\x00") {
+		meta, path, ok := strings.Cut(entry, "\t")
+		fields := strings.Fields(meta)
+		if !ok || len(fields) != 3 || fields[1] != "blob" {
+			continue
+		}
+		if lang, ok := langOf(path); !ok || lang != LangGo || strings.HasSuffix(path, "_test.go") || cfg.excluded(path) {
+			continue
+		}
+		blobs[path] = fields[2]
+	}
+	return blobs, nil
+}
+
+// declarationsAt reads every blob through one `git cat-file --batch`: one
+// process per file costs seconds on a module of a thousand files.
+func declarationsAt(cfg *Config, blobs map[string]string, res *checkResult) (map[string]bool, error) {
+	paths := make([]string, 0, len(blobs))
+	for path := range blobs {
+		paths = append(paths, path)
+	}
+	sort.Strings(paths)
+	var in strings.Builder
+	for _, path := range paths {
+		in.WriteString(blobs[path] + "\n")
+	}
+	cmd := exec.Command("git", "cat-file", "--batch")
+	cmd.Dir = cfg.Root
+	cmd.Stdin = strings.NewReader(in.String())
+	raw, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("git cat-file --batch: %w", err)
+	}
+
+	known := map[string]bool{}
+	r := bufio.NewReader(bytes.NewReader(raw))
+	for _, path := range paths {
+		header, err := r.ReadString('\n')
+		if err != nil {
+			return nil, fmt.Errorf("git cat-file --batch: %s: %w", path, err)
+		}
+		fields := strings.Fields(header)
+		if len(fields) == 2 && fields[1] == "missing" {
+			res.Notices = append(res.Notices, fmt.Sprintf("CPX-09 read no declarations from %s at the merge-base: blob %s is missing", path, fields[0]))
+			continue
+		}
+		if len(fields) != 3 {
+			return nil, fmt.Errorf("git cat-file --batch: %s: unexpected header %q", path, strings.TrimSpace(header))
+		}
+		size, err := strconv.Atoi(fields[2])
+		if err != nil {
+			return nil, fmt.Errorf("git cat-file --batch: %s: %w", path, err)
+		}
+		src := make([]byte, size+1) // the content is followed by a newline
+		if _, err := io.ReadFull(r, src); err != nil {
+			return nil, fmt.Errorf("git cat-file --batch: %s: %w", path, err)
+		}
+		decls, err := goTopLevelDecls(path, src[:size])
+		if err != nil {
+			res.ParseErrors = append(res.ParseErrors, fmt.Sprintf("%s at the merge-base: %v", path, err))
+			continue
+		}
+		for _, d := range decls {
+			known[declarationKey(d)] = true
+		}
+	}
+	return known, nil
 }

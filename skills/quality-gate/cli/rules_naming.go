@@ -14,7 +14,7 @@ func checkNaming(cfg *Config, f *File, add func(Finding)) {
 			Rule: "NAM-01", Sev: severityOf(cfg, "NAM-01"), File: f.Path, Line: fn.Line,
 			Message: fmt.Sprintf("%s reads like a pure value but %s — name the cost with the project's verb for the gesture (get, find, list, fetch)",
 				fn.Name, tell),
-			Signature: signature("NAM-01", f.Path, fn.Name),
+			subject: []string{fn.Name},
 		})
 	}
 }

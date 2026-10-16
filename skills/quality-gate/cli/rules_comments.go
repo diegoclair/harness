@@ -31,7 +31,7 @@ func checkMemberComment(cfg *Config, f *File, c Comment, add func(Finding)) {
 		Rule: "CMT-10", Sev: severityOf(cfg, "CMT-10"), File: f.Path, Line: c.Line,
 		Message: fmt.Sprintf("comment on %s — a member speaks through its name; keep it only for a constraint the name cannot carry",
 			quoteTarget(c.Target)),
-		Signature: signature("CMT-10", f.Path, c.Text, c.Target),
+		subject: []string{c.Text, c.Target},
 	})
 }
 
@@ -39,7 +39,7 @@ func checkComment(cfg *Config, f *File, c Comment, add func(Finding)) {
 	emit := func(rule, msg string) {
 		add(Finding{
 			Rule: rule, Sev: severityOf(cfg, rule), File: f.Path, Line: c.Line,
-			Message: msg, Signature: signature(rule, f.Path, c.Text, c.Target),
+			Message: msg, subject: []string{c.Text, c.Target},
 		})
 	}
 	if commentedOutCode(c.Lines) {

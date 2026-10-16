@@ -26,6 +26,9 @@ func reportText(w io.Writer, res *checkResult, quiet bool) {
 	for _, e := range res.ParseErrors {
 		fmt.Fprintf(w, "skipped (unparseable): %s\n", e)
 	}
+	for _, n := range res.Notices {
+		fmt.Fprintf(w, "notice: %s\n", n)
+	}
 
 	if len(res.Findings) > 0 {
 		fmt.Fprintln(w)
@@ -62,10 +65,11 @@ type jsonReport struct {
 		Stale    int `json:"baseline_stale"`
 	} `json:"summary"`
 	Skipped []string `json:"skipped,omitempty"`
+	Notices []string `json:"notices,omitempty"`
 }
 
 func reportJSON(w io.Writer, res *checkResult) error {
-	r := jsonReport{Findings: res.Findings, Skipped: res.ParseErrors}
+	r := jsonReport{Findings: res.Findings, Skipped: res.ParseErrors, Notices: res.Notices}
 	if r.Findings == nil {
 		r.Findings = []Finding{}
 	}

@@ -66,6 +66,10 @@ type Config struct {
 		ComponentLayers []string `yaml:"component_layers"`
 	} `yaml:"heuristics"`
 
+	TinyFile struct {
+		Except []string `yaml:"except"`
+	} `yaml:"tiny_file"`
+
 	Exclude    []string           `yaml:"exclude"`
 	Severity   map[string]string  `yaml:"severity"`
 	Thresholds map[string]float64 `yaml:"thresholds"`
@@ -107,6 +111,8 @@ var defaultThresholds = map[string]float64{
 	"cpx.component_lines":              250,
 	"cpx.component_hooks":              10,
 	"dup.min_jsx_nodes":                12,
+	"cpx.tiny_file_funcs":              2,
+	"cpx.tiny_file_lines":              60,
 }
 
 func (c *Config) threshold(key string) float64 {
@@ -324,7 +330,11 @@ func globToRegexp(pattern string) string {
 }
 
 func (c *Config) excluded(path string) bool {
-	for _, p := range c.Exclude {
+	return matchesAnyGlob(c.Exclude, path)
+}
+
+func matchesAnyGlob(patterns []string, path string) bool {
+	for _, p := range patterns {
 		if globMatch(p, path) {
 			return true
 		}

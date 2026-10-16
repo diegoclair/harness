@@ -87,8 +87,8 @@ func checkImportEdges(cfg *Config, f *File, add func(Finding)) {
 			}
 			add(Finding{
 				Rule: edge.Rule, Sev: severityOf(cfg, edge.Rule), File: f.Path, Line: imp.Line,
-				Message:   fmt.Sprintf("%s imports %s (%s → %s is denied)", from, imp.Path, from, to),
-				Signature: signature(edge.Rule, f.Path, imp.Path),
+				Message: fmt.Sprintf("%s imports %s (%s → %s is denied)", from, imp.Path, from, to),
+				subject: []string{imp.Path},
 			})
 		}
 	}
@@ -110,8 +110,8 @@ func checkForbiddenImports(cfg *Config, f *File, add func(Finding)) {
 			}
 			add(Finding{
 				Rule: "ARC-07", Sev: severityOf(cfg, "ARC-07"), File: f.Path, Line: imp.Line,
-				Message:   fmt.Sprintf("%s must not import %s", layer, imp.Path),
-				Signature: signature("ARC-07", f.Path, imp.Path),
+				Message: fmt.Sprintf("%s must not import %s", layer, imp.Path),
+				subject: []string{imp.Path},
 			})
 		}
 	}
@@ -134,8 +134,8 @@ func checkContextIsolation(cfg *Config, f *File, add func(Finding)) {
 		rule := cfg.ContextRule
 		add(Finding{
 			Rule: rule, Sev: severityOf(cfg, rule), File: f.Path, Line: imp.Line,
-			Message:   fmt.Sprintf("%s imports %s — %s", own, other, isolationAdvice[rule]),
-			Signature: signature(rule, f.Path, imp.Path),
+			Message: fmt.Sprintf("%s imports %s — %s", own, other, isolationAdvice[rule]),
+			subject: []string{imp.Path},
 		})
 	}
 }
@@ -160,8 +160,8 @@ func checkSQLDomainRules(cfg *Config, f *File, add func(Finding)) {
 		emit := func(what string) {
 			add(Finding{
 				Rule: "ARC-05", Sev: severityOf(cfg, "ARC-05"), File: f.Path, Line: lit.Line,
-				Message:   what + " — the repository answers where the data is, not what the business decides",
-				Signature: signature("ARC-05", f.Path, what, firstLine(lit.Value)),
+				Message: what + " — the repository answers where the data is, not what the business decides",
+				subject: []string{what, firstLine(lit.Value)},
 			})
 		}
 		if caseWhenRe.MatchString(lit.Value) && !aggregatedCase(lit.Value) {
@@ -216,8 +216,8 @@ func checkHandlerDomainRules(cfg *Config, f *File, add func(Finding)) {
 		emit := func(what string) {
 			add(Finding{
 				Rule: "ARC-06", Sev: severityOf(cfg, "ARC-06"), File: f.Path, Line: c.Line,
-				Message:   what + " — a handler parses, delegates and renders",
-				Signature: signature("ARC-06", f.Path, c.Src),
+				Message: what + " — a handler parses, delegates and renders",
+				subject: []string{c.Src},
 			})
 		}
 		switch {

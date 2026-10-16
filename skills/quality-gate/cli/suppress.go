@@ -70,8 +70,8 @@ func collectSuppressions(cfg *Config, f *File, add func(Finding)) []suppression 
 			if m == nil {
 				add(Finding{
 					Rule: "GATE-01", Sev: severityOf(cfg, "GATE-01"), File: f.Path, Line: c.Line + i,
-					Message:   "malformed directive — expected `quality-gate:allow RULE — reason`",
-					Signature: signature("GATE-01", f.Path, line),
+					Message: "malformed directive — expected `quality-gate:allow RULE — reason`",
+					subject: []string{line},
 				})
 				continue
 			}
@@ -79,16 +79,16 @@ func collectSuppressions(cfg *Config, f *File, add func(Finding)) []suppression 
 			if _, known := catalog[rule]; !known {
 				add(Finding{
 					Rule: "GATE-01", Sev: severityOf(cfg, "GATE-01"), File: f.Path, Line: c.Line + i,
-					Message:   "directive names unknown rule " + rule,
-					Signature: signature("GATE-01", f.Path, line),
+					Message: "directive names unknown rule " + rule,
+					subject: []string{line},
 				})
 				continue
 			}
 			if reason == "" {
 				add(Finding{
 					Rule: "GATE-01", Sev: severityOf(cfg, "GATE-01"), File: f.Path, Line: c.Line + i,
-					Message:   "suppression of " + rule + " has no reason — the reason is the review comment the next reader needs",
-					Signature: signature("GATE-01", f.Path, line),
+					Message: "suppression of " + rule + " has no reason — the reason is the review comment the next reader needs",
+					subject: []string{line},
 				})
 				continue
 			}
@@ -119,6 +119,19 @@ func signature(parts ...string) string {
 		h.Write([]byte{0})
 	}
 	return strconv.FormatUint(h.Sum64(), 36)
+}
+
+// Canonical across the pair and free of line numbers: both sides report the
+// clone once, and moving it down a file keeps its baseline entry.
+func pairSignature(rule, a, b string) string {
+	if b < a {
+		a, b = b, a
+	}
+	return signature(rule, a, b)
+}
+
+func fileSignature(rule, path string, subject []string) string {
+	return signature(append([]string{rule, path}, subject...)...)
 }
 
 var spaceRe = regexp.MustCompile(`\s+`)

@@ -1,6 +1,6 @@
 ---
 name: quality-gate
-version: 0.3.2
+version: 0.4.0
 description: >-
   Runs the review pass a linter can actually do, as the last step of a delivery — before you report the work as done, and again on the PR. A local Go binary that catches what a reviewer otherwise catches by hand: comments that narrate behavior instead of stating purpose, declarations described instead of constrained, blocks that already exist elsewhere in the repo (indexed whole-repo, not just the diff), functions holding two rules, and domain logic leaking into a handler or a SQL query. Baseline-frozen, so it blocks new violations without demanding the repo be clean first. Use this skill whenever you finish writing or refactoring code and are about to hand it over, when the user asks for a quality gate, a code-quality check, a duplication check, a comment/architecture review before commit or PR — and as the closing step of any multi-file delivery, even when the user does not name it. Replies match the user's language.
 allowed-tools: |
@@ -128,7 +128,11 @@ does I/O (a `context.Context` in or an `error` out); the fix is the project's
 verb for the gesture. CPX-06 to CPX-08 read the shape a name hides — a `bool` parameter, a
 single-caller forwarder, a recursive closure. All three are warnings: each asks
 for a design step (the missing type, the rule the name promises), never a cut
-to fit a number.
+to fit a number. CPX-09 reads the other direction, in diff mode only: a new
+small file whose name shares its prefix with a sibling may be a piece of a
+subject a sibling already owns: join it there unless it is a subject of its own. A rename, a merge or
+a move never fires it, because their declarations already existed at the
+merge-base.
 
 **Frontend (ts/tsx).** The comment, duplication and complexity rules are
 language-neutral and run on `.ts`/`.tsx`/`.js`/`.jsx` too, plus six
@@ -174,6 +178,14 @@ quality-gate baseline    # freeze today's debt; commit the file
 stale-baseline error. `--prune` drops exactly those and freezes nothing new; a
 full regenerate would silently re-freeze whatever debt arrived since.
 
+**After moving or merging files, run `quality-gate baseline remap --from OLD...
+--to NEW`, never a plain `baseline`.** A signature carries its file's path, so a
+moved file loses every excuse. `remap` recomputes each finding of NEW as if it
+still sat at an old path and carries the matching entry over; an entry it cannot
+match — a clone pair whose ends moved in separate calls, a numbered finding, two
+entries claiming one signature — is listed and left as it was, for a person to
+decide. An entry whose code is gone leaves with `baseline --prune`.
+
 `prerequisites` in the config is where the project's own gates go
 (`gofmt -l .`, `go vet ./...`, `staticcheck ./...`, `tsc --noEmit`).
 quality-gate runs them first and refuses to report on a tree the project's own
@@ -185,7 +197,9 @@ Maximum lines per file, maximum functions per file, mandatory doc comments on
 exported symbols: none of these will ever be rules here. They buy compliance by
 fragmenting the codebase, and fragmentation costs more than it saves. A file
 that holds two or three scopes splits by scope, and that is a judgement for the
-architecture review, never a line count. The reasoning, rule by rule, is in
+architecture review, never a line count. A rule that points at fragmentation is
+allowed, because it pushes the other way: CPX-09 asks a new small file to join
+the subject that already has a home. The reasoning, rule by rule, is in
 [reference/rules.md](reference/rules.md) — read it before arguing with a
 finding, and before proposing a new rule.
 
