@@ -50,12 +50,12 @@ Source: `~/.claude/plugins/marketplaces/agricidaniel-claude-seo/skills/`. Paths 
 - AI crawlers **do not execute JS** → SSR/static is mandatory.
 
 **llms.txt** — `seo-geo/references/llmstxt-evidence.md`
-- Google Search ignores it (official doc 29 Jun 2026); Mueller: "dead end"; only 1 of the 50 most-cited domains has one; 0.1% of bot traffic. Report presence, weight zero. Worth it for dev docs (coding agents consume them). Format: `# Title`, `> description`, `## section` with `- [Page](url): description`.
+- Google Search ignores it ([Google AI guide](https://developers.google.com/search/docs/fundamentals/ai-optimization-guide), Jul 2026); 97% of files got zero requests in May 2026, and the readers are audit tools and coding agents, not AI search bots ([Ahrefs, Jun 2026](https://ahrefs.com/blog/llmstxt-study/)). Report presence, weight zero. Worth it for dev docs. Format: `# Title`, `> description`, `## section` with `- [Page](url): description`.
 
 **Citable passage (GEO)** — `seo-geo/SKILL.md`
 - Block of 134–167 words, self-contained (extractable without context), direct answer in the first 40–60 words of the section, "X is…" definition, fact/statistic with a source, unique data.
-- ~44% of citations come from the first 30% of the page → front-load. Headings in question form; table for comparison; list for steps.
-- Recency: <3 months ≈ 3× more cited; >6 months without update loses eligibility. Publication and update dates visible.
+- Answer first; headings in question form; table for comparison; list for steps. Google: no chunking or "for AI" rewriting required.
+- Publication and update dates visible, changed only with the content (freshness evidence in `geo.md`).
 - Prerequisite: indexed and snippet-eligible (there is no separate "AI index") — `seo-geo/references/google-ai-optimization-guide.md`.
 
 **E-E-A-T** — `seo/references/eeat-framework.md`, `seo-content/SKILL.md`
@@ -116,9 +116,7 @@ Source: `~/.claude/plugins/marketplaces/agricidaniel-claude-seo/skills/`. Paths 
 - Usage: baseline before deploy → compare after; when investigating a drop, compare + history.
 
 **GEO per platform and myths** — `seo-geo/SKILL.md`, `seo-geo/references/google-ai-optimization-guide.md`
-- **AI Overviews**: strongly correlated with ranking (92% of citations come from the top 10) → classic SEO + citable passages. **AI Mode** (custom Gemini 2.5): wider pool (~9 domains/query), cite the same URLs only 13.7% of the time → recency and entity weigh more than position; treat as a separate surface. Preferred Sources: ask the audience to add the brand.
-- **ChatGPT**: Wikipedia 47.9%, Reddit 11.3% → entity presence. **Perplexity**: Reddit 46.7%, Wikipedia → community validation. **Copilot**: Bing index + IndexNow. **Gemini**: only via `Google-Extended` (training/grounding); Search/AIO are independent.
-- Brand mentions correlate 3× more than backlinks (YouTube 0.737, Reddit high, DR 0.266); only 11% of domains are cited by ChatGPT and AIO on the same query.
+- Per-surface numbers come from `geo.md`, not from the plugin: its "92% of AI Overview citations from the top 10" is outdated, and "Perplexity: Reddit 46.7%" is a share of the top-10 domains (6.6% of all citations, [Profound](https://www.tryprofound.com/blog/ai-platform-citation-patterns)).
 - **Myths rejected by Google**: llms.txt/"for AI" files; "chunking"; rewriting with "for AI" phrasing; chasing inauthentic mentions; extra schema "for AI". "AEO/GEO is SEO". What counts: first-hand, non-commodity content.
 
 ## 3. Scripts worth copying/rewriting (in `scripts/`)

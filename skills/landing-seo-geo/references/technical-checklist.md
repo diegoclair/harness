@@ -19,7 +19,7 @@ no canonical/robots/sitemap/JSON-LD; everything below took one afternoon.
 | `sitemap.xml` | generated from the page registry; real `lastModified` | Only XML gets into Bing/GSC; a single page goes through URL Submission/IndexNow |
 | manifest | name, design system colors | Hygiene; Bing reads it |
 | JSON-LD | `@graph` with `@id`: Organization (logo, slogan, `sameAs` only with real profiles), WebSite, SoftwareApplication (`applicationCategory`, `operatingSystem`, `featureList`, `offers`/`AggregateOffer` read from the pricing file) | Disambiguates entity and price; **not** ranking |
-| FAQPage | generated from the same file as the visible FAQ (zero string duplication) | Rich result is gone (May 2026); still counts as an entity/question-answer signal |
+| FAQPage | generated from the same file as the visible FAQ (zero string duplication) | No rich result since 7 May 2026 ([Google](https://developers.google.com/search/docs/appearance/structured-data/faqpage)); no measured effect on citation; keep only because it costs zero |
 | BreadcrumbList + Article/AboutPage | per content page | Explicit page type |
 | Core Web Vitals | LCP ≤2.5 s, INP ≤200 ms, CLS ≤0.1 | Gate; 115 kB of First Load JS is healthy |
 | Content without JS | everything in the served HTML; reveal-on-scroll only hides after JS confirms it is alive | AI crawlers do not execute JS |

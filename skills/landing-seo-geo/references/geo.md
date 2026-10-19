@@ -1,131 +1,143 @@
-# GEO: getting cited by ChatGPT, Gemini, Perplexity, Copilot and AI Overviews
+# GEO: how assistants pick what to cite, and what moves it
 
-Sources from the round of 26 Aug 2026: Princeton study at scale (arXiv 2606.20065, 2026), crawler
-docs from OpenAI/Anthropic/Perplexity/Google, tests by measurement platforms, and a reality
-check on the niche's queries.
+Every number carries its source and date. Most studies come from vendors that sell GEO tooling and
+are correlational: direction, never a promise for the page.
 
-## What moves the needle
+## How each surface retrieves
 
-1. **Third-party presence.** ~68% of citations come from outside the brand's site; the most
-   cited format is the ranked listicle "best X" (~21% of citations). A niche brand shows up in ~11%
-   of relevant answers; a global brand in 73%. Conclusion: the site is a prerequisite, the citation comes
-   from the mentions plan.
-2. **Profile per engine.** ChatGPT weighs Wikipedia/encyclopedic sources and uses the Bing index
-   (so Bing Webmaster is mandatory). Perplexity weighs Reddit (~47% of citations) and recency
-   (content <30 days is cited ~3x more). AI Overviews/AI Mode use the Google index with E-E-A-T and
-   classic links. Gemini follows Google.
-3. **Citable passage.** 1 to 3 self-contained sentences, with the entity named, answering the question
-   someone would ask the assistant. One per section is enough; "it"/"the AI" without the name does not become a snippet.
-4. **HTML without JS and crawlers allowed.** Search bots do not execute JS.
-5. **Citing an authoritative external source inside the text** (the platform's official rule, with a link)
-   increased citation in tests: the site "borrows" authority and becomes verifiable.
-6. **Clear entity**: an "X is ..." sentence above the fold or in the footer, a `/o-que-e-a-x` page,
-   Organization with `sameAs` when profiles exist (empty is worse than absent).
-
-## Indexed but unknown: why "o que é a X" still returns "I don't know" (5 Sep 2026)
-
-Learned on a new brand, 13 days after launch, with sitemap processed in Search Console, all AI bots
-answering 200, JSON-LD and `llms.txt` live, and the Gemini app still answering "I don't know".
-Ranked causes, each verifiable:
-
-1. **The Gemini app is not a search product.** Default answer comes from training data; Search
-   grounding is selective, gated by a relevance prediction score (Google AI docs,
-   https://ai.google.dev/gemini-api/docs/google-search, read 5 Sep 2026). A brand token that looks
-   like a surname scores low, so an indexed page is never fetched. Expect Bing-backed assistants
-   (ChatGPT search, Copilot) and Perplexity first, AI Mode next, the Gemini app last (needs a
-   model refresh or a mention that raises the score).
-2. **Re-registered domain, old identity still in an index.** Google (John Mueller, Search Engine
-   Journal, 30 Sep 2025, https://www.searchenginejournal.com/google-explains-expired-domains-and-ranking-issues/557283/):
-   "it takes a lot of time for the old state of a domain to be shaken off ... nothing manual that
-   you can / need to do". Symptom: the brand query returns the previous owner's title and paths
-   that now 404. Check each index separately: in that case, 13 days in, Google already served only
-   the new pages (`site:` clean, all URLs indexed) while the Bing-side index, the one behind
-   ChatGPT and Copilot, still served the old affiliate site. A search tool's results are one
-   index, not "the web".
-3. **Zero third-party mentions.** One self-owned source has nothing to corroborate; the citation
-   comes from the mentions plan below, not from more markup.
-4. **Name collision.** A brand string that is also a surname, a UK company, a musician and a
-   GitHub handle is not read as a brand query. The definition sentence ("X é a IA que...") and the
-   off-site anchors with the identical name + URL are what disambiguate.
-5. **No Knowledge Graph node.** Wikidata only after two independent references exist (an item
-   with self-references only gets deleted).
-
-Order of work: confirm the index state (checks below) → off-site anchors with identical name,
-description and URL (LinkedIn company page, Crunchbase, Google Business Profile, GitHub org,
-Product Hunt), all listed in `Organization.sameAs` → three independent pt-BR mentions → Wikidata →
-Bing Webmaster + IndexNow. Measure the brand query monthly for the first non-owned result.
-
-Checks (exact):
-
-| Check | Query / URL | Failure looks like |
+| Surface | Index it reads when it searches | What follows |
 |---|---|---|
-| In the index at all | `site:<domain>` on google.com.br | 0 results, or the old titles |
-| Old state still served | `site:<domain>/<old-path>` | any hit |
-| Per-URL truth | Search Console → URL Inspection → Test live URL | Discovered/Crawled, currently not indexed |
-| Coverage | Search Console → Pages report | "sitemap processed" is not "indexed" |
-| Brand SERP | `<brand>`, `<brand> ia`, `o que é a <brand>`, incognito, pt-BR | site absent or below the collisions |
-| Grounding proof | ask Gemini `site:<domain> o que é a <brand>` | answers with the URL, not without it: entity gap, not content |
-| Bing side | `site:<domain>` on bing.com; Bing Webmaster → AI Performance | no impressions = ChatGPT/Copilot cannot cite |
+| ChatGPT search | Own crawler `OAI-SearchBot` + third-party providers (OpenAI names none; Bing is the one reported). Blocking `OAI-SearchBot` removes the site from search answers; robots changes take ~24 h ([OpenAI bots doc](https://developers.openai.com/api/docs/bots), Oct 2026) | Bing Webmaster + IndexNow; `OAI-SearchBot` allowed |
+| AI Overviews / AI Mode | Google index with *query fan-out* (several related sub-queries); different models, so different links. Only requirement: indexed and snippet-eligible ([AI features](https://developers.google.com/search/docs/appearance/ai-features); [Google AI guide](https://developers.google.com/search/docs/fundamentals/ai-optimization-guide), Jul 2026) | Classic SEO; nothing "for AI" |
+| Gemini app | Google Search, when the model judges a search improves the answer ([grounding doc](https://ai.google.dev/gemini-api/docs/google-search), Oct 2026); the consumer app's trigger is undocumented | Expect it last for a fresh brand |
+| Perplexity | Own index (`PerplexityBot`, honors robots); `Perplexity-User` fetches on demand and "generally ignores robots.txt" ([Perplexity bots](https://docs.perplexity.ai/guides/bots)) | Most Google-aligned assistant: 28.6% of its citations sit in Google's top 10 ([Ahrefs, Aug 2025](https://ahrefs.com/blog/ai-search-overlap/)) |
+| Claude | Brave Search (since Mar 2025) and turbopuffer (May 2026) on Anthropic's subprocessor list, as reported by [xponent21, Jul 2026](https://xponent21.com/insights/claude-web-search-brave-turbopuffer/); fetchers `Claude-SearchBot`, `Claude-User` ([Anthropic](https://support.claude.com/en/articles/8896518-does-anthropic-crawl-data-from-the-web-and-how-can-site-owners-block-the-crawler)) | Check the brand on search.brave.com too; Brave's crawler has no distinct user-agent |
+| Copilot | Bing index; "grounding queries" are rewrites of the prompt ([Bing, Feb 2026](https://blogs.bing.com/webmaster/February-2026/Introducing-AI-Performance-in-Bing-Webmaster-Tools-Public-Preview)) | Bing Webmaster |
 
-Not measured, do not budget on: "Wikidata makes you 3× more eligible", "72% vs 14%", "100% of
-cited tools are on G2/Capterra"; these circulate only in agency blogs without a reachable study.
+**Most answers do not search.** Only 14.4% of 66.6M free, logged-out ChatGPT responses ran a web
+search; paid and reasoning models search more ([Ahrefs, Oct 2026](https://ahrefs.com/blog/query-fan-out-chatgpt/)).
+Training data decides the rest, so a brand that wants to be known never blocks training bots
+(`GPTBot`, `ClaudeBot`, `Google-Extended`, `CCBot`).
 
-## Myths (do not spend time waiting for an effect)
+**Sub-queries drift to English.** 43% of fan-outs from non-English prompts ran in English, and local
+leaders lost to global brands ([Peec, Feb 2026](https://docs.peec.ai/research/chatgpt-searches-in-english), 10M prompts).
+In a non-English market, find the English sources the category cites and be present there.
 
-- `llms.txt`: Google does not use it (on record); logs show GPTBot/ClaudeBot/PerplexityBot almost
-  never fetching it; adoption ~10%. Publish it because it costs zero and concentrates the facts in clean text.
-- FAQPage "makes ChatGPT cite you": no evidence; the effect is indirect and about disambiguation.
-- Blocking GPTBot/Google-Extended "protects": it removes the brand from base knowledge. A new brand does not
-  block.
-- Vendor numbers ("+30% sales") dominate listicles; competing on that without measurement breaks the
-  data rule. The gap is a clear definition + honest comparison + third-party presence.
+**Answers vary run to run.** The same brand list repeats in under 1% of runs on ChatGPT and Google
+AI; the share of runs a brand appears in is stable, its position is not (SparkToro/Gumshoe, 2,961
+runs, Jan 2026, via [SEJ](https://www.searchenginejournal.com/ai-recommendations-change-with-nearly-every-query-sparktoro/566242/)).
+Measure frequency, never rank: `references/measurement.md`.
+
+## What moves citation (ranked by evidence)
+
+1. **Be in every index that feeds a surface** (table above). Without it nothing else counts.
+2. **Official pages answer the factual questions about the brand** (price, what it does, where it
+   works, "what is X", integrations): one URL per question, answer in the first paragraph, in served
+   HTML. For factual questions 63.4% of ChatGPT citations went to official sites (46.4% for
+   comparisons), and 75.9% of `site:` sub-queries targeted brand sites ([Ahrefs, Oct 2026](https://ahrefs.com/blog/query-fan-out-chatgpt/)).
+3. **Third-party mentions decide category and recommendation answers.** Branded web mentions
+   correlate 0.66–0.71 with AI visibility, Domain Rating 0.27–0.33, backlinks "very weak" (Spearman,
+   75k brands, [Ahrefs, Dec 2025](https://ahrefs.com/blog/ai-brand-visibility-correlations)). Earned media
+   is ~84% of cited sources, paid 0.3% (Muck Rack, May 2026, [summary](https://muckrack.com/blog/ai-citations-for-pr)).
+   "Best X" listicles are ~21% of citations ([arXiv 2606.20065](https://arxiv.org/html/2606.20065), single
+   author at a GEO vendor, Jun 2026). Plan in `references/geo-new-brand.md`.
+4. **YouTube.** Mentions in video titles, descriptions and transcripts have the highest measured
+   correlation (~0.74, Ahrefs Dec 2025); 18.2% of AI Overview citations from outside Google's top 100
+   are YouTube URLs (Ahrefs, Mar 2026, via [SEJ](https://www.searchenginejournal.com/google-ai-overview-citations-from-top-ranking-pages-drop-sharply/568637/)).
+5. **Classic ranking still helps, less than it did.** 38% of AI Overview citations come from the top
+   10 for the same query (76% in Jul 2025; parser and model changed in between). Assistants overlap
+   the original query's top 10 by ~11% on average (Ahrefs, Aug 2025).
+6. **Own data, quotations and linked sources in the text.** In the GEO paper, quotation addition gave
+   +41% and statistics +33% on a simulated engine, +22% on Perplexity, concentrated in low-ranked
+   pages ([Aggarwal et al., KDD 2024](https://arxiv.org/abs/2311.09735); 2023–24 engines, no replication
+   found). Google says no special writing for AI is needed: it counts as original content, not a trick.
+7. **Update when the fact changes, with a visible date.** Assistant citations are 25.7% newer than
+   organic results; ChatGPT is the most date-sensitive, AI Overviews the least; the average cited page
+   is still ~2.9 years old ([Ahrefs, Jul 2025](https://ahrefs.com/blog/do-ai-assistants-prefer-to-cite-fresh-content/)).
+   A new date without a content change is discouraged by Google.
+
+The citation mix shifts by month and engine: ChatGPT's Reddit share fell from ~1 in 5 answers to 1
+in 43 and Wikipedia from 1 in 7 to 1 in 35 (US, Mar→Sep 2026, Ahrefs Oct 2026), while Brazil showed
+Reddit at 9.0% and Wikipedia at 1.8% of ChatGPT citations ([Profound, Aug 2026](https://www.tryprofound.com/reports-guides/comportamento-de-prompts-e-citacoes-no-brasil)).
+No fixed source ranking holds; the panel says which domains the niche cites today.
+
+## Citable passage
+
+1 to 3 self-contained sentences that answer the question with the entity named ("X is ..."). One
+per section is enough; "it"/"the AI" without the name gives nothing to extract.
+
+## Myths (no effect on citation)
+
+- **`llms.txt`, Markdown for agents, "AI text files", schema "for AI".** "You don't need to create
+  new machine readable files, AI text files, markup, or Markdown" ([Google AI guide](https://developers.google.com/search/docs/fundamentals/ai-optimization-guide)).
+  97% of `llms.txt` files got zero requests in May 2026; of those read, AI search bots made 1.1% of
+  fetches and coding agents 10.5% ([Ahrefs, Jun 2026](https://ahrefs.com/blog/llmstxt-study/)). It serves
+  agents reading developer docs, not citation. Publish only if it costs zero.
+- **Chunking or rewriting "for AI".** Not required; no ideal length (same guide).
+- **Inauthentic mentions.** "Seeking inauthentic 'mentions' across the web isn't as helpful as it
+  might seem" (same guide), and manipulating AI responses is spam (`references/content-pages.md` § "Scale").
+- **FAQPage for citation.** No evidence; the FAQ rich result stopped showing on 7 May 2026
+  ([Google](https://developers.google.com/search/docs/appearance/structured-data/faqpage)).
+- **Blocking training bots "protects".** It keeps the brand out of what most answers are built from.
 
 ## User-agents that need `Allow: /`
 
 `OAI-SearchBot`, `GPTBot`, `ChatGPT-User`, `ClaudeBot`, `Claude-SearchBot`, `Claude-User`,
-`anthropic-ai`, `PerplexityBot`, `Perplexity-User`, `Google-Extended`, `Googlebot`, `Bingbot`,
-`Applebot`, `Applebot-Extended`, `CCBot`, `DuckAssistBot`, `meta-externalagent`, `Amazonbot`.
-`User-Agent: * / Allow: /` already covers them. Never block the `-SearchBot`/`-User` ones: they are the ones that cite.
-Check in Cloudflare that "Content Signals"/"AI bots" are not blocking account-wide
-(shows up as a block in the served `robots.txt`).
+`PerplexityBot`, `Perplexity-User`, `Google-Extended`, `Googlebot`, `Bingbot`, `Applebot`,
+`Applebot-Extended`, `CCBot`, `DuckAssistBot`, `meta-externalagent`, `Amazonbot`.
+`User-Agent: * / Allow: /` covers them. Check that Cloudflare does not block them account-wide
+(`references/publish-and-index.md` § "Content Signals").
 
 ## Page GEO checklist (score before and after)
 
-- [ ] An "X is ..." sentence with the entity, above the fold, in the footer or in the first FAQ
-- [ ] For whom, what it does, how much it costs, where it works: all in text, without JS
+- [ ] An "X is ..." sentence above the fold, in the footer or in the first FAQ
+- [ ] Price, what it does, for whom, where it works: each answerable from one URL, in text, without JS
 - [ ] One citable passage per section with the entity as the subject
-- [ ] FAQ with the questions people ask the assistant: "what is X", "is X a <category>?",
-      "does X work on Y?", "how much does it cost", "does X increase Z?" (answered without a promise)
-- [ ] Permissive robots; `llms.txt`; entity JSON-LD with real `sameAs`
-- [ ] Third-party rules/facts with link and date
+- [ ] FAQ with the questions people ask the assistant, answered without a promise
+- [ ] Permissive robots; entity JSON-LD with real `sameAs`
+- [ ] Third-party rules/facts with link and date; own data where it exists
+- [ ] Visible update date that changes only with the content
 - [ ] No number without a published measurement
 
-## Reality check (do it before writing copy)
+## Reality check (before writing copy)
 
-Search 3 to 5 questions from the niche and list who is cited and **why** (per-solution pages,
-educational blog, own "X vs Y vs Z" comparison, third-party listicles, docs). Pattern found in the
-BR marketplace niche: educational PT-BR content answering a generic question + own comparison +
-listicles, almost always with a vendor number. The opening is the honest definition.
+Run 3 to 5 niche questions a few times each and list which domains get cited and **why**
+(per-solution pages, educational content, own comparison, third-party listicles, video, docs). Pages
+and the mentions plan aim at those domains, not at a generic list.
 
-## Mentions plan (priority × impact)
+## Agent-facing distribution
 
-1. Reddit/communities/YouTube as the founder answering a real question (Perplexity, Gemini; recency).
-2. Inclusion in the niche's listicles, with the definition ready in 2 lines and the honest comparison
-   as the editorial differentiator.
-3. Product Hunt / BetaList / startup press at launch (creates profiles and `sameAs`).
-4. G2/Capterra/GetApp profiles pre-launch; reviews only with a real customer.
-5. Reclame Aqui: reply, when it exists.
-6. Niche guest posts/podcasts with the thesis and the public price.
-7. Wikidata (feasible before Wikipedia): entity, site, founder, date.
-8. The platforms' app marketplaces (gatekeepers of GMV; medium term).
+Being the option an agent installs, scaffolds or recommends by default, a separate channel from
+citation because the agent's pick becomes the stack. **Applies only when an agent building software
+chooses the product** (APIs, hosting, databases, email, payments, dev tools). It does not reach a
+non-technical SMB buyer asking a chat assistant; for that buyer the citation levers above decide.
 
-## Measurement
+Measured picks: Claude Code chose Stripe for 91.4% of payment tasks and built its own solution in 12%
+of all picks ([Amplifying.ai, Feb 2026](https://amplifying.ai/research/claude-code-picks/report)).
+**Defaults are volatile across model versions:** Railway held 82% of Python deploy picks (one FastAPI
+repo, three models, Feb 2026) and fell to 3 primary picks in 810 responses on the next model, where
+Docker took Python deploys ([Amplifying.ai, Jul 2026](https://amplifying.ai/research/claude-code-picks-fable)).
+Re-measure on every major model release; never sell a pick rate as durable.
 
-- Manual biweekly panel, private window, 8 fixed queries (e.g. "which AI for <task>",
-  "<brand> what is it", "alternative to <competitor>", "<task> from the phone"), on ChatGPT with
-  search, Gemini, Perplexity, Google AI Mode, Copilot. Record cited/position/sentiment/source
-  in `docs/measurements/geo-<month>.md`. New brand baseline: zero.
-- Bing Webmaster → "AI Performance" (beta): citations on Copilot/ChatGPT for free.
-- Cloudflare logs: monthly hits per AI user-agent and on `/llms.txt` (if zero for 3 months, the
-  myth is confirmed).
-- Paid tool (Peec, Profound, LLMrefs) only after launch.
+Mechanisms, ranked by evidence:
+
+1. **Default inside the app builder's template or integration.** The builder wires the vendor
+   without the user choosing, and it survives model changes. Resend's founder reported a record
+   signup month with no launch, "a ton of new users coming from Lovable, Bolt and v0"
+   ([Feb 2025](https://x.com/zenorocha/status/1887880098105495794)); it ships as a native v0
+   integration ([Vercel Marketplace](https://vercel.com/marketplace/resend), read Oct 2026).
+2. **Official plugin, MCP server and skill, plus a CLI that signs the user up.** Listing in the agent's
+   official directory (Claude Code's `claude-plugins-official`, read Oct 2026) and a command that
+   creates the account and deploys in one step (`railway up -y`) turn a recommendation into an
+   execution path. Usage is self-reported only ("tens of thousands of users every week" via agent
+   actions, [Railway, Jun 2026](https://blog.railway.com/p/state-of-railway-agents)).
+3. **Third-party pages paid by revenue share.** One page per "how do I host X", written by community
+   template authors who keep 25–50% of the revenue they generate: ~1,000 pages (Mar 2025) to ~6,700
+   (Oct 2026) at Railway, cost paid only after revenue
+   ([Railway, Mar 2025](https://blog.railway.com/p/1M-open-source-kickbacks)). Volume is verifiable;
+   the effect on agent picks is unmeasured.
+4. **Per-stack guides, markdown docs, `llms.txt`, markdown on `Accept: text/markdown`.** These make
+   the agent accurate after it chose you; no source ties them to being chosen. Ship them as hygiene.
+
+No vendor publishes the share of signups coming from agents or assistants (searched Oct 2026), so
+every mechanism above is ranked by mechanism plausibility plus self-report, not by controlled test.

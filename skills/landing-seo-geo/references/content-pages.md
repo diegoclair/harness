@@ -42,6 +42,28 @@ página não está no ar." — this page is not live), primary button to the hom
 One brand detail (at Rednev, the mirrored "404", because the brand is "selling backwards") is worth
 more than an illustration.
 
+## Scale: what keeps many pages out of spam
+
+Google's spam policy counts "attempting to manipulate generative AI responses in Google Search" as
+spam (since 15 May 2026), and *scaled content abuse* is "many pages ... generated for the primary
+purpose of manipulating search rankings", including AI-generated pages "without adding value",
+scraped or translated pages and stitched content ([spam policies](https://developers.google.com/search/docs/essentials/spam-policies),
+updated Aug 2026). Pages made for query variations "primarily to manipulate rankings or generative AI
+responses" fall under it ([Google AI guide](https://developers.google.com/search/docs/fundamentals/ai-optimization-guide)).
+AI-written text is allowed if fact-checked, including title, meta, structured data and alt
+([gen-AI content](https://developers.google.com/search/docs/fundamentals/using-gen-ai-content), Oct 2026).
+
+A registry page is safe when:
+
+- it holds a fact no other page of the site holds (the platform's rule with link and date, an own
+  measurement, an honest comparison table), so the page count grows with distinct facts, never with
+  keyword combinations;
+- someone asks that question as such, and the page would be worth publishing if it were the only one;
+- every claim was checked against its source before going live (`references/sources-and-competitors.md`).
+
+Never: a "best X" listicle that ranks the own brand presented as independent, a swapped date without
+a content change, one page per city/segment with the same body.
+
 ## Before going live
 
 - The pages' copy goes through the owner (it is brand text); the agent delivers a list of claims to

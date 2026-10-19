@@ -11,7 +11,7 @@ Then search `<brand>` and `site:<domain>` and read the titles. A registration da
 a domain with Wayback captures going back years means the index still holds the previous owner's
 site; the brand query will return that title (and paths that now 404) for weeks, and nothing
 manual shortens it. Knowing it on day 1 sets the expectation and moves the effort to off-site
-anchors (`geo.md` § "Indexed but unknown") instead of to more schema.
+anchors (`geo-new-brand.md` § "Indexed but unknown") instead of to more schema.
 
 ## Deploy (Cloudflare Workers Assets, static export)
 
@@ -39,7 +39,8 @@ page) is the fix when external links arrive without it.
 
 **Domain** property (covers www, http, subfolders) → TXT in Cloudflare DNS → Sitemaps →
 `https://<site>/sitemap.xml`. Meta tag verification (`metadata.verification.google`) is the
-alternative when DNS is not at hand.
+alternative when DNS is not at hand. The Generative AI performance report, when the property has it,
+is the AI Overviews/AI Mode signal (`references/measurement.md`).
 
 ## Bing Webmaster Tools (feeds ChatGPT search, Copilot, DuckDuckGo)
 
@@ -54,8 +55,8 @@ alternative when DNS is not at hand.
    `https://www.bing.com/webmasters/submiturl?siteUrl=https://<site>/` (Bing's own welcome e-mail
    points there).
 4. The site dropdown at the top is a selector, not "add site".
-5. Menus worth knowing: **AI Performance (beta)** = citations on Copilot/ChatGPT (free GEO
-   measurement); **Site Scan** = Bing's technical audit (run after a few days of crawling);
+5. Menus worth knowing: **AI Performance (preview)** = citations on Copilot, Bing AI summaries and
+   unnamed partners, ChatGPT not named (`references/measurement.md`); **Site Scan** = Bing's technical audit (run after a few days of crawling);
    **Keyword Research**; **Backlinks**.
 6. Check the exact domain of each property (`.com` vs `.com.br`): a sitemap from the wrong domain
    does not match.
@@ -78,6 +79,11 @@ Two more switches on the same domain, both defaulting to "block" on zones create
 allow/block, formerly "AI Audit"). A blocked crawler gets a 403 that `robots.txt` never shows, so
 confirm with `curl -A "GPTBot" -o /dev/null -w '%{http_code}' https://<site>/` (repeat for
 `ClaudeBot`, `PerplexityBot`, `OAI-SearchBot`).
+
+**Markdown for Agents** (AI Crawl Control, Pro/Business, since Feb 2026) serves a Markdown copy to
+clients that send `Accept: text/markdown` ([Cloudflare](https://developers.cloudflare.com/fundamentals/reference/markdown-for-agents/)).
+No measured citation effect; leave it off unless agents reading docs are the audience, and never let
+the origin serve different content to it (cloaking).
 
 ## Learned from a baseline run (things a generic answer got right)
 

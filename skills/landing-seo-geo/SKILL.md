@@ -12,28 +12,41 @@ and the order that avoids rework. Each reference says where the lesson was learn
 
 ## What the skill knows that changes the decision
 
-- **Classic SEO is a prerequisite, not the whole game.** Google AI Overviews and Bing/Copilot read
-  the search index; ChatGPT uses Bing. Without Search Console + Bing Webmaster nothing else gets measured.
-- **What decides whether an assistant cites the brand is third-party presence**, not the brand's
-  own site: ~68% of citations come from outside (listicles "best X", Reddit, G2, YouTube); a niche
-  brand shows up in ~11% of answers versus 73% for a global brand. The site has to exist and be
-  clear; the citation comes from the mentions plan. Details in `references/geo.md`.
+- **Classic SEO is a prerequisite, not the whole game.** Each assistant searches its own index:
+  Google (AI Overviews, AI Mode, Gemini), Bing and `OAI-SearchBot` (ChatGPT, Copilot), Perplexity's
+  own, Brave (Claude). Be in every one of them. Per-surface table in `references/geo.md`.
+- **Most answers never search.** Only 14.4% of free ChatGPT responses ran a search (Ahrefs, Oct
+  2026); the rest come from training, so a brand that wants to be known never blocks training bots.
+- **Two kinds of question, two sources.** Factual questions about the brand (price, features,
+  "what is X") are cited from the official site: 63.4% of ChatGPT's factual citations (Ahrefs, Oct
+  2026), so each needs a URL that answers it in text. Category and recommendation answers come from
+  third parties: brand mentions correlate ~0.66–0.71 with AI visibility, YouTube ~0.74, Domain
+  Rating ~0.3 (Ahrefs, Dec 2025); earned media is ~84% of cited sources (Muck Rack, May 2026). A
+  niche brand starts near 11% visibility versus 73% for a global one (arXiv 2606.20065, vendor
+  author, Jun 2026). Plan in `references/geo-new-brand.md`.
+- **The same prompt gives a different answer each run** (the same brand list repeats in <1% of
+  runs, SparkToro, Jan 2026). Measure the share of runs the brand appears in over many runs, never
+  its position: `references/measurement.md`.
 - **A citable passage** is 1 to 3 sentences that answer the question on their own, with the entity
   named ("Rednev is..."). A page that only says "it"/"the AI" produces no extractable snippet. It is the most common mistake.
-- **Myths that cost time:** `llms.txt` is not ranking (Google does not use it; logs show bots almost
-  never fetching it); the FAQ rich result was discontinued by Google (May 2026); AI Overviews do not
-  require structured data. Schema serves to disambiguate the entity and the price, not to rank.
-  Publish `llms.txt` and JSON-LD because they cost zero, not expecting an effect.
+- **Myths that cost time:** `llms.txt`, Markdown for agents, MCP servers and schema "for AI" have no
+  measured citation effect; Google says it needs no AI files or markup, and the readers of
+  `llms.txt` are coding agents and audit tools (97% of files never read, Ahrefs, Jun 2026). The FAQ
+  rich result stopped showing on 7 May 2026. Schema disambiguates entity and price; it does not rank.
+  Publish `llms.txt` and JSON-LD only because they cost zero.
+- **Scale is a spam risk.** Since 15 May 2026 Google's spam policy covers manipulating AI responses,
+  and pages made for query variations are *scaled content abuse*. A page earns its place with a fact
+  no other page holds. Rules in `references/content-pages.md` § "Scale".
 - **One URL ranks for one topic.** The home covers the brand; "AI for X" needs a page whose
   title, h1 and first paragraph are about X. A page promising an integration that does not exist
   ("AI for Shopee" with Shopee under construction) does not rank and breaks the communication rule.
 - **An indexed site can still get "I don't know" from an assistant, and the markup is not the
-  cause.** The Gemini app answers from training data first and only grounds on Search above a
-  relevance threshold; a fresh brand name that reads like a surname rarely crosses it. A
+  cause.** The answer usually came from training, not search, and the Gemini app searches only
+  when the model judges it helps; a fresh brand name that reads like a surname rarely triggers it. A
   re-registered domain keeps its *old* identity in the index for weeks (Google: "it takes time for
   the old state to be shaken off", nothing manual fixes it). Zero third-party mentions means
   nothing to corroborate. Diagnose in that order before touching schema. Details and the
-  checks in `references/geo.md` § "Indexed but unknown".
+  checks in `references/geo-new-brand.md` § "Indexed but unknown".
 - **Check the domain's previous life BEFORE launching on it** (RDAP registration date, Wayback,
   `site:` searches for old paths). Learned the hard way on a new brand: two weeks after launch Google was
   already clean, but the Bing-side index (ChatGPT, Copilot) still served the previous owner's
@@ -90,7 +103,8 @@ The pattern that scales: **page = data file + shared template + registry**; dyna
 metadata, JSON-LD per type, sitemap, footer and "read also" all derive from the registry. First
 three pages, in this order: `/ia-para-<segmento>` (where the search volume is),
 `/o-que-e-a-<marca>` (entity, for "what is X"), `/<marca>-vs-<categoria>` (comparison, the
-most-cited format). Structure, answer-first lead and honest comparison table in
+most-cited format). Each new page needs a fact no other page holds, or it is scaled content.
+Structure, answer-first lead, honest comparison table and the scale rules in
 `references/content-pages.md`.
 
 ### 5. Sources: link everything, before going live
@@ -106,17 +120,21 @@ a competitor in `references/sources-and-competitors.md`.
 
 Deploy → confirm live (`curl` on title, JSON-LD, robots, sitemap, llms.txt, 404) → Search
 Console (domain property, TXT in DNS, submit sitemap) → Bing Webmaster **importing from
-Search Console** (one click, covers Copilot/ChatGPT/DuckDuckGo) → Cloudflare **Caching →
+Search Console** (one click; the Bing index feeds Copilot and DuckDuckGo, and is the provider reported
+behind ChatGPT) → Cloudflare **Caching →
 Configuration → Crawler Hints: On** (that is IndexNow, notifies Bing/Yandex on every deploy). Step by
 step, what is confusing in the Bing UI and what to check under "Content Signals" in
 `references/publish-and-index.md`.
 
 ### 7. Measure and follow the mentions plan
 
-Manual biweekly panel (8 fixed queries × ChatGPT, Gemini, Perplexity, AI Mode, Copilot; private
-window) recorded in `docs/measurements/`; Bing Webmaster "AI Performance" and Cloudflare logs
-by user-agent as the crawler signal. A new brand's baseline is zero citations; the curve comes from the
-third-party plan in `references/geo.md` § "Mentions".
+On launch day: a required "how did you hear about us?" field on signup naming each assistant (the
+only attribution that sees an AI answer read without a click), Search Console's Generative AI report,
+Bing Webmaster "AI Performance", analytics referrals and CDN logs by user-agent. Monthly: a panel
+of ~20 fixed prompts × 5 runs × each engine, counting the share of runs the brand appears in and
+every domain cited, with the confidence math. A new brand's baseline is zero; the cited domains say
+which third parties the mentions plan targets. Method in `references/measurement.md`, plan in
+`references/geo-new-brand.md` § "Mentions plan".
 
 ## Rules that apply to every agent dispatched by this skill
 
@@ -136,8 +154,10 @@ third-party plan in `references/geo.md` § "Mentions".
 | File | When to read |
 |---|---|
 | `references/technical-checklist.md` | Audit and application on static Next.js: limits, JSON-LD, export gotchas, split between two agents |
-| `references/geo.md` | What moves citation in each engine, myths, list of AI user-agents, citable passage, mentions plan, measurement panel |
-| `references/content-pages.md` | Architecture page = data + template, answer-first lead, honest comparison, brand 404 |
+| `references/geo.md` | How each assistant retrieves, what moves citation ranked by evidence, myths, AI user-agents, citable passage, page checklist, agent-facing distribution |
+| `references/geo-new-brand.md` | Why an indexed brand still gets "I don't know", the per-index checks, the mentions plan with evidence per channel |
+| `references/measurement.md` | Signup attribution question, Search Console / Bing AI reports, analytics, the N prompts × M runs panel with its confidence math, paid tools |
+| `references/content-pages.md` | Architecture page = data + template, answer-first lead, honest comparison, what keeps many pages out of spam, brand 404 |
 | `references/sources-and-competitors.md` | The "no link, no go-live" rule, how to re-read sources that block bots, what CONAR allows when naming a competitor |
 | `references/publish-and-index.md` | Cloudflare deploy, Search Console, Bing Webmaster (import, sitemaps, IndexNow, AI Performance, Site Scan), Crawler Hints |
 | `references/claude-seo-distilled.md` | Checklists and methodologies reused from the claude-seo plugin (audit, SERP backwards, drift, competitor pages) |
