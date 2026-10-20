@@ -1,6 +1,6 @@
 ---
 name: orchestrator
-version: 0.17.0
+version: 0.18.0
 description: >-
   How to LEAD a multi-agent delivery as the parent session: the leader turns an objective into an approved spec with the implementers, decides what is theirs to decide, escalates only product rules to the human, and ships nothing the human has not reviewed. Use WHENEVER a session is set up as the orchestrator/lead/manager of a delivery, dispatches implementers or reviewers, writes specs for agents, is handed a goal to carry across several agents or repos, or is asked to build or refactor a non-trivial feature (several files, state or concurrency, regression risk) — EVEN if the user only says "take this front", "lead this", "implement X", or hands over from another session. Not for writing the code yourself (the implementers do), not for one-line fixes a build settles, and not for reviewing code that already exists (dispatch the reviewer on its own).
 allowed-tools:
@@ -107,6 +107,9 @@ moves a decision *earlier*, where it costs a message instead of a rewrite.
   the domain. A question with no owner gets one in the spec, where the project puts rules of its kind; a
   rule the database must apply is a named SQL fragment beside its entity method, never an inline copy.
   The implementer's owner search refutes the table cheaply; the architecture reviewer judges against it.
+  **The table has a row for every vocabulary the delivery adds values to** — metric keys, kinds, statuses,
+  a vendor's values mapped into ours — naming the constants that already exist; a spec that maps a
+  vendor's values and lists no vocabulary row is not approved.
 - **A file or package that grows because it holds two or three different scopes splits by scope, when
   that makes sense.** It is a judgement, never a line count. Before dispatching work that adds a scope to
   a place already holding others, the spec draws the split: the questions it answers, where each one

@@ -195,6 +195,11 @@ in the domain's words, which business question it answers. Then look for that qu
   predicate (a `WHERE`, a `CASE`, a `COALESCE` default), in a service and in the query that feeds it, and
   on both sides of a vendor boundary — the adapter and the domain. A search that read one layer found
   nothing.
+- **A value is an answer too.** Before declaring a key, kind, status or unit — or mapping a vendor's value
+  into our words — list the vocabulary that already exists for that question (the domain type's
+  constants, the column's values in use) and map onto it. A new value is born only for what no existing
+  one means, and gets its own line in the search below; a vendor value both marketplaces measure lands on
+  the word the domain already has.
 - **Cross the repo border:** the project's own libraries are code too.
 - **Found: ask it.** Never recompute an answer that has an owner, never re-read config the owner already
   reads, never turn what a port returned into a decision of your own. When the owner cannot answer the
@@ -206,7 +211,7 @@ in the domain's words, which business question it answers. Then look for that qu
 - **Not found:** the owner is born where the project's `AGENTS.md` puts rules of its kind — a pure rule
   over our own data on the entity — and the next place that needs it asks it.
 
-**The search is written down, one line per function or type born:**
+**The search is written down, one line per function, type or vocabulary value born:**
 `question → searched (the greps, the layers) → reused <symbol> | extended <symbol> | born at <symbol>`.
 A search not written down did not happen.
 
