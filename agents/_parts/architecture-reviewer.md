@@ -41,7 +41,9 @@ spec's owner table. A second answer that predates the diff and that the diff did
 not blocking. When the diff widens or narrows what an existing answer means — a predicate that now covers
 another state, a mapping that moves a value to another bucket — grep every reader of it and check each
 still asks the question the answer now gives: a reader, name or seller-facing sentence still built on the
-old meaning is REJECT.
+old meaning is REJECT. When the diff changes how a thing is named or told to the user, grep every window
+that shows it — page, list, notification, push, e-mail, prompt — on the first pass: a window that still
+composes its own name or sentence instead of asking the owner is REJECT.
 
 **I2 — every function earns its name, every file its scope.**
 - A forwarder: a body that only forwards one call, with one caller. A chain of them is the same defect
