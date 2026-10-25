@@ -1,6 +1,6 @@
 ---
 name: implementation-plan
-version: 0.2.0
+version: 0.3.0
 description: >-
   Turns a large or fuzzy objective into a BULLETPROOF, executable SPEC — the spec that the `orchestrator` skill or an autonomous goal then executes. It recons the code verifying every claim against the SOURCE (not docs/comments that lie), pre-consolidates the already-settled decisions the human points at (so the executor won't re-ask or reinvent), marks the open decisions as explicit stop-points, writes inviolable rules + verifiable exit criteria, and runs an ADVERSARIAL REVIEW of the draft spec (via the `unbiased-reviewer` agent) to catch BLOCKERs before a line is written. Use WHENEVER the user wants to plan, spec, scope, or think through a large/risky change; de-risk a big refactor; or set up an autonomous goal — EVEN if they just say 'let's plan X', 'how should we approach Y?', or 'I want to build a big feature'. Fire it BEFORE implementation, not during. Proven: the adversarial spec review caught real BLOCKERs on every run (wrong premise, internal contradiction, a contract comment that lied).
 allowed-tools:
@@ -47,6 +47,7 @@ Minimal structure that proved to work:
 ### 5. Adversarial review of the spec (the gate that catches BLOCKERs)
 Dispatch the **`unbiased-reviewer`** agent (or a fresh adversarial reviewer) against the **draft spec + the code**, with the explicit mission of finding BLOCKERs **before execution**. Classes it must hunt (all already caught in real runs):
 - **Wrong recon premise** — the spec claims something exists/works and the code says otherwise.
+- **A fact with a home per vendor** — the spec stores or moves a fact whose place depends on the vendor or on a count or kind of the vendor's record (one place when the record holds one item, another when it holds many). The fact gets one home and the vendor that differs is translated in its adapter; a spec that fixes one vendor and leaves the other "unchanged" in a different shape is a BLOCKER.
 - **Internal contradiction** — two sections of the spec contradict each other (e.g., an allowlist with 3 items in one, 4 in another).
 - **The spec trusts a COMMENT that lies** — require verifying the behavior in the code, not the comment; and that the test exercises the real path, not mocks the ready result.
 - **A spec rule conflicts with what the repo already has** (e.g., "mocks only" but there's a pre-existing hand-rolled fake that won't disappear).

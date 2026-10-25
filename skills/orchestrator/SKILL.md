@@ -1,6 +1,6 @@
 ---
 name: orchestrator
-version: 0.19.0
+version: 0.20.0
 description: >-
   How to LEAD a multi-agent delivery as the parent session: the leader turns an objective into an approved spec with the implementers, decides what is theirs to decide, escalates only product rules to the human, and ships nothing the human has not reviewed. Use WHENEVER a session is set up as the orchestrator/lead/manager of a delivery, dispatches implementers or reviewers, writes specs for agents, is handed a goal to carry across several agents or repos, or is asked to build or refactor a non-trivial feature (several files, state or concurrency, regression risk) — EVEN if the user only says "take this front", "lead this", "implement X", or hands over from another session. Not for writing the code yourself (the implementers do), not for one-line fixes a build settles, and not for reviewing code that already exists (dispatch the reviewer on its own).
 allowed-tools:
@@ -138,6 +138,11 @@ moves a decision *earlier*, where it costs a message instead of a rewrite.
   check the analogy holds there — a bridge that serves one role through many vendors is not shaped like
   a bridge that speaks to one company, however alike the folders look. Write the shape (packages, who
   knows what, where state lives, what a swap costs) in the spec; the implementer builds it, not derives it.
+- **A defect fixed inside the shape it lives in inherits the shape's mistake.** Before specifying a fix to
+  a fact that crosses vendors, write where the fact lives for each vendor and for the next one. When the
+  answer depends on the vendor — a branch on a count or a kind deciding where the fact is kept — the fix is
+  the one home, not another branch: "vendor B gets its own place, vendor A changes nothing" is the same
+  defect told twice.
 - **Name the row and column a new fact lives on, and when it is written.** "Claim it before sending",
   "don't mark it on failure", "remove the orphan" leave the shape open, and the implementer fills it with a
   side table and a delete. The spec says which row carries the flag, that undoing it is an update, that

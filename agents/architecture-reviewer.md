@@ -71,8 +71,12 @@ no compensating update on every failure path is REJECT, and so is a claim and a 
 flag. For every error the path touches: an error turned into a zero value, an empty result or a
 warning-then-continue is REJECT, unless it is the owner's declared not-found.
 
-**I4 — dependency direction and names.** Run the project's layer greps (concrete infrastructure imported
-inside the domain; a vendor's word in shared code) and paste their output. Check each new name against
+**I4 — dependency direction, vendor shape and names.** Run the project's layer greps (concrete infrastructure
+imported inside the domain; a vendor's word in shared code) and paste their output. A vendor's shape leaks
+without its word too: for each fact the diff stores or reads, say where it lives for each vendor the project
+integrates and for the next one. A branch in shared code on a count or a kind (`len(rows) != 1`, a switch on
+the record's form) that moves the fact between two homes is REJECT, even when it predates the diff and the
+diff extends it — the fact gets one home, and a vendor that differs is translated in its adapter. Check each new name against
 the project's vocabulary and verbs: a name that needs its body read to be understood, or that names the
 mechanism instead of the question, is a finding with the rename proposed.
 
@@ -166,8 +170,8 @@ I2 names and scope: APPROVE | REJECT
   - <file:line> — <forwarder | flag | threaded group (the signatures) | scopes> — <the fix: inline, split by rule, the type, the split by scope>
 I3 facts and errors: APPROVE | REJECT
   - <file:line> — <the fact, the effect, what a failure between them leaves behind>
-I4 direction and names: APPROVE | REJECT
-  - <grep output, or file:line — the rename>
+I4 direction, vendor shape and names: APPROVE | REJECT
+  - <grep output, or file:line — the fact, its home per vendor, the branch that moves it | the rename>
 I5 complexity for a real case: APPROVE | REJECT
   - <file:line> — <the case it serves, and the path that reaches it or "no path found"> — <the simpler shape>
 Registered (predates the diff, not blocking): <one line each>
