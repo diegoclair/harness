@@ -1,6 +1,6 @@
 ---
 name: ui-ux
-version: 0.1.0
+version: 0.2.0
 description: >-
   Designs and reviews landing pages, product pages and app screens that hold attention on first load — live product UI instead of illustration, scroll-driven reversible motion, neutral surfaces with one accent — through one divergent taste round, a review loop where every complaint becomes the smallest fix plus a measurement, and bundled Playwright checks (void scroll, blurred rest state, loops, no-JS final state, clipped content, fold runway). Use it WHENEVER Diego builds, designs, redesigns or "reimagines" a landing, page, section or screen, wants it bonito, "encantador", with WOW, motion, effects or "coisas vivas", reviews a design from screenshots, or complains it looks ugly, crooked, blurred, cramped, too far, too short or startling — even without saying "UI" or "UX". Not for SEO or indexing (that is landing-seo-geo). Replies match the user's language.
 ---
@@ -129,6 +129,26 @@ for the parameters that passed review.
 - **The lead's final look is a few screenshots, read once.** Eight passing scripts still let through ten
   defects the human saw in one review; a handful of images at the end costs less than that round.
 - Long-lived preview servers run from the orchestrating session, not from a subagent (they die with it).
+
+## The review before calling the human
+
+A check that proves only the fix you just made lets the next defect through ("equal height across states"
+passed while the phone panel was taller than the screen and empty). Ask what would bother the user, in every
+state, at every width — in three layers, every round that touches a screen:
+
+1. **Measured, by the agent, every round** (text, no images): empty space > 48px inside any container;
+   clipped or overflowing content and horizontal scroll; anything the user did not touch moving when a tab,
+   option or state switches ("sambando"); contrast of every text node on its real ground, light and dark.
+   Reserve heights only where the switch changes content beside the control; stacked on a phone, natural
+   heights.
+2. **Every state visited, not the one the fix touched**: empty, loading, error, each option of each choice,
+   each status (connected or not), the longest text the contract allows — at 390 and 1440, light and dark,
+   one screenshot each, saved.
+3. **Read as the user, by the lead, before calling the human** — open the screenshots and answer in writing,
+   state by state: does every element make sense in this state (no "Allow" next to "already connected")?
+   exactly one obvious primary action, the accent only on it? any text block over three lines that should be
+   an object? anything repeated or unneeded? side by side with the best screen the product already has, is it
+   at that level? A screen born from scratch also gets a visual reviewer who did not build it.
 
 ## Working with the human and agents
 
