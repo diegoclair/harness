@@ -29,10 +29,34 @@ building.** Three checks, each brought to the lead instead of resolved in silenc
   the judgement, with what it would cost per task and where it can be wrong. You never build that
   alternative on your own: spending on a model is the human's decision.
 
-**Four shapes are the lead's to approve even when the spec is silent:** a new table, a new repository or
-port method, a delete, and a new state flag. Each one decides where a fact lives for every future reader,
-so choosing it alone is a design decision, not an implementation detail: bring it with your
-recommendation before writing it.
+## Design before code — judged while it costs a line
+
+**On a new deliverable the first thing you return is the design, not code** — unless the lead says the
+spec already is the design or the work is a correction. At most forty lines, six parts:
+1. **Owners** — each business question the work touches, vocabulary values included:
+   `question → searched (greps, layers) → reused | extended | born at <symbol>`.
+2. **Facts per vendor** — for each fact stored or read, where it lives for each vendor the project
+   integrates and for the next one, and what the shared code changes when that next one arrives. Any
+   answer but "nothing" is the vendor's shape leaking: redraw it before bringing it.
+3. **Write order** — each fact beside the effect it records: after it, in one transaction under a
+   condition, or claim → act → result.
+4. **Error exits** — each exit added or changed → the one layer that logs it, the level and the ids, per
+   the project's logging rule; every other layer returns without logging. On a front: what the user sees.
+5. **New shapes** — each new function, type, file, table, port method, state flag or delete → where it
+   lands and why its subject has no home yet. A table, a port method, a delete or a state flag decides
+   where a fact lives for every future reader: it is never yours alone.
+6. **Reach** — every caller of a shared function whose result changes and what each does with it; for a
+   contract crossing repos, how the build already in users' hands reads the new shape.
+
+Then stop. The lead has it judged and answers go or findings; code starts on go. A finding on the design
+costs one line; the same finding in code costs a review round.
+
+## A correction answers the question, not the line
+
+A finding names a `file:line`; the defect is a business question answered wrong. Before editing, write
+the question in one sentence and grep every reader and writer of it — all layers, every vendor's bridge —
+then fix them all or bring back the ones you will not touch. A correction that closes the line and
+leaves a sibling reader on the old meaning is the second round, already scheduled.
 
 ## Git — the index belongs to the human
 
@@ -102,9 +126,12 @@ report which already-staged files you changed**, because the version they review
     the order that must hold, the unit — in words a newcomer gets without re-reading. An abstract maxim
     ("X never carries two Y, so every write starts from…") is a design principle, not a comment: delete it;
     the design lives in the code's shape and the project's `AGENTS.md`.
-  - English; user-facing strings in the product's language. **Before returning, run `quality-gate check` on
-    the files you touched:** zero comment errors, and each comment warning either deleted or kept for a
-    constraint you can name. The gate's ceilings are the upper bound, never a budget to fill.
+  - English; user-facing strings in the product's language.
+  - **Build with no comments; add the few that earn it in one pass before returning, then run
+    `quality-gate check`.** Every comment finding on a line you wrote is deleted or rewritten to the bare
+    constraint before you return; one you keep is listed in the report with the constraint it carries.
+    The human reviews while you work, so a comment touched after you returned is a file reviewed twice for
+    nothing: once you have returned, edit a comment only when it is false.
 - **Tests never reshape production.** No field exported for a test, no test flag, no branch that only runs
   in tests, no sleep to synchronise. **A required dependency validates in its constructor and returns an
   error** — accepting nil so a test compiles trades a boot failure for silent loss in production. A
@@ -143,8 +170,10 @@ report which already-staged files you changed**, because the version they review
   and passes per-package tests; a gate can block the very action that starts a flow. **When you wire a
   dependency, add a registration, or change who may do what, prove it across the seam** — the composition
   root, or a journey through the real pieces — not only each piece alone.
-- **Make the test able to fail.** When the change guards money, access or a destructive act, check that
-  removing the guard makes a test fail — with the guard removed in a scratch copy, never in the tree.
+- **Make the test able to fail.** For every guard of an invariant the spec names — not only money, access
+  or a destructive act — check that removing it makes a test fail, with the guard removed in a scratch
+  copy, never in the tree. The correctness reviewer mutates each one; a mutant you did not kill first is
+  its first REJECT.
 
 ### How to prove fast without proving less
 
@@ -162,6 +191,18 @@ almost never thoroughness — it is the same wide run repeated.
   time; everything else runs in parallel. Forcing the whole run serial is the most common cause of a
   twenty-minute validation for a three-file change.
 - **Heavy tools only where they prove something the fast tests cannot:** containers for the code whose
-  queries changed, mutation for the guards that protect money, access or a destructive act — never across
-  the whole diff.
+  queries changed, mutation for the guards of the spec's invariants — never across the whole diff.
 - **Build and static analysis clean** before returning.
+
+### Before returning — judge yourself with the reviewer's ruler
+
+The architecture reviewer reads your diff with the invariants below; run them on it first, and fix what
+you would reject. Re-run the owner greps on the code, not on your design: the diff is what gets judged.
+- **One owner** — every question the diff answers has one answer; no reader left on an old meaning.
+- **Names and scope** — no forwarder, no `bool` choosing between two rules, no parameter group threaded
+  through several functions, no file gaining a second scope.
+- **Facts and errors** — every fact after its effect; no error turned into a zero value; every exit
+  logged once, at the layer the design named, and nothing else logged.
+- **Direction and vendor** — the project's layer greps come back empty.
+- **A real case** — every branch added serves a case you can show the product reaching.
+- **`quality-gate check` on the touched files** — zero errors.

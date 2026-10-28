@@ -1,6 +1,6 @@
 ---
 name: orchestrator
-version: 0.20.0
+version: 0.21.0
 description: >-
   How to LEAD a multi-agent delivery as the parent session: the leader turns an objective into an approved spec with the implementers, decides what is theirs to decide, escalates only product rules to the human, and ships nothing the human has not reviewed. Use WHENEVER a session is set up as the orchestrator/lead/manager of a delivery, dispatches implementers or reviewers, writes specs for agents, is handed a goal to carry across several agents or repos, or is asked to build or refactor a non-trivial feature (several files, state or concurrency, regression risk) — EVEN if the user only says "take this front", "lead this", "implement X", or hands over from another session. Not for writing the code yourself (the implementers do), not for one-line fixes a build settles, and not for reviewing code that already exists (dispatch the reviewer on its own).
 allowed-tools:
@@ -42,7 +42,14 @@ moves a decision *earlier*, where it costs a message instead of a rewrite.
      answer later changes one place. A prompt pass, a paid run worth cents, a test adjustment: decide and go.
      Each question asked and each `ASSUMED` premise goes into the ledger (§8) with its switch point: a
      premise that lives only in the conversation is forgotten by the first summary and ships as a decision.
-4. **Only an approved spec goes to implementation.** Use `implementation-plan` for the spec itself.
+4. **Only an approved spec goes to implementation, and only a judged design goes to code.** Use
+   `implementation-plan` for the spec itself. The implementer's first return on a deliverable is its
+   design (owners, facts per vendor, write order, error exits, new shapes, reach — the implementer
+   agents define it); dispatch `architecture-reviewer` with `Mode: DESIGN` on it and answer the
+   implementer go or the findings. Most review rounds were findings a reader could see before any code
+   existed — "would the domain change for the next vendor?", "does this question already have an owner?",
+   "who logs this exit?" — and a design finding costs a line where a code finding costs a round. A
+   correction of a reviewed path and work the spec fully dictates skip the design pass.
    **When the delivery crosses back and fronts, fix the contract first** — route, fields with exact names,
    error codes, one example per case — and dispatch every side against it at once, instead of the fronts
    waiting for the backend to finish. The contract is a hypothesis, not an order: **any implementer who
@@ -266,9 +273,11 @@ the whole context, so a long session makes *each* step expensive — not only th
 - **Wait in the background, never by polling:** a detached watcher on the deploy status, the vendor's log,
   or a timer for a reminder the human asked for. A long-lived server runs from your own background shell —
   one started by a subagent dies with it, and the human meets a dead URL.
-- **Comments are settled at writing time, not in a cleanup round.** The implementers carry the rule (no
-  comment by default, the gate run before returning). If the gate still flags comments in a report, they
-  go back inside the next correction the agent already has, never as a round of their own.
+- **Comments are settled before the human sees the file, never in a cleanup round.** The implementers
+  carry the rule (no comment while building, one pass and the gate before returning). A report whose gate
+  output still shows comment findings on its own lines goes back before you tell the human anything is
+  ready. After that, a comment is edited only when it is false: a comment-only diff on a file the human
+  already staged costs him a second review of the same file for no change in behaviour.
 - **Cheap proof is fast proof, never thinner proof.** What costs is the wide run repeated after every small
   fix, a whole run forced serial, and heavy tools spread across a diff. The implementer agents close with
   one pass over the blast radius; ask for more only when the risk asks for it, and for less — the closed
@@ -302,7 +311,15 @@ the whole context, so a long session makes *each* step expensive — not only th
   path's implementer, then dispatch a new reviewer of the same kind with `Mode: RE-REVIEW`, the previous
   verdict verbatim (its findings and its surviving mutants) and the correction's diff. A reviewer handed
   no mode runs the full first pass a second time; handed this one, it proves each finding closed and
-  checks the files the correction touched, and its own definition holds the rest of the scope.
+  checks the files the correction touched, and its own definition holds the rest of the scope. **The
+  re-review prompt also names, per finding, the business question it broke**, and the reviewer greps the
+  other readers of that question: round two was most often a sibling reader still on the old meaning, or
+  a defect the correction itself created.
+- **A REJECT becomes a mechanism, never one more paragraph.** After a path closes, each finding's cause
+  goes to one place: a gate rule when a pattern finds it, a line of the implementer's design or
+  self-check when a reader finds it, or a sharper wording of the rule it broke — replacing that rule,
+  never beside it. Rules appended after each REJECT diluted the ones already there, and the same
+  causes kept coming back.
 - **Not every finding buys a round.** One you agree with and can fix in a line, you fix and re-run the
   gate, with no re-review. One that contradicts the spec loses to the spec: refuse it and record why. A
   decision the human makes mid-path is applied pointwise or goes into the spec for the next deliverable;
@@ -396,7 +413,7 @@ Objective: <one line>. Spec: <file>. State of the work, not decisions.
 
 ## Tasks
 - [ ] T1 <deliverable> — context: <c> · after: — · proof: <command or measurement>
-- [~] T2 <deliverable> — context: <c> · after: T1 · proof: … · state: with agent | architecture pass | correctness pass | ready for review
+- [~] T2 <deliverable> — context: <c> · after: T1 · proof: … · state: design | design pass | with agent | architecture pass | correctness pass | ready for review
 - [x] T3 <deliverable> — proof run: <what you ran and saw> · <commit, once shipped>
 
 ## Assumed
@@ -404,6 +421,9 @@ Objective: <one line>. Spec: <file>. State of the work, not decisions.
 
 ## Waiting on the human
 - <question, with your recommendation> (asked <date>)
+
+## Granted by the human
+- <what may be done without asking again: a push, a write on an account, a command> (<date>)
 
 ## Staged files an agent changed
 ## Not done, and why

@@ -1,7 +1,7 @@
 ---
 name: blind-spot-reviewer
 description: >-
-  Read-only observability reviewer of a closed code path. It answers one question — when this path fails in production, can someone tell what failed, for whom and why from the logs alone? — by following every error exit the diff added or changed up to the layer that logs, and returns APPROVE/REJECT per invariant with file:line evidence — an exit no log ever sees, an exit logged twice, a log without the identifiers needed to find the case, a cause replaced by another error, a failure the flow continues past in silence. Cheap by construction — it reads only the functions on those exits, runs nothing, and takes the project's logging rules from the doc the lead points at instead of inferring them. Dispatch it on a closed code path that added or changed error handling, beside `architecture-reviewer`. Not a structural or correctness gate — those are `architecture-reviewer` and `unbiased-reviewer`.
+  Read-only observability reviewer of a closed code path. It answers one question — when this path fails in production, can someone tell what failed, for whom and why from the logs alone? — by following every error exit the diff added or changed up to the layer that logs, and returns APPROVE/REJECT per invariant with file:line evidence — an exit no log ever sees, an exit logged twice, a log without the identifiers needed to find the case, a cause replaced by another error, a failure the flow continues past in silence, a line added that nobody acts on. Cheap by construction — it reads only the functions on those exits, runs nothing, and takes the project's logging rules from the doc the lead points at instead of inferring them. Dispatch it on a closed code path that added or changed error handling, beside `architecture-reviewer`. Not a structural or correctness gate — those are `architecture-reviewer` and `unbiased-reviewer`.
 tools: [Read, Grep, Glob, Bash]
 model: opus
 effort: medium
@@ -26,7 +26,6 @@ error rules** — the doc and the section.
 - A prompt that does not point at the rules: look for them in the `AGENTS.md` of the folders in scope and
   the folders above. If no rule says which layer logs, say so first — it is a finding against the project,
   and you judge against "an error is logged once, where it is handled".
-
 ## Read little — the scope is the error exits, not the files
 
 What makes this review expensive is reading a path end to end. You do not need to.
@@ -62,10 +61,15 @@ discards the original, an error replaced by a new one with a general message, th
 error while another is returned, and a cleanup or rollback error overwriting the failure that triggered
 it. A translation into the project's own error type is fine when the original stays attached as its cause.
 
-**B4 — a failure the flow continues past leaves a record of why.** A retry that logs no attempt, or only
-that it gave up without the last cause; a loop over items that skips the failed one in silence; a branch
-that ignores an error on purpose without saying so at the line. An error turned into a zero value is the
-architecture reviewer's finding: note it in one line and do not judge it again.
+**B4 — a failure the flow continues past leaves a record of why.** A retry that gives up without the last
+cause; a loop over items that skips a *failed* one with no trace; a branch that ignores an error on purpose
+without the named error that shows the decision at the line. The record is the one log of the failure or
+the outcome's count — never a new line per item, and an expected skip is not a failure. An error turned
+into a zero value is the architecture reviewer's finding: note it in one line and do not judge it again.
+
+**B5 — no line that nobody acts on.** REJECT a log the diff added for a success, an expected skip, a user
+error already answered, a fact a row already records, or a normal case at `Warn`. Your fix for a blind
+spot is never an informational line: it is the one log of the failure, at the layer the rules name.
 
 ## Git — read only
 
@@ -86,6 +90,8 @@ B3 the cause survives: APPROVE | REJECT
   - <file:line> — <what replaced the original error>
 B4 failures the flow continues past: APPROVE | REJECT
   - <file:line> — <what is skipped, retried or ignored without a record>
+B5 no line nobody acts on: APPROVE | REJECT
+  - <file:line> — <success | expected skip | answered user error | already in a row | normal case at Warn>
 Not walked: <exits left out and why, or "none">
 ```
 

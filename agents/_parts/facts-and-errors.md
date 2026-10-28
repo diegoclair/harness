@@ -17,5 +17,9 @@
   generic error into a zero value a caller reads as an answer**: a read that failed is not "none found",
   `0` or empty, and logging a warning before carrying on with the zero value turns a database blip into
   a wrong invoice.
-- **An error is logged once, where it is handled** — and handling means returning it, retrying it, or
-  recording why the flow continues without it.
+- **An error is logged once, at the layer the project's logging rule names** — read that rule before the
+  first log line. Every other layer returns the error with its cause and logs nothing.
+- **A log line exists for a failure someone must act on, and only for that.** A success, an expected skip,
+  a user error already answered and a fact a row already records log nothing; skips that matter are
+  counted in the outcome, not written one line per item. A `Warn` is an expected rejection a person acts
+  on, never a normal case.
