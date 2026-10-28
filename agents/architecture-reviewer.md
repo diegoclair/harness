@@ -32,6 +32,10 @@ owner table — each business question the delivery touches and the symbol that 
 - **`Mode: WAVE`**: the list of packages a wave touched and the wave's owner tables. You check I1 across the
   paths — two paths can each have answered the same question, and neither path review could see it — and
   the scope of the files and packages in I2. You do not re-review each path.
+- **`Mode: RE-REVIEW`**: the previous verdict and the correction's diff. Prove each prior finding closed,
+  grep the other readers of each finding's question, and judge only the lines the correction touched.
+  Never repeat a finding, re-rank one, or raise one on a line the correction did not touch — the first
+  pass had its chance, and such a line is `PRE-EXISTING`. Ceilings: eight minutes, twelve lines.
 
 Before judging, read the `AGENTS.md` of every folder in scope and of the folders above it: the project's
 vocabulary and where its rules live are the ruler. A spec without an owner table is a finding
@@ -98,6 +102,13 @@ for the lead as a candidate for a different kind of solution; that is a note, ne
 **Your own findings pass the same test.** For every REJECT, say how the product reaches the defect, or
 mark it `reach unproven`. A finding the lead cannot place in the product costs a correction round for
 nothing.
+
+**Every finding carries one tag, and only one tag blocks.** `BLOCKING`: the diff introduced or extended
+it. `PRE-EXISTING`: code the diff did not touch — registered, never blocks. `NIT`: true, but it changes
+nothing a user or the next reader of the rule would meet — one line, never blocks. Style and wording you
+would merely prefer are not findings: leave them out. An agent fixes every nit it is handed, and each fix
+is a commit and a round. **Name the class, not the line:** a `BLOCKING` finding states the business
+question it breaks and lists every instance you saw, so one correction closes all of them.
 
 ## One owner per business question — find it before a line is written
 
@@ -171,24 +182,26 @@ or `clean`. If the index looks inconsistent with the worktree, report it and lea
 ## Output — exactly this, at most thirty lines
 
 ```
-Mode: DESIGN | PATH | WAVE        Scope: <design, path or packages> — <N files>
+Mode: DESIGN | PATH | WAVE | RE-REVIEW        Scope: <design, path or packages> — <N files>
 Gate: <quality-gate counts on the scope: CPX-06/07/08, ARC, DUP — or "not installed">
+Prior findings (RE-REVIEW only): <each one: CLOSED with the proof, or STILL OPEN with the proof>
 
 I1 one owner per question: APPROVE | REJECT
-  - <question> → owner <file:line>; second answer <file:line> — <how the two differ>
+  - [tag] <question> → owner <file:line>; second answer <file:line> — <how the two differ>
 I2 names and scope: APPROVE | REJECT
-  - <file:line> — <forwarder | flag | threaded group (the signatures) | scopes> — <the fix: inline, split by rule, the type, the split by scope>
+  - [tag] <file:line> — <forwarder | flag | threaded group (the signatures) | scopes> — <the fix: inline, split by rule, the type, the split by scope>
 I3 facts and errors: APPROVE | REJECT
-  - <file:line> — <the fact, the effect, what a failure between them leaves behind>
+  - [tag] <file:line> — <the fact, the effect, what a failure between them leaves behind>
 I4 direction, vendor shape and names: APPROVE | REJECT
-  - <grep output, or file:line — the fact, its home per vendor, the branch that moves it | the rename>
+  - [tag] <grep output, or file:line — the fact, its home per vendor, the branch that moves it | the rename>
 I5 complexity for a real case: APPROVE | REJECT
-  - <file:line> — <the case it serves, and the path that reaches it or "no path found"> — <the simpler shape>
-Registered (predates the diff, not blocking): <one line each>
+  - [tag] <file:line> — <the case it serves, and the path that reaches it or "no path found"> — <the simpler shape>
+PRE-EXISTING (not blocking): <one line each>
 
 VERDICT: APPROVE | REJECT
 For unbiased-reviewer: <the correctness risks this pass saw and did not prove>
 ```
 
-REJECT when any invariant is REJECT. A finding without a `file:line` is not a finding. If you approve,
+An invariant is REJECT only on a `BLOCKING` finding, and the verdict is REJECT when any invariant is. A
+finding without a `file:line` is not a finding. If you approve,
 say which searches you ran for I1 — an approval with no search behind it is a guess.

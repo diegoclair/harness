@@ -1,6 +1,6 @@
 ---
 name: orchestrator
-version: 0.21.0
+version: 0.22.0
 description: >-
   How to LEAD a multi-agent delivery as the parent session: the leader turns an objective into an approved spec with the implementers, decides what is theirs to decide, escalates only product rules to the human, and ships nothing the human has not reviewed. Use WHENEVER a session is set up as the orchestrator/lead/manager of a delivery, dispatches implementers or reviewers, writes specs for agents, is handed a goal to carry across several agents or repos, or is asked to build or refactor a non-trivial feature (several files, state or concurrency, regression risk) — EVEN if the user only says "take this front", "lead this", "implement X", or hands over from another session. Not for writing the code yourself (the implementers do), not for one-line fixes a build settles, and not for reviewing code that already exists (dispatch the reviewer on its own).
 allowed-tools:
@@ -320,8 +320,11 @@ the whole context, so a long session makes *each* step expensive — not only th
   self-check when a reader finds it, or a sharper wording of the rule it broke — replacing that rule,
   never beside it. Rules appended after each REJECT diluted the ones already there, and the same
   causes kept coming back.
-- **Not every finding buys a round.** One you agree with and can fix in a line, you fix and re-run the
-  gate, with no re-review. One that contradicts the spec loses to the spec: refuse it and record why. A
+- **Not every finding buys a round.** Only a blocking finding (`BLOCKING`, or a BLOCKER/HIGH of the
+  correctness gate) goes to the implementer. A `NIT` you fix in a line or drop. A `PRE-EXISTING` goes to
+  the ledger's "Not done" — and to the human when it costs money or a marketplace write — never into the
+  correction: the agent fixes everything it is handed, and each extra fix is another round to review. One
+  you agree with and can fix in a line, you fix and re-run the gate, with no re-review. One that contradicts the spec loses to the spec: refuse it and record why. A
   decision the human makes mid-path is applied pointwise or goes into the spec for the next deliverable;
   bundled into a correction, it reopens the review for work that was never in question.
 - **Two correction rounds per path, then you decide with what you have:** fix the residue pointwise, or
@@ -389,6 +392,10 @@ the whole context, so a long session makes *each* step expensive — not only th
   another session, that whole run belongs to whoever commits (§5) and you name it as not run — the
   roadmap docs updated, the memory recorded, the ledger closed (§8). Whatever you skipped, name it in the
   report.
+- **The review loop is measured, not felt.** `python3 ~/.claude/skills/orchestrator/review-rounds.py
+  <workspace>` prints, per week and reviewer, how many designs, first passes and re-reviews approved.
+  A rule or agent change is kept when first-pass approval rises and re-reviews fall; one that moves
+  neither is cut.
 - **Several paths through the same shared decision close with a neighbours pass.** Each path review proves
   its own branch; none sees the paths together. When two or more paths of a wave changed the same
   classifier, state mapping or dispatcher, dispatch one `unbiased-reviewer` FIRST REVIEW scoped to that

@@ -121,8 +121,9 @@ Findings (by severity, only what has anchored evidence):
 - [HIGH] ...
 - [MEDIUM] ...
 - [LOW] ...
+- [PRE-EXISTING] <file:line> — <a defect in code the diff did not touch: registered, never blocks>
 
 Recommendation to parent: <which items the corrector must close before re-review; or approved>
 ```
 
-REJECT if there is any real BLOCKER/HIGH (in RE-REVIEW: a prior finding still open, a regression, or a BLOCKER — nothing else). LOW/MEDIUM don't block but are registered. If you approve, say explicitly that you tried to refute it and couldn't — don't approve out of laziness. **READ REVIEW never approves and never rejects**: it hands over findings and the list of what still needs proving.
+REJECT if there is any real BLOCKER/HIGH (in RE-REVIEW: a prior finding still open, a regression, or a BLOCKER — nothing else). A defect in code the diff did not touch is `PRE-EXISTING`, whatever its weight: the delivery did not cause it, and a round spent on it is a round the delivery did not need. **Name the class, not the line:** a BLOCKER or HIGH states the invariant it breaks and lists every instance you saw, so one correction closes all of them. LOW/MEDIUM don't block but are registered. If you approve, say explicitly that you tried to refute it and couldn't — don't approve out of laziness. **READ REVIEW never approves and never rejects**: it hands over findings and the list of what still needs proving.

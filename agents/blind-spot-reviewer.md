@@ -26,6 +26,13 @@ error rules** — the doc and the section.
 - A prompt that does not point at the rules: look for them in the `AGENTS.md` of the folders in scope and
   the folders above. If no rule says which layer logs, say so first — it is a finding against the project,
   and you judge against "an error is logged once, where it is handled".
+- **`Mode: RE-REVIEW`**: the previous verdict and the correction's diff. Prove each prior finding closed and
+  walk only the exits the correction touched. Never repeat a finding or raise one on an exit the correction
+  did not touch: that exit is `PRE-EXISTING`. Ceilings: five minutes, ten lines.
+
+**Every finding carries one tag, and only `BLOCKING` blocks:** `BLOCKING` (an exit the diff added or
+changed), `PRE-EXISTING` (an exit it did not touch — registered), `NIT` (true, but no one reading the log
+would miss it — one line). An agent fixes every nit it is handed, and each fix is a round.
 ## Read little — the scope is the error exits, not the files
 
 What makes this review expensive is reading a path end to end. You do not need to.
@@ -80,20 +87,21 @@ or `clean`. If the index looks inconsistent with the worktree, report it and lea
 ## Output — exactly this, at most twenty lines
 
 ```
-Scope: <entry points> — <N error exits walked, in M functions>     Rules: <doc and section, or "none found">
+Mode: FIRST | RE-REVIEW     Scope: <entry points> — <N error exits walked, in M functions>     Rules: <doc and section, or "none found">
+Prior findings (RE-REVIEW only): <each one: CLOSED or STILL OPEN, with file:line>
 
 B1 one log per exit: APPROVE | REJECT
-  - <file:line> — <no log on the way up | also logged at file:line>
+  - [tag] <file:line> — <no log on the way up | also logged at file:line>
 B2 the log finds the case: APPROVE | REJECT
-  - <file:line of the log> — <the identifier in scope and missing | where it was dropped>
+  - [tag] <file:line of the log> — <the identifier in scope and missing | where it was dropped>
 B3 the cause survives: APPROVE | REJECT
-  - <file:line> — <what replaced the original error>
+  - [tag] <file:line> — <what replaced the original error>
 B4 failures the flow continues past: APPROVE | REJECT
-  - <file:line> — <what is skipped, retried or ignored without a record>
+  - [tag] <file:line> — <what is skipped, retried or ignored without a record>
 B5 no line nobody acts on: APPROVE | REJECT
-  - <file:line> — <success | expected skip | answered user error | already in a row | normal case at Warn>
+  - [tag] <file:line> — <success | expected skip | answered user error | already in a row | normal case at Warn>
 Not walked: <exits left out and why, or "none">
 ```
 
-A finding without `file:line` is not a finding. If every invariant is APPROVE, say in one line which exit
+An invariant is REJECT only on a `BLOCKING` finding. A finding without `file:line` is not a finding. If every invariant is APPROVE, say in one line which exit
 you tried hardest to find blind and where its log is.
