@@ -1,0 +1,34 @@
+{
+  "skill_name": "sales-copy",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Escreve o e-mail da nossa Black Friday para quem se cadastrou e nunca usou o produto. Quero barulho, ser agressivo em aquisição.",
+      "expected_output": "Asks for or uses a taste reference, opens on no own news, names the thing, and uses writers and cold critics before showing one version.",
+      "assertions": [
+        "The subject states the offer or the product plainly and names what it is",
+        "No invented scarcity such as vagas or a countdown appears",
+        "The output says which critics read it, and any persona is labelled a simulation"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Faz a mensagem para eu postar num grupo de WhatsApp de fornecedores de e-commerce. Marca desconhecida, ninguém pagou ainda.",
+      "expected_output": "A group post with one call to action that makes the reader feel safe, with no testimonial or customer count.",
+      "assertions": [
+        "No testimonial, customer count or result number appears",
+        "Exactly one call to action appears",
+        "A risk reversal appears before the price"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Esse assunto tá bom? 'Vender em marketplace virou segundo emprego'",
+      "expected_output": "Rejects it for supposing the reader's business and proposes plain alternatives.",
+      "assertions": [
+        "The answer says the line supposes the size of the reader's business",
+        "At least two alternatives state the offer or thing plainly"
+      ]
+    }
+  ]
+}
