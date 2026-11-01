@@ -115,6 +115,11 @@ var catalog = []Artifact{
 		Summary: "SEO + GEO for a static landing: audit, metadata/JSON-LD, content pages, sourced claims, indexing",
 	},
 	{
+		Name:    "sales-copy",
+		Kind:    KindSkill,
+		Summary: "Acquisition messages for an unknown brand: real sales technique, one thread, writers and cold critics",
+	},
+	{
 		Name:    "petition-reviewer",
 		Kind:    KindAgent,
 		Summary: "Skeptical reviewer of a small-claims petition: citations checked at the source, facts checked against exhibits",
