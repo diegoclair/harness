@@ -1,6 +1,6 @@
 ---
 name: sales-copy
-version: 0.2.0
+version: 0.3.0
 description: >-
   Writes and reviews the words of an acquisition message for a small unknown brand: e-mail, WhatsApp group post, direct message, ad, sales post, subject line, preview text. It applies real selling technique without arrogance or invented proof, states the offer clearly, and passes the text through writers on different lines and cold critics before the human reads it. Use it WHENEVER Diego asks to write, rewrite or review a campaign message, "e-mail de campanha", "mensagem de WhatsApp", "post no grupo", "assunto", "copy", "texto de venda", "criativo", "Black Friday", "lançamento", "captar clientes", or says a text is weak, cold, "formalzinho", arrogant or does not connect, even when "copy" is never said. Replies match the user's language. Not for a screen's layout or a page's visual (ui-ux), SEO (landing-seo-geo) or a text inside the product that serves a user already working.
 ---
@@ -45,7 +45,20 @@ seconds. Each rule below quotes the complaint that produced it, so a familiar co
 | "omite o que não precisa e coloca em evidência o que ajuda" | "minutos depois, o aviso chega" | Do not volunteer a harmless limit. Say the true gain and leave out the delay, without claiming what is false |
 | "começar pedindo ajuda não é legal, lá é um grupo de vendas" | a sales post opening on "preciso da sua ajuda" | In a selling venue, open by offering. A favour is asked at the end, as one small step such as following a profile |
 | "não podemos limitar a essas duas" | "a melhor plataforma pra quem vende no Mercado Livre e na Shopee" | The promise of where the brand is going names no current limit. What works today is said apart, as today's fact |
+| "parece que tô falando com um investidor" | a plain e-mail opening on "aqui é o Diego, fundador" | Each e-mail is a built piece in the campaign's energy, never a formal note. The gift is news, not a request: say it is already theirs |
 | "a fala que tem que ser impactante" | a cut with music and on-screen text only | A video sells by what is said: the real step-by-step of the seller's pain, in his words. Write the speech first and cut to it |
+
+## What worked
+
+Pieces the human approved at once, and why. Start from these before writing new.
+
+- **The group post:** a loud first line in capitals, the offer, the promise of where the brand is going, the money that can
+  reach zero, one link, and a small ask to follow at the end.
+- **The two e-mails:** one big fact opens as a built piece, a personal line names the reader, the button comes before the
+  explanation, and the referral block shows the fee reaching zero.
+- **A gift is already given:** "já tá liberado na sua conta" beat asking them to reply.
+- **A reader who asked gets a sentence first:** "a Rednev abriu" before the offer.
+- **In the brand's profile the voice is "a gente"; the founder's "eu" is only for the founder's own post.**
 
 Clarity wins over creativity in a subject line: say the offer plainly, specifically, with the main thing first, since
 the phone cuts the end. A group post competes with suppliers shouting, so it also has to spark interest.
