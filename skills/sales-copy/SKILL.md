@@ -1,6 +1,6 @@
 ---
 name: sales-copy
-version: 0.3.0
+version: 0.4.0
 description: >-
   Writes and reviews the words of an acquisition message for a small unknown brand: e-mail, WhatsApp group post, direct message, ad, sales post, subject line, preview text. It applies real selling technique without arrogance or invented proof, states the offer clearly, and passes the text through writers on different lines and cold critics before the human reads it. Use it WHENEVER Diego asks to write, rewrite or review a campaign message, "e-mail de campanha", "mensagem de WhatsApp", "post no grupo", "assunto", "copy", "texto de venda", "criativo", "Black Friday", "lançamento", "captar clientes", or says a text is weak, cold, "formalzinho", arrogant or does not connect, even when "copy" is never said. Replies match the user's language. Not for a screen's layout or a page's visual (ui-ux), SEO (landing-seo-geo) or a text inside the product that serves a user already working.
 ---
@@ -47,6 +47,9 @@ seconds. Each rule below quotes the complaint that produced it, so a familiar co
 | "não podemos limitar a essas duas" | "a melhor plataforma pra quem vende no Mercado Livre e na Shopee" | The promise of where the brand is going names no current limit. What works today is said apart, as today's fact |
 | "parece que tô falando com um investidor" | a plain e-mail opening on "aqui é o Diego, fundador" | Each e-mail is a built piece in the campaign's energy, never a formal note. The gift is news, not a request: say it is already theirs |
 | "a fala que tem que ser impactante" | a cut with music and on-screen text only | A video sells by what is said: the real step-by-step of the seller's pain, in his words. Write the speech first and cut to it |
+| "muita info e pouco sem tocar no problema", "não dá o tom de alerta" | a clever "venda que você paga pra fazer", then paragraphs of product facts | A serious pain is named in plain words on the first line, in the tone of an alert. A caption stays on the problem and the fix, and may retell the video's pain; facts that do not serve them are cut |
+| "se tiver conectado em 50, você não colocaria os 50 na frase" | "confere suas vendas no Mercado Livre e na Shopee" | Say "no marketplace". A list of integrations reads as the limit and ages when the next one enters. Name one only when it is the subject of the piece |
+| "pra que colocar o valor de depois?!" | "a partir de R$ 49,50 por mês e de R$ 99 depois" | A post gives the discount, how many months and the offer price, and stops there. The later price lives on the page the reader lands on |
 
 ## What worked
 

@@ -19,7 +19,7 @@ is the judgment. In a project with a sales research file, open it first and let 
 
 - A discount does not open a cold reader in a season full of discounts. Lead with who and what, or with the discount only
   when the subject also names the thing.
-- Show the full price, the offer price and the price after. Distrust of seasonal discounts is the audience's default.
+- A short message states the discount, its length in months and the offer price. The price after belongs to the page the link opens, where it must always be visible.
 - One call to action per message. A second ask goes in a line after it, or waits for its own message.
 - A channel changes the piece: read the marketing rules of the channel before adapting, and never paste one channel's text
   into another. A group post is once per group, so it goes out at its best.
