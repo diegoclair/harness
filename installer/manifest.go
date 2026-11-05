@@ -120,6 +120,22 @@ var catalog = []Artifact{
 		Summary: "Acquisition messages for an unknown brand: real sales technique, one thread, writers and cold critics",
 	},
 	{
+		Name:    "script-reviewer",
+		Kind:    KindAgent,
+		Summary: "Reviewer of a video's spoken script before the voice: each variant read whole, voice-proof lines, true claims",
+	},
+	{
+		Name:    "video-reviewer",
+		Kind:    KindAgent,
+		Summary: "Reviewer of a rendered short video: transcript against script, broken words, voice drift, frames and centring",
+	},
+	{
+		Name:     "video-production",
+		Kind:     KindSkill,
+		Summary:  "Short videos from script to render: one narration per cut played whole, scenes follow the voice, two reviewers",
+		Requires: []string{"script-reviewer", "video-reviewer"},
+	},
+	{
 		Name:    "petition-reviewer",
 		Kind:    KindAgent,
 		Summary: "Skeptical reviewer of a small-claims petition: citations checked at the source, facts checked against exhibits",

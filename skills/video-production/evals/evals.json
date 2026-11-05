@@ -1,0 +1,34 @@
+{
+ "skill_name": "video-production",
+ "evals": [
+  {
+   "id": 1,
+   "prompt": "Tenho um anúncio vertical de uns 20 segundos com 6 falas e cada fala tem a sua cena. Quero gerar a locução com um TTS (Gemini) e montar o vídeo. Como você gera a voz e sincroniza com as cenas? O vídeo tem que fechar em 20 s.",
+   "expected_output": "One narration per cut generated in one call and played whole; lines located by word timestamps; scenes follow the voice; no fixed duration target.",
+   "assertions": [
+    "Proposes generating the whole cut's narration in one call rather than one call per line",
+    "Says the narration is not cut, stretched or pause-trimmed to fit the scenes",
+    "Says the scene cuts follow where the voice changes line (word timestamps or equivalent)",
+    "Pushes back on forcing the film to a fixed 20 s"
+   ]
+  },
+  {
+   "id": 2,
+   "prompt": "Revisa esse roteiro antes de eu gerar a voz. São duas versões com o mesmo corpo e ganchos diferentes.\nVersão A: \"Sua etiqueta da Shopee vem em txt?\" / \"Depois tem que converter num site de fora pra imprimir.\" / \"Na Rednev, clica em imprimir e sai pronto pra sua térmica.\"\nVersão B: \"Quem vende na Shopee com impressora térmica, esse é pra você.\" / \"Depois tem que converter num site de fora pra imprimir.\" / \"Na Rednev, clica em imprimir e sai pronto pra sua térmica.\"",
+   "expected_output": "Version B's second line leans on a pain (the txt) that B's hook never named; B needs its own bridge line.",
+   "assertions": [
+    "Flags that version B's 'Depois tem que converter' has no antecedent under B's hook",
+    "Proposes a different second line for version B only, one that names the txt",
+    "Does not ask to change version A's second line"
+   ]
+  },
+  {
+   "id": 3,
+   "prompt": "No anúncio pago o motor empurra tudo pra esquerda pra fugir dos botões do Reels, então o cartão final do fim ficou com 27 px de margem à esquerda e 242 à direita. E no primeiro quadro tem um confete passando na frente do título. Tá ok mandar assim?",
+   "expected_output": "Not ok: a standalone end card is centred with equal margins; frame 0 is the feed preview and its headline must be uncovered; the cover can be a separate image.",
+   "assertions": [
+    "Says the standalone end card should be centred with equal side margins"
+   ]
+  }
+ ]
+}
