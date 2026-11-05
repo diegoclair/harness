@@ -1,0 +1,218 @@
+{
+  "lexicon": [
+    {
+      "pt": "alavancar",
+      "use": "aumentar, usar"
+    },
+    {
+      "pt": "potencializar",
+      "use": "aumentar"
+    },
+    {
+      "pt": "impulsionar",
+      "use": "aumentar"
+    },
+    {
+      "pt": "revolucionar",
+      "use": "mudar"
+    },
+    {
+      "pt": "revolucionário",
+      "use": "o que muda, dito como fato"
+    },
+    {
+      "pt": "transformar seu negócio",
+      "use": "o ganho concreto"
+    },
+    {
+      "pt": "transforme seu negócio",
+      "use": "o ganho concreto"
+    },
+    {
+      "pt": "descomplicar",
+      "use": "o passo que some"
+    },
+    {
+      "pt": "jornada",
+      "use": "o caminho, o processo"
+    },
+    {
+      "pt": "robusto",
+      "use": "o que ele aguenta, com número"
+    },
+    {
+      "pt": "robusta",
+      "use": "o que ela aguenta, com número"
+    },
+    {
+      "pt": "solução completa",
+      "use": "o que faz"
+    },
+    {
+      "pt": "soluções inovadoras",
+      "use": "o que faz"
+    },
+    {
+      "pt": "inovador",
+      "use": "o que é novo, dito"
+    },
+    {
+      "pt": "inovadora",
+      "use": "o que é novo, dito"
+    },
+    {
+      "pt": "de forma eficiente",
+      "use": "corte"
+    },
+    {
+      "pt": "de maneira simples e rápida",
+      "use": "quanto tempo leva"
+    },
+    {
+      "pt": "no mundo atual",
+      "use": "corte"
+    },
+    {
+      "pt": "nos dias de hoje",
+      "use": "corte"
+    },
+    {
+      "pt": "no cenário atual",
+      "use": "corte"
+    },
+    {
+      "pt": "cada vez mais competitivo",
+      "use": "corte"
+    },
+    {
+      "pt": "no fim do dia",
+      "use": "corte"
+    },
+    {
+      "pt": "game changer",
+      "use": "o que muda"
+    },
+    {
+      "pt": "divisor de águas",
+      "use": "o que muda"
+    },
+    {
+      "pt": "o próximo nível",
+      "use": "o resultado concreto"
+    },
+    {
+      "pt": "próximo nível",
+      "use": "o resultado concreto"
+    },
+    {
+      "pt": "sem dúvida",
+      "use": "corte"
+    },
+    {
+      "pt": "vale ressaltar",
+      "use": "corte"
+    },
+    {
+      "pt": "é importante destacar",
+      "use": "corte"
+    },
+    {
+      "pt": "mergulhar",
+      "use": "ver, olhar"
+    },
+    {
+      "pt": "desbloquear",
+      "use": "liberar, abrir"
+    },
+    {
+      "pt": "otimizar",
+      "use": "o que melhora, com número"
+    },
+    {
+      "pt": "maximizar",
+      "use": "aumentar"
+    },
+    {
+      "pt": "fique ligado",
+      "use": "corte"
+    },
+    {
+      "pt": "corre que",
+      "use": "o prazo real, ou corte"
+    },
+    {
+      "pt": "não perca",
+      "use": "o prazo real, ou corte"
+    },
+    {
+      "pt": "isso muda tudo",
+      "use": "o que muda"
+    },
+    {
+      "pt": "você não vai acreditar",
+      "use": "o fato"
+    },
+    {
+      "pt": "pare de rolar",
+      "use": "o gancho em si"
+    },
+    {
+      "pt": "para de rolar",
+      "use": "o gancho em si"
+    },
+    {
+      "pt": "nesse vídeo eu vou",
+      "use": "comece pela frase do segundo seis"
+    },
+    {
+      "pt": "neste vídeo",
+      "use": "comece pela frase do segundo seis"
+    },
+    {
+      "pt": "fala, galera",
+      "use": "corte a saudação"
+    },
+    {
+      "pt": "salva esse post",
+      "use": "um pedido só, no fim, com motivo"
+    },
+    {
+      "pt": "marca alguém que",
+      "use": "um pedido só, no fim, com motivo"
+    },
+    {
+      "pt": "segue pra mais",
+      "use": "um pedido só, no fim, com motivo"
+    },
+    {
+      "pt": "#viral",
+      "use": "uma hashtag que descreve o assunto"
+    },
+    {
+      "pt": "#fyp",
+      "use": "uma hashtag que descreve o assunto"
+    },
+    {
+      "pt": "#explore",
+      "use": "uma hashtag que descreve o assunto"
+    }
+  ],
+  "structures": [
+    {
+      "name": "não é só X, é Y",
+      "regex": "\\bn[ãa]o (?:é|e) (?:s[óo]|apenas)\\b[^.!?\\n]{1,60}[,;] (?:é|e)\\b"
+    },
+    {
+      "name": "não apenas X, mas também Y",
+      "regex": "\\bn[ãa]o (?:apenas|somente|s[óo])\\b[^.!?\\n]{1,60}\\bmas tamb[ée]m\\b"
+    },
+    {
+      "name": "pergunta de uma palavra que anuncia a resposta",
+      "regex": "(?m)^\\s*(?:O|A|Os|As)\\s+\\w+\\?\\s*$"
+    },
+    {
+      "name": "lista com emoji no começo de cada linha",
+      "regex": "(?m)(?:^[\\u2600-\\u27BF\\U0001F300-\\U0001FAFF].*\\n){3,}"
+    }
+  ]
+}

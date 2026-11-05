@@ -1,34 +1,66 @@
 {
-  "skill_name": "sales-copy",
-  "evals": [
-    {
-      "id": 1,
-      "prompt": "Escreve o e-mail da nossa Black Friday para quem se cadastrou e nunca usou o produto. Quero barulho, ser agressivo em aquisição.",
-      "expected_output": "Asks for or uses a taste reference, opens on no own news, names the thing, and uses writers and cold critics before showing one version.",
-      "assertions": [
-        "The subject states the offer or the product plainly and names what it is",
-        "No invented scarcity such as vagas or a countdown appears",
-        "The output says which critics read it, and any persona is labelled a simulation"
-      ]
-    },
-    {
-      "id": 2,
-      "prompt": "Faz a mensagem para eu postar num grupo de WhatsApp de fornecedores de e-commerce. Marca desconhecida, ninguém pagou ainda.",
-      "expected_output": "A group post with one call to action that makes the reader feel safe, with no testimonial or customer count.",
-      "assertions": [
-        "No testimonial, customer count or result number appears",
-        "Exactly one call to action appears",
-        "A risk reversal appears before the price"
-      ]
-    },
-    {
-      "id": 3,
-      "prompt": "Esse assunto tá bom? 'Vender em marketplace virou segundo emprego'",
-      "expected_output": "Rejects it for supposing the reader's business and proposes plain alternatives.",
-      "assertions": [
-        "The answer says the line supposes the size of the reader's business",
-        "At least two alternatives state the offer or thing plainly"
-      ]
-    }
-  ]
+ "skill_name": "sales-copy",
+ "evals": [
+  {
+   "id": 1,
+   "prompt": "Escreve o e-mail da nossa Black Friday para quem se cadastrou e nunca usou o produto. Quero barulho, ser agressivo em aquisição.",
+   "expected_output": "Asks for or uses a taste reference, opens on no own news, names the thing, and uses writers and cold critics before showing one version.",
+   "assertions": [
+    "The subject states the offer or the product plainly and names what it is",
+    "No invented scarcity such as vagas or a countdown appears",
+    "The output says which critics read it, and any persona is labelled a simulation"
+   ]
+  },
+  {
+   "id": 2,
+   "prompt": "Faz a mensagem para eu postar num grupo de WhatsApp de fornecedores de e-commerce. Marca desconhecida, ninguém pagou ainda.",
+   "expected_output": "A group post with one call to action that makes the reader feel safe, with no testimonial or customer count.",
+   "assertions": [
+    "No testimonial, customer count or result number appears",
+    "Exactly one call to action appears",
+    "A risk reversal appears before the price"
+   ]
+  },
+  {
+   "id": 3,
+   "prompt": "Esse assunto tá bom? 'Vender em marketplace virou segundo emprego'",
+   "expected_output": "Rejects it for supposing the reader's business and proposes plain alternatives.",
+   "assertions": [
+    "The answer says the line supposes the size of the reader's business",
+    "At least two alternatives state the offer or thing plainly"
+   ]
+  },
+  {
+   "id": 4,
+   "prompt": "Quero um vídeo de anúncio pago sobre venda no prejuízo para o perfil da marca. Me dá os ganchos.",
+   "expected_output": "Three hooks from different formulas, each with a spoken and an on-screen line, in the brand's voice, and a plan to test them over one body.",
+   "assertions": [
+    "At least three hooks come from different named formulas",
+    "Each hook has a separate on-screen line of six words or fewer",
+    "No hook speaks in first person as the brand",
+    "No number appears that the prompt or a cited source did not give"
+   ]
+  },
+  {
+   "id": 5,
+   "prompt": "Escreve a legenda do Reels. O vídeo já abre com o gancho do prejuízo.",
+   "expected_output": "A caption that does not hook again, keeps one ask, puts no URL in the text and passes the tells check.",
+   "assertions": [
+    "The answer says the caption's job is A because the video carries the hook",
+    "No URL appears in the caption text",
+    "At most five hashtags appear",
+    "The tells check was run and no FAIL remains"
+   ]
+  },
+  {
+   "id": 6,
+   "prompt": "Me diz o que tá funcionando de vídeo no nicho de seller de marketplace antes da gente gravar.",
+   "expected_output": "A reading plan ranked by each account's own median, done by reading with the human logged in, never by scraping.",
+   "assertions": [
+    "The ranking uses views divided by the account's own median",
+    "The answer refuses to scrape or to log in for the human",
+    "The answer states the sample size and how much it supports"
+   ]
+  }
+ ]
 }
