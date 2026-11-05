@@ -1,6 +1,6 @@
 ---
 name: video-production
-version: 0.1.0
+version: 0.2.0
 description: >-
   Produces short vertical videos — paid ads, feature videos, institutional pieces — from an approved script to a
   render a human only has to hear once: the script reviewed per variant before any voice exists, one synthetic
@@ -58,11 +58,14 @@ Any change to the spoken text, the voice or its style is a new narration for eve
 the human before the change, with the price (TTS for a 20 s spot costs well under a cent), and re-review every
 affected cut. A change to a scene, a caption chunk or the music touches no voice and costs a render.
 
-## The project's engine
+## The engine and the kit
 
-This skill holds the method, not the tools. The project's video engine, its voices, pronunciation and brand live in
-the project's own docs; read the engine's README before rendering and its voice doc before touching a narration.
-`scripts/review.py` here is engine-agnostic: it reads only the rendered file and its script.
+The engine ships with this skill, in `engine/`: run it as `node ~/.claude/skills/video-production/engine/film.mjs`.
+`film setup` fetches once per machine what it needs outside the skill folder; `film run <film folder>` renders a film,
+which is a `film.json` and its approved narration in `voice/`. What belongs to the project (scenes, brand, voices,
+pronunciation) is the repo's kit, `video-kit/kit.json` in the nearest folder above the film; read the kit's README and
+voice doc before touching a narration, and `engine/README.md` for the film and kit contract. `scripts/review.py` reads
+only the rendered file and its script.
 
 Revalidate when: a TTS model changes how it reads tags or styles, the engine stops narrating whole, or a defect
 reaches the human that neither reviewer would have caught.

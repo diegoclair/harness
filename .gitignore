@@ -44,3 +44,6 @@ Thumbs.db
 
 # Stray binary from `go build ./...` (Go names it after the package directory)
 installer/installer
+
+# Python bytecode the engine's scripts leave behind when they run
+__pycache__/

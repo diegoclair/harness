@@ -1,0 +1,14 @@
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:#000;overflow:hidden}
+body{-webkit-font-smoothing:antialiased}
+#stage{position:relative;width:1080px;height:1920px;background:var(--floor);overflow:hidden}
+.scene{position:absolute;inset:0;opacity:0;overflow:hidden}
+.scene.on{opacity:1}
+.a{opacity:0}
+.abs{position:absolute}
+#cc{position:absolute;left:60px;right:60px;top:1530px;display:flex;justify-content:center;text-align:center;z-index:20}
+#cc span{display:inline-block;font-family:var(--caption-font,sans-serif);font-weight:700;font-size:60px;line-height:1.16;letter-spacing:-0.02em;color:#fff;background:rgba(0,0,0,.76);border-radius:22px;padding:20px 34px}
+#vig{position:absolute;inset:0;pointer-events:none;z-index:19;background:radial-gradient(ellipse at 50% 50%,transparent 62%,rgba(0,0,0,.36) 100%)}
+.fit{position:absolute;left:0;top:0;width:1080px;height:1920px;transform-origin:0 0}
+.safe #cc{top:1262px;left:40px;right:230px}
+.safe #cc span{font-size:54px;padding:18px 30px}
