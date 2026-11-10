@@ -1,6 +1,6 @@
 ---
 name: orchestrator
-version: 0.22.0
+version: 0.23.0
 description: >-
   How to LEAD a multi-agent delivery as the parent session: the leader turns an objective into an approved spec with the implementers, decides what is theirs to decide, escalates only product rules to the human, and ships nothing the human has not reviewed. Use WHENEVER a session is set up as the orchestrator/lead/manager of a delivery, dispatches implementers or reviewers, writes specs for agents, is handed a goal to carry across several agents or repos, or is asked to build or refactor a non-trivial feature (several files, state or concurrency, regression risk) — EVEN if the user only says "take this front", "lead this", "implement X", or hands over from another session. Not for writing the code yourself (the implementers do), not for one-line fixes a build settles, and not for reviewing code that already exists (dispatch the reviewer on its own).
 allowed-tools:
@@ -341,9 +341,12 @@ the whole context, so a long session makes *each* step expensive — not only th
   pieces is broken — a gate that blocks the action that starts a trial, a dependency registered before it
   exists, a job that never reads the switch. **Demand a journey test across the seam** for any change that
   touches who may do what. A `nil` in a struct literal compiles, vets and passes per-package tests.
-- **Weigh a finding before you route it.** A reviewer proves a defect; it does not prove the defect
-  matters. Before dispatching the correction, ask the same question as before a spec: can the product
-  reach this state? A proven defect in a state no user reaches is a registered limit with its reopening
+- **Weigh a finding before you route it.** A finding is a claim about the code, not a fact: every
+  correction prompt has the implementer confirm each finding in the code before changing anything, and a
+  finding the code refutes comes back with its evidence to the reviewer that made it (by `SendMessage`, its
+  context intact), who withdraws or holds it — never fixed on faith, never dropped in silence. A reviewer
+  that proves a defect has not proved the defect matters: ask the same question as before a spec, can the
+  product reach this state? A proven defect in a state no user reaches is a registered limit with its reopening
   trigger, not a correction round. And when a correction comes back wider than its finding — it reorders a
   core flow, changes behaviour for cases that were never broken — stop and return to the last approved
   state instead of approving the wider change or stacking a fix on it.
