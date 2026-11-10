@@ -1,6 +1,6 @@
 ---
 name: video-production
-version: 0.2.0
+version: 0.2.1
 description: >-
   Produces short vertical videos — paid ads, feature videos, institutional pieces — from an approved script to a
   render a human only has to hear once: the script reviewed per variant before any voice exists, one synthetic

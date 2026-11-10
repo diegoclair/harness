@@ -10,7 +10,7 @@ import { captionSpans, compareTranscript, diffWords, hookEnd, longestStill, luma
 import { resolveRequest } from "./serve.mjs";
 import { findKit, serverRoot } from "./kit.mjs";
 import { ENGINE, mountTable, registerMounts } from "./mounts.mjs";
-import { voiceKey } from "./narration.mjs";
+import { strayNarrations, voiceKey } from "./narration.mjs";
 import { scaffold } from "./scaffold.mjs";
 import { drawCaption } from "./scenes/captions.mjs";
 
@@ -345,4 +345,11 @@ test("the modules the film page loads parse", () => {
 test("a caption chunk never ends before it starts, whatever pause lies nearby", () => {
   const chunks = page.timeChunks({ text: "Longe da mesa,|ele mostra a peça,|a cor|e quantas caixas.", at: 0, speech: [0.13, 3.396], pauses: [[0.161, 0.368], [1.232, 1.391], [2.47, 2.55]] });
   for (const c of chunks) assert.ok(c.b > c.a, `${c.text}: ${c.a}..${c.b}`);
+});
+
+test("a pinned film keeps only its pinned narrations in voice/, and an unpinned one keeps every take", () => {
+  const files = ["a.wav", "a.spans.json", "b.wav", "b.spans.json", "v.wav", "v.spans.json", "notes.txt"];
+  const pin = name => ({ file: `voice/${name}.wav`, spans: `voice/${name}.spans.json` });
+  assert.deepEqual(strayNarrations({ narration: pin("a"), variants: { v2: { narration: pin("v") } } }, files), ["b.wav", "b.spans.json"]);
+  assert.deepEqual(strayNarrations({ variants: { v2: { narration: pin("v") } } }, files), []);
 });

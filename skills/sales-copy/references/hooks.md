@@ -5,8 +5,9 @@ caption that carries the post. Pick three formulas that fit the idea, write the 
 each, and test them against each other (`short-video.md`). Three rewrites of one formula are one hook, not three.
 
 **A brand's profile has no "eu".** Formulas told in first person are written for a person on camera. In the brand's
-voice they become "a gente" for what the company did, or third person for a real, named case. A synthetic voice saying
-"eu" is a fake testimonial. Formulas marked *person* only work with a real person on camera saying their own story.
+voice they become "a gente" for what the company did, or third person for a real, named case. A synthetic voice may
+speak as an unnamed user ("eu pergunto pra minha IA") when nothing presents it as a real person: no name, no result
+credited to it, example data marked as example. Formulas marked *person* only work with a real person on camera saying their own story.
 
 **Every number is real.** A formula that asks for an amount, a time or a percentage is dropped when the number does
 not exist, never filled with a plausible one. The trap column is how each one gets caught.

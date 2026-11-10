@@ -1,9 +1,9 @@
-import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { kitFile, loadKit } from "./kit.mjs";
 import { applyVariant, resolveLine, resolveVoice } from "./film-core.mjs";
-import { filmVoice, measure, narrationSpans, paced, pacedName, readsWhole, speak, voiceKey } from "./narration.mjs";
+import { filmVoice, measure, narrationSpans, paced, pacedName, readsWhole, speak, strayNarrations, voiceKey } from "./narration.mjs";
 import { VOICE_CACHE } from "./setup.mjs";
 
 const readJson = file => JSON.parse(readFileSync(file, "utf8"));
@@ -67,6 +67,17 @@ async function lineClips() {
   return out;
 }
 
+// The cache keeps a stray take's audio, so setting it aside never throws away a paid generation.
+function setAsideStrays() {
+  if (!existsSync("voice")) return;
+  for (const f of strayNarrations(readJson("film.json"), readdirSync("voice"))) {
+    const from = path.join("voice", f), cached = path.join(VOICE_CACHE, f);
+    if (f.endsWith(".wav") && !existsSync(cached)) { mkdirSync(VOICE_CACHE, { recursive: true }); copyFileSync(from, cached); }
+    unlinkSync(from);
+    console.log(`voice/${f}: not the pinned narration, removed from the film${f.endsWith(".wav") ? ` (audio kept in ${VOICE_CACHE})` : ""}`);
+  }
+}
+
 async function sample(lineId, outDir, voices) {
   const line = lines.find(l => l.id === lineId);
   if (!line) throw new Error(`no line ${lineId}`);
@@ -91,6 +102,7 @@ else {
     console.log(`${l.id}: ${m.speech[1].toFixed(2)} s of speech, first burst ${burst.toFixed(2)} s${burst < 0.35 ? " (check the start)" : ""}`);
     return [l.id, { say: l.say, take: l.take ?? null, voice: spec.voice, model: spec.model, instructions: spec.instructions, tempo: spec.tempo, pin: film.narration?.spans ?? null, ...m }];
   });
+  setAsideStrays();
   mkdirSync(".build", { recursive: true });
   writeFileSync(path.join(".build", "voice.json"), JSON.stringify({ lines: Object.fromEntries(entries) }, null, 1));
 }

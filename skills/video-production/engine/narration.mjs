@@ -11,6 +11,14 @@ export function voiceKey({ model, voice, instructions }, say, take) {
   return createHash("sha256").update(JSON.stringify({ model, voice, instructions, say, ...(take ? { take } : {}) })).digest("hex").slice(0, 24);
 }
 
+// Once the film pins its narration, any other take in voice/ is a draft that git would keep forever.
+export function strayNarrations(film, files) {
+  if (!film.narration) return [];
+  const pins = [film.narration, ...Object.values(film.variants ?? {}).map(v => v?.narration)].filter(Boolean);
+  const kept = new Set(pins.flatMap(p => [p.file, p.spans]).filter(Boolean).map(f => path.basename(f)));
+  return files.filter(f => /\.(wav|spans\.json)$/.test(f) && !kept.has(f));
+}
+
 // A key never leaves memory: the environment wins, and the kit's untracked env file is the fallback, where the kit may
 // keep the provider's key under a name of its own.
 function apiKey({ file, names = {} }, name) {

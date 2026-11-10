@@ -86,6 +86,8 @@ locates each line in it, and the scene changes there.
 - **A voice that changes its delivery on every call is read in one call for the whole film;** a voice that does not is
   read line by line and may be paced up to 1.05x (`tempo`, `maxPause`).
 - **The film's `.gitignore` versions `voice/*.wav` and `voice/*.json`** and nothing else it renders.
+- **Once `narration` is pinned, `voice/` holds only the pinned files** (base and variants): every other take leaves the
+  film on the next run and its audio stays in the cache, so a take search never reaches git.
 
 ## Rhythm
 
