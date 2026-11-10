@@ -126,12 +126,14 @@ function layoutNarrated(scenes, lines, { lead = 0.2, tail = 0.5 } = {}) {
 }
 
 // A caption never blinks out between chunks of one line: the eye loses its place when it does.
+// The hold lets a caption be read after its line, but never covers the next line's words.
 function captionAt(lines, t, hold = 0.35) {
+  const starts = Object.values(lines).flatMap(l => (l.chunks ?? []).map(c => c.a));
   for (const l of Object.values(lines)) {
     if (!l.chunks) continue;
     const c = l.chunks;
     for (let k = 0; k < c.length; k++) {
-      const end = k + 1 < c.length ? c[k + 1].a : c[k].b + hold;
+      const end = k + 1 < c.length ? c[k + 1].a : Math.min(c[k].b + hold, ...starts.filter(a => a > c[k].a));
       if (t >= c[k].a && t < end) return { line: l, k, chunk: c[k], a: c[k].a, b: end };
     }
   }

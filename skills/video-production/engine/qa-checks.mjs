@@ -93,8 +93,9 @@ export function speechCuts(voice, scenes) {
 }
 
 export function captionSpans(lines, hold) {
+  const starts = lines.flatMap(l => l.chunks.map(c => c.a));
   return lines.flatMap(l => l.chunks.map((c, k) => {
-    const end = k + 1 < l.chunks.length ? l.chunks[k + 1].a : c.b + hold;
+    const end = k + 1 < l.chunks.length ? l.chunks[k + 1].a : Math.min(c.b + hold, ...starts.filter(a => a > c.a));
     return { line: l.id, text: c.text, onScreen: c.onScreen, seconds: end - c.a, words: c.text.split(/\s+/).length };
   }));
 }

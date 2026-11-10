@@ -353,3 +353,11 @@ test("a pinned film keeps only its pinned narrations in voice/, and an unpinned 
   assert.deepEqual(strayNarrations({ narration: pin("a"), variants: { v2: { narration: pin("v") } } }, files), ["b.wav", "b.spans.json"]);
   assert.deepEqual(strayNarrations({ variants: { v2: { narration: pin("v") } } }, files), []);
 });
+
+test("a held caption gives way the moment the next line starts speaking", () => {
+  const lines = { a: { id: "a", chunks: [{ text: "frete", a: 1, b: 2, onScreen: false }] }, b: { id: "b", chunks: [{ text: "e o custo", a: 2.1, b: 3, onScreen: false }] } };
+  assert.equal(page.captionAt(lines, 2.05, 0.3).chunk.text, "frete");
+  assert.equal(page.captionAt(lines, 2.15, 0.3).chunk.text, "e o custo");
+  assert.equal(page.captionAt(lines, 3.2, 0.3).chunk.text, "e o custo");
+  assert.equal(captionSpans(Object.values(lines), 0.3)[0].seconds.toFixed(2), "1.10");
+});
