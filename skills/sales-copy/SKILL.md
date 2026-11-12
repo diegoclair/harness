@@ -1,6 +1,6 @@
 ---
 name: sales-copy
-version: 0.5.1
+version: 0.5.2
 description: >-
   Writes and reviews the words of an acquisition message for a small unknown brand: e-mail, WhatsApp group post, direct message, ad, sales post, subject line, the hook and speech of a short video, an Instagram caption or story. It applies real selling technique without arrogance or invented proof, states the offer clearly, and passes the text through writers on different lines and cold critics before the human reads it. Use it WHENEVER Diego asks to write, rewrite or review a campaign message, "e-mail de campanha", "mensagem de WhatsApp", "post no grupo", "assunto", "copy", "texto de venda", "criativo", "Black Friday", "lançamento", "captar clientes", "gancho", "roteiro", "Reels", "legenda", "viral", "tráfego pago", or says a text is weak, cold, "formalzinho", arrogant or does not connect, even when "copy" is never said. Replies match the user's language. Not for a screen's layout or a page's visual (ui-ux), SEO (landing-seo-geo) or a text inside the product that serves a user already working.
 ---
@@ -52,6 +52,7 @@ seconds. Each rule below quotes the complaint that produced it, so a familiar co
 | "imaginando um vendedor lendo esse slide, ele não vai entender nada" | "2020, um bot pro teste de release" | A founder's history is told by what each tool spared people, in the reader's words. Job jargon (stack, release, dev) means nothing outside the trade |
 | "pra que colocar o valor de depois?!" | "a partir de R$ 49,50 por mês e de R$ 99 depois" | A post gives the discount, how many months and the offer price, and stops there. The later price lives on the page the reader lands on |
 | "pessoal lá não é de interagir muito" | a group post closing on "me conta: qual seria a primeira pergunta…?" | An ask for replies fits only where that audience replies. In a group that does not interact, the post ends on the link |
+| "deixar a postagem pra quando a gente ligar mesmo" | a feed post announcing an integration still waiting on the marketplace | What is close but not live goes to stories, for followers; the feed post waits for the day the seller can use it |
 
 ## What worked
 
