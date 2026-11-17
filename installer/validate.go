@@ -29,16 +29,22 @@ type validationIssue struct {
 	Problem string
 }
 
-// validateTree checks every artifact present in the repo tree. It walks
-// skills/ and agents/ rather than the catalog, so it reports on what is
-// actually there — the catalog also lists artifacts that live elsewhere until
-// they are migrated.
+type ruleFrontmatter struct {
+	Paths []string `yaml:"paths"`
+}
+
+// validateTree walks the tree, not the catalog: it judges what is on disk,
+// including files the catalog does not know yet.
 func validateTree(root string, out io.Writer) (int, []validationIssue) {
 	var issues []validationIssue
 	checked := 0
 
 	for _, f := range discoverArtifactFiles(root) {
 		checked++
+		if f.kind == KindRule {
+			issues = append(issues, validateRuleFile(f.path)...)
+			continue
+		}
 		issues = append(issues, validateFile(f.path, f.name, f.kind)...)
 	}
 	fmt.Fprintf(out, "Validated %d artifact(s) in %s\n", checked, root)
@@ -66,17 +72,48 @@ func discoverArtifactFiles(root string) []discovered {
 			}
 		}
 	}
-	if entries, err := os.ReadDir(filepath.Join(root, "agents")); err == nil {
-		for _, e := range entries {
-			if e.IsDir() || !strings.HasSuffix(e.Name(), ".md") {
-				continue
-			}
-			p := filepath.Join(root, "agents", e.Name())
-			found = append(found, discovered{p, strings.TrimSuffix(e.Name(), ".md"), KindAgent})
-		}
-	}
+	found = append(found, discoverMarkdownFiles(root, KindAgent)...)
+	found = append(found, discoverMarkdownFiles(root, KindRule)...)
 	sort.Slice(found, func(i, j int) bool { return found[i].path < found[j].path })
 	return found
+}
+
+func discoverMarkdownFiles(root string, kind Kind) []discovered {
+	entries, err := os.ReadDir(filepath.Join(root, kind.dir()))
+	if err != nil {
+		return nil
+	}
+	var found []discovered
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".md") {
+			continue
+		}
+		p := filepath.Join(root, kind.dir(), e.Name())
+		found = append(found, discovered{p, strings.TrimSuffix(e.Name(), ".md"), kind})
+	}
+	return found
+}
+
+func validateRuleFile(path string) []validationIssue {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return []validationIssue{{path, fmt.Sprintf("cannot read: %v", err)}}
+	}
+	if !strings.HasPrefix(strings.TrimPrefix(string(raw), "\ufeff"), "---\n") {
+		return nil
+	}
+	block, ok := extractFrontmatter(string(raw))
+	if !ok {
+		return []validationIssue{{path, "frontmatter opened with --- but never closed"}}
+	}
+	dec := yaml.NewDecoder(strings.NewReader(block))
+	// A misspelt key would leave the rule loading for every file instead of failing here.
+	dec.KnownFields(true)
+	var fm ruleFrontmatter
+	if err := dec.Decode(&fm); err != nil && err != io.EOF {
+		return []validationIssue{{path, fmt.Sprintf("invalid rule frontmatter (only a 'paths' list is read): %v", err)}}
+	}
+	return nil
 }
 
 func validateFile(path, expectedName string, kind Kind) []validationIssue {
@@ -149,7 +186,7 @@ func runValidate(args []string, stdout, stderr io.Writer) int {
 	}
 	checked, issues := validateTree(root, stdout)
 	if checked == 0 {
-		fmt.Fprintf(stderr, "no artifacts found under %s (expected skills/ or agents/)\n", root)
+		fmt.Fprintf(stderr, "no artifacts found under %s (expected skills/, agents/ or rules/)\n", root)
 		return exitInputErr
 	}
 	if len(issues) == 0 {

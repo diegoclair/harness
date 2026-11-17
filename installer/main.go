@@ -1,5 +1,5 @@
-// Command harness installs the Claude Code skills and agents published by
-// this repo.
+// Command harness installs the Claude Code skills, agents and rules published
+// by this repo.
 //
 // Two payload kinds share one selection mechanism: markdown artifacts are
 // copied straight out of the repo tree (no CI, no release), while skills that
@@ -23,14 +23,16 @@ const (
 	exitInputErr = 2
 )
 
-const helpText = `harness — install Claude Code skills and agents from github.com/diegoclair/harness
+const helpText = `harness — install Claude Code skills, agents and rules from github.com/diegoclair/harness
 
 USAGE:
-  harness list [--skills|--agents]     Show every installable artifact
-  harness install <name>...            Install skills and/or agents
+  harness list [--skills|--agents|--rules]
+                                       Show every installable artifact
+  harness install <name>...            Install skills, agents and/or rules
   harness install --all                Install everything
   harness install --all-skills         Install every skill
   harness install --all-agents         Install every agent
+  harness install --all-rules          Install every rule
   harness validate [PATH]              Check the artifacts in a repo tree
   harness --version
 
@@ -40,8 +42,9 @@ FLAGS:
   --from PATH         Install from a local clone instead of downloading
   --version TAG       Pin a release tag; only for a skill that ships a binary
 
-Skills are installed to ~/.claude/skills/<name>/ and agents to
-~/.claude/agents/<name>.md. Dependencies are pulled in automatically.
+Skills are installed to ~/.claude/skills/<name>/, agents to
+~/.claude/agents/<name>.md and rules to ~/.claude/rules/<name>.md.
+Dependencies are pulled in automatically.
 `
 
 func main() {
@@ -84,6 +87,9 @@ func runList(args []string, stdout, stderr io.Writer) int {
 		case "--agents":
 			k := KindAgent
 			onlyKind = &k
+		case "--rules":
+			k := KindRule
+			onlyKind = &k
 		default:
 			fmt.Fprintf(stderr, "unknown flag: %s\n", a)
 			return exitInputErr
@@ -96,7 +102,7 @@ func runList(args []string, stdout, stderr io.Writer) int {
 			width = len(a.Name)
 		}
 	}
-	for _, kind := range []Kind{KindSkill, KindAgent} {
+	for _, kind := range []Kind{KindSkill, KindAgent, KindRule} {
 		if onlyKind != nil && *onlyKind != kind {
 			continue
 		}
@@ -125,6 +131,7 @@ type installFlags struct {
 	all       bool
 	allSkills bool
 	allAgents bool
+	allRules  bool
 	names     []string
 }
 
@@ -149,6 +156,8 @@ func runInstall(args []string, stdout, stderr io.Writer) int {
 			f.allSkills = true
 		case arg == "--all-agents":
 			f.allAgents = true
+		case arg == "--all-rules":
+			f.allRules = true
 		case arg == "--repo":
 			if f.repo, ok = next(); !ok {
 				return exitInputErr
@@ -208,9 +217,9 @@ func runInstall(args []string, stdout, stderr io.Writer) int {
 // rejecting every input error before any installation starts so a typo never
 // leaves a half-applied selection.
 func selectArtifacts(f installFlags, stdout, stderr io.Writer) ([]Artifact, int) {
-	wildcard := f.all || f.allSkills || f.allAgents
+	wildcard := f.all || f.allSkills || f.allAgents || f.allRules
 	if wildcard && len(f.names) > 0 {
-		fmt.Fprintln(stderr, "--all/--all-skills/--all-agents take no artifact names")
+		fmt.Fprintln(stderr, "--all/--all-skills/--all-agents/--all-rules take no artifact names")
 		return nil, exitInputErr
 	}
 	if !wildcard && len(f.names) == 0 {
@@ -223,7 +232,8 @@ func selectArtifacts(f installFlags, stdout, stderr io.Writer) ([]Artifact, int)
 		for _, a := range catalog {
 			if f.all ||
 				(f.allSkills && a.Kind == KindSkill) ||
-				(f.allAgents && a.Kind == KindAgent) {
+				(f.allAgents && a.Kind == KindAgent) ||
+				(f.allRules && a.Kind == KindRule) {
 				selected = append(selected, a)
 			}
 		}
@@ -261,8 +271,8 @@ func selectArtifacts(f installFlags, stdout, stderr io.Writer) ([]Artifact, int)
 }
 
 // rejectFlagMismatch refuses a flag that cannot apply to a named artifact.
-// A version pin only means something for a skill that ships a binary, and an
-// agent is always plain files.
+// A version pin only means something for a skill that ships a binary; agents
+// and rules are always plain files.
 func rejectFlagMismatch(selected []Artifact, root string, f installFlags, stderr io.Writer) int {
 	if !f.versionSet {
 		return exitOK
@@ -326,10 +336,10 @@ func installAll(selected []Artifact, f installFlags, stdout, stderr io.Writer) i
 			fmt.Fprintln(stdout)
 		}
 		var err error
-		if a.Kind == KindAgent {
-			err = installAgent(a, root, opts.Ref, stdout)
-		} else {
+		if a.Kind == KindSkill {
 			err = installSkill(a, root, opts)
+		} else {
+			err = installFile(a, root, opts.Ref, stdout)
 		}
 		if err != nil {
 			fmt.Fprintf(stderr, "error installing %s: %v\n", a.Name, err)

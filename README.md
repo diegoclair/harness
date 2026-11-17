@@ -1,13 +1,14 @@
 # harness
 
-> The rigging around the model — Claude Code **skills** and **agents**, installable into any project with one command.
+> The rigging around the model — Claude Code **skills**, **agents** and **rules**, installable into any project with one command.
 
 [![Claude Skills](https://img.shields.io/badge/Claude-Skills%20%2B%20Agents-6E56CF)](https://docs.claude.com/en/docs/claude-code/skills)
 
-Two kinds of artifact live here, and the installer knows the difference:
+Three kinds of artifact live here, and the installer knows the difference:
 
 - **Skills** → `~/.claude/skills/<name>/` — a process Claude follows.
 - **Agents** → `~/.claude/agents/<name>.md` — a role Claude dispatches.
+- **Rules** → `~/.claude/rules/<name>.md` — loaded in every session like part of your `CLAUDE.md`; a `paths:` frontmatter scopes one to matching files.
 
 Skills compose agents. Installing a skill pulls in the agents it needs.
 
@@ -23,6 +24,18 @@ Skills compose agents. Installing a skill pulls in the agents it needs.
 | **`script-reviewer`** | Independent reviewer of a short video's spoken script before any voice exists. Reads every variant whole, from its own hook to its close, and flags a line that leans on what its variant never said, a line a synthetic voice will misread, a claim the scene cannot prove, and a line too weak for a paid spot, each with a rewrite. |
 | **`video-reviewer`** | Independent reviewer of a rendered short video before a human sees it. Measures the film against its script (missing or broken words, pause order, voice drift, first word, end-frame centring), looks at frame 0 and a frame grid itself, and returns APPROVE/REJECT with timestamps plus the short list only an ear can judge. |
 | **`petition-reviewer`** | Independent reviewer of a Brazilian small-claims petition that never saw the drafter's reasoning. Opens every statute, regulation and ruling cited at its primary source, checks every fact, amount and quotation against the numbered exhibits, reads the piece as the defendant's lawyer, and returns a one-line verdict with ranked findings. Takes a second message, with its context intact, when a firm position on a disputed recommendation is needed. Read-only on the case folder. |
+
+### Rules
+
+| Rule | What it does |
+|---|---|
+| **`language`** | Talk to the user in Brazilian Portuguese; everything versioned stays in English. |
+| **`git-index`** | The git index is the human's review marker: agents never stage, unstage or commit unasked. |
+| **`comments-and-docs`** | Comments and docs state purpose and the rule in force, never behavior or history. |
+| **`tests-never-shape-production`** | Tests adapt to production, never the reverse: no nil-tolerant dependencies, test-only exports or sleeps. |
+| **`ui-proof`** | A UI change is proven and measured in a browser at phone and desktop sizes. Scoped to UI files. |
+| **`talking-to-the-user`** | Short decision requests, reports with only what is open, proven fact kept apart from hypothesis. |
+| **`engineering`** | Fix the cause in its owner, simplest fix first, search before creating, nothing built for rare cases. |
 
 ### Skills
 
@@ -59,6 +72,7 @@ curl -fsSL .../install.sh | sh -s -- install orchestrator implementation-plan
 
 # or take a whole category
 curl -fsSL .../install.sh | sh -s -- install --all-skills
+curl -fsSL .../install.sh | sh -s -- install --all-rules
 curl -fsSL .../install.sh | sh -s -- install --all
 ```
 
@@ -81,11 +95,13 @@ go run ./installer install --from . orchestrator
 ### Commands
 
 ```
-harness list [--skills|--agents]      Show every installable artifact
-harness install <name>...             Install skills and/or agents
+harness list [--skills|--agents|--rules]
+                                      Show every installable artifact
+harness install <name>...             Install skills, agents and/or rules
 harness install --all                 Everything available
 harness install --all-skills          Every skill
 harness install --all-agents          Every agent
+harness install --all-rules           Every rule
 harness validate [PATH]               Check the artifacts in a repo tree
 ```
 
@@ -98,7 +114,7 @@ harness validate [PATH]               Check the artifacts in a repo tree
 
 Unknown names are rejected before anything is installed, so a typo never leaves a half-applied selection. Re-running upgrades in place.
 
-**Uninstall:** delete `~/.claude/skills/<name>/` or `~/.claude/agents/<name>.md`.
+**Uninstall:** delete `~/.claude/skills/<name>/`, `~/.claude/agents/<name>.md` or `~/.claude/rules/<name>.md`.
 
 ## How it works
 
@@ -107,7 +123,7 @@ Unknown names are rejected before anything is installed, so a typo never leaves 
 ```
 fetch the repo tree (a git ref, or your local clone)
    │
-   ├─ agent ..................... copy agents/<name>.md
+   ├─ agent or rule ............. copy agents/<name>.md or rules/<name>.md
    │
    └─ skill
         ├─ ships a cli/ ? ── no ─→ install its files from the tree.  Done.
@@ -122,7 +138,7 @@ A skill declares that it drives a binary by **shipping a `cli/` directory**. The
 
 Release versions resolve by tag prefix, because GitHub's "latest" pointer is a single value per repository and this repo ships several independently versioned skills.
 
-Installing replaces the skill directory so a renamed file can't linger, refuses to overwrite a directory it didn't create, and backs up a hand-written agent before replacing it. `cli/` is a build input and is never installed.
+Installing replaces the skill directory so a renamed file can't linger, refuses to overwrite a directory it didn't create, and backs up a hand-written agent or rule before replacing it. `cli/` is a build input and is never installed.
 
 ## Layout
 
@@ -136,6 +152,8 @@ harness/
 │       └── install/          # (optional) one-liner stubs
 ├── agents/
 │   └── <name>.md             # frontmatter + role
+├── rules/
+│   └── <name>.md             # (optional paths: frontmatter) + rule
 ├── installer/                # the `harness` CLI
 ├── pkg/                      # shared Go packages
 └── .github/workflows/        # one release-<component>.yml per releasable component
@@ -153,6 +171,7 @@ Artifacts here must work for anyone who installs them. PR rules:
 ### Conventions
 
 - `name`: lowercase with hyphens, max 64 characters, and it must match the directory (skills) or filename (agents).
+- A rule needs no frontmatter; when it has one, only a `paths:` list is accepted.
 - `description`: max 1024 characters, including the triggers that activate the artifact.
 - **Quote a description containing `: `** — unquoted, YAML reads it as a nested mapping. `harness validate` catches this.
 - References use relative paths (`reference/foo.md`), never absolute URLs.
@@ -161,36 +180,12 @@ Run `go run ./installer validate .` before opening a PR.
 
 ### Adding an artifact
 
-1. Create `skills/<name>/SKILL.md` or `agents/<name>.md`.
+1. Create `skills/<name>/SKILL.md`, `agents/<name>.md` or `rules/<name>.md`.
 2. Add it to `catalog` in `installer/manifest.go`, with `Requires` if it dispatches an agent.
 3. If it drives a CLI, add `skills/<name>/cli/`, set `TagPrefix` on its catalog entry, and add a `release-<name>.yml` workflow. The installer needs no code change — `cli/` is what it looks for.
 4. `cd installer && make test`.
 
 A skill without a `cli/` needs no release: it ships from `main` the moment it is merged. The catalog entry travels in the installer binary, so an already-installed `harness` sees a brand-new artifact after the next `harness-v*` release; `go run ./installer` from a clone sees it immediately.
-
-## Credentials
-
-The Atlassian skills share one login via `~/.config/atlassian/credentials`:
-
-```bash
-confluence-docs login          # browser OAuth; tokens refresh themselves
-confluence-docs setup --check  # validate what is configured
-jira-tickets setup --check     # reuses the same credentials
-```
-
-Uninstalling a skill never touches that file. Remove `~/.config/atlassian/` only when you are done with **both** Atlassian skills.
-
-## Credentials
-
-The Atlassian skills share one login via `~/.config/atlassian/credentials`:
-
-```bash
-confluence-docs login          # browser OAuth; tokens refresh themselves
-confluence-docs setup --check  # validate what is configured
-jira-tickets setup --check     # reuses the same credentials
-```
-
-Uninstalling a skill never touches that file. Remove `~/.config/atlassian/` only when you are done with **both** Atlassian skills.
 
 ## Credentials
 

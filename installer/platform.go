@@ -61,13 +61,12 @@ func skillDir(skill string) (string, error) {
 	return filepath.Join(home, "skills", skill), nil
 }
 
-// agentDir is where Claude looks for agents.
-func agentDir() (string, error) {
+func installDir(k Kind) (string, error) {
 	home, err := claudeHome()
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(home, "agents"), nil
+	return filepath.Join(home, k.dir()), nil
 }
 
 // userBinDir is the directory symlinked onto PATH on Unix.

@@ -28,8 +28,8 @@ func TestCatalogIsWellFormed(t *testing.T) {
 			t.Errorf("%s: tag prefix %q is used by another artifact", a.Name, a.TagPrefix)
 		}
 		seenPrefix[a.TagPrefix] = true
-		if a.Kind == KindAgent {
-			t.Errorf("%s: an agent is plain files and cannot carry a tag prefix", a.Name)
+		if a.Kind != KindSkill {
+			t.Errorf("%s: a %s is plain files and cannot carry a tag prefix", a.Name, a.Kind)
 		}
 	}
 }
@@ -54,12 +54,26 @@ func TestSkillsWithACLIDeclareATagPrefix(t *testing.T) {
 // name it cannot deliver.
 func TestEveryCatalogEntryExistsInTheTree(t *testing.T) {
 	for _, a := range catalog {
-		path := filepath.Join("..", "agents", a.Name+".md")
+		path := filepath.Join("..", a.Kind.dir(), a.Name+".md")
 		if a.Kind == KindSkill {
 			path = filepath.Join("..", "skills", a.Name, "SKILL.md")
 		}
 		if _, err := os.Stat(path); err != nil {
 			t.Errorf("%s is catalogued but missing from the repo: %v", a.Name, err)
+		}
+	}
+}
+
+// A file in the tree with no catalog entry can never be installed.
+func TestEveryArtifactInTheTreeIsCatalogued(t *testing.T) {
+	for _, f := range discoverArtifactFiles("..") {
+		a, ok := findArtifact(f.name)
+		if !ok {
+			t.Errorf("%s is in the repo but missing from the catalog", f.path)
+			continue
+		}
+		if a.Kind != f.kind {
+			t.Errorf("%s is a %s in the repo but catalogued as a %s", f.path, f.kind, a.Kind)
 		}
 	}
 }

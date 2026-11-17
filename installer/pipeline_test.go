@@ -340,8 +340,8 @@ func TestBinaryInstallReplacesAnUnwritableFile(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := installBinary(src, dst); err != nil {
-		t.Fatalf("installBinary: %v", err)
+	if err := replaceFile(src, dst, 0o755); err != nil {
+		t.Fatalf("replaceFile: %v", err)
 	}
 	assertFile(t, dst, "new binary")
 }

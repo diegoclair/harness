@@ -21,7 +21,7 @@ func TestListShowsBothKinds(t *testing.T) {
 	if code != exitOK {
 		t.Fatalf("exit = %d", code)
 	}
-	for _, want := range []string{"Skills:", "Agents:", "orchestrator", "implementation-plan", "unbiased-reviewer"} {
+	for _, want := range []string{"Skills:", "Agents:", "Rules:", "orchestrator", "implementation-plan", "unbiased-reviewer", "language"} {
 		if !strings.Contains(stdout, want) {
 			t.Errorf("list output is missing %q\n%s", want, stdout)
 		}
@@ -39,6 +39,17 @@ func TestListCanFilterByKind(t *testing.T) {
 	if !strings.Contains(stdout, "unbiased-reviewer") {
 		t.Errorf("--agents should list the agent\n%s", stdout)
 	}
+
+	code, stdout, _ = runCLI(t, "list", "--rules")
+	if code != exitOK {
+		t.Fatalf("exit = %d", code)
+	}
+	if strings.Contains(stdout, "Agents:") || strings.Contains(stdout, "orchestrator") {
+		t.Errorf("--rules should list only rules\n%s", stdout)
+	}
+	if !strings.Contains(stdout, "Rules:") || !strings.Contains(stdout, "language") {
+		t.Errorf("--rules should list the rule\n%s", stdout)
+	}
 }
 
 // Every rejection below must happen before anything is written, so a typo
@@ -52,6 +63,7 @@ func TestInputErrorsAreRejectedWithASpecificMessage(t *testing.T) {
 		{"unknown artifact", []string{"install", "orchestrator", "bogus"}, "unknown artifact"},
 		{"no name", []string{"install"}, "no artifact given"},
 		{"names with --all", []string{"install", "--all", "orchestrator"}, "take no artifact names"},
+		{"names with --all-rules", []string{"install", "--all-rules", "language"}, "take no artifact names"},
 		{"unknown flag", []string{"install", "--nope"}, "unknown flag"},
 		{"unknown command", []string{"frobnicate"}, "unknown command"},
 	}
@@ -100,6 +112,30 @@ func TestAllAgentsInstallsOnlyAgents(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(home, ".claude", "skills")); err == nil {
 		t.Error("--all-agents must not create skills/")
+	}
+}
+
+func TestAllRulesInstallsOnlyRules(t *testing.T) {
+	home := sandboxHome(t)
+	tree := fixtureTree(t)
+
+	code, _, stderr := runCLI(t, "install", "--from", tree, "--all-rules")
+	if code != exitOK {
+		t.Fatalf("exit = %d\nstderr:%s", code, stderr)
+	}
+	for _, a := range catalog {
+		if a.Kind != KindRule {
+			continue
+		}
+		if _, err := os.Stat(filepath.Join(home, ".claude", "rules", a.Name+".md")); err != nil {
+			t.Errorf("rule %s missing: %v", a.Name, err)
+		}
+	}
+	assertFile(t, filepath.Join(home, ".claude", "rules", "language.md"), "language rule body")
+	for _, other := range []string{"skills", "agents"} {
+		if _, err := os.Stat(filepath.Join(home, ".claude", other)); err == nil {
+			t.Errorf("--all-rules must not create %s/", other)
+		}
 	}
 }
 
@@ -235,6 +271,39 @@ func TestValidateRules(t *testing.T) {
 	}
 }
 
+// A rule needs no frontmatter, and when it has one only `paths` is read, so a
+// misspelt key would leave the rule loading everywhere without a word.
+func TestValidateRuleFrontmatter(t *testing.T) {
+	cases := []struct {
+		name, body, wantHint string
+	}{
+		{"no frontmatter", "# A rule\n\n- do this\n", ""},
+		{"paths list", "---\npaths:\n  - \"**/*.go\"\n---\n# A rule\n", ""},
+		{"unknown key", "---\npath:\n  - \"**/*.go\"\n---\n# A rule\n", "invalid rule frontmatter"},
+		{"broken YAML", "---\npaths: [unclosed\n---\n# A rule\n", "invalid rule frontmatter"},
+		{"never closed", "---\npaths:\n  - \"**/*.go\"\n# A rule\n", "never closed"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			mustWrite(t, filepath.Join(dir, "rules", "a-rule.md"), tc.body)
+			code, _, stderr := runCLI(t, "validate", dir)
+			if tc.wantHint == "" {
+				if code != exitOK {
+					t.Errorf("exit = %d, want 0; stderr = %q", code, stderr)
+				}
+				return
+			}
+			if code == exitOK {
+				t.Fatal("want a non-zero exit")
+			}
+			if !strings.Contains(stderr, "a-rule.md") || !strings.Contains(stderr, tc.wantHint) {
+				t.Errorf("stderr = %q, want the file and %q", stderr, tc.wantHint)
+			}
+		})
+	}
+}
+
 // Multi-byte punctuation is common in descriptions; the limit counts
 // characters, so a byte-based check would reject a valid artifact.
 func TestDescriptionLimitCountsCharactersNotBytes(t *testing.T) {
@@ -268,8 +337,13 @@ func TestAFailedArtifactIsReportedAndChangesTheExitCode(t *testing.T) {
 		t.Errorf("stderr should summarise the failures, got %q", stderr)
 	}
 	// The others still install: one bad artifact does not abort the batch.
-	if _, err := os.Stat(filepath.Join(home, ".claude", "agents", "unbiased-reviewer.md")); err != nil {
-		t.Errorf("unrelated artifacts should still install: %v", err)
+	for _, p := range []string{
+		filepath.Join(home, ".claude", "agents", "unbiased-reviewer.md"),
+		filepath.Join(home, ".claude", "rules", "language.md"),
+	} {
+		if _, err := os.Stat(p); err != nil {
+			t.Errorf("unrelated artifacts should still install: %v", err)
+		}
 	}
 }
 

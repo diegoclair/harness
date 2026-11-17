@@ -2,23 +2,32 @@ package main
 
 import "fmt"
 
-// Kind is where an artifact is installed: skills and agents live in different
-// directories and Claude Code loads them differently.
+// Kind is where an artifact is installed: each kind lives in its own directory
+// and Claude Code loads each differently.
 type Kind int
 
 const (
 	KindSkill Kind = iota
 	KindAgent
+	KindRule
 )
 
 func (k Kind) String() string {
-	if k == KindAgent {
+	switch k {
+	case KindAgent:
 		return "agent"
+	case KindRule:
+		return "rule"
 	}
 	return "skill"
 }
 
-// Artifact is one installable unit — a skill or an agent.
+// The repo folder a kind ships from and the folder Claude Code loads it from share this name.
+func (k Kind) dir() string {
+	return k.String() + "s"
+}
+
+// Artifact is one installable unit — a skill, an agent or a rule.
 type Artifact struct {
 	Name string
 	Kind Kind
@@ -157,6 +166,41 @@ var catalog = []Artifact{
 		TagPrefix:  "gate-v",
 		Summary:    "Gate a delivery on comments, duplication, complexity and layer boundaries",
 		VersionEnv: "QUALITY_GATE_VERSION",
+	},
+	{
+		Name:    "language",
+		Kind:    KindRule,
+		Summary: "Talk to the user in Brazilian Portuguese; everything versioned stays in English",
+	},
+	{
+		Name:    "git-index",
+		Kind:    KindRule,
+		Summary: "The git index is the human's review marker: agents never stage, unstage or commit unasked",
+	},
+	{
+		Name:    "comments-and-docs",
+		Kind:    KindRule,
+		Summary: "Comments and docs state purpose and the rule in force, never behavior or history",
+	},
+	{
+		Name:    "tests-never-shape-production",
+		Kind:    KindRule,
+		Summary: "Tests adapt to production, never the reverse: no nil-tolerant dependencies, test-only exports or sleeps",
+	},
+	{
+		Name:    "ui-proof",
+		Kind:    KindRule,
+		Summary: "A UI change is proven and measured in a browser at phone and desktop sizes (scoped to UI files)",
+	},
+	{
+		Name:    "talking-to-the-user",
+		Kind:    KindRule,
+		Summary: "Short decision requests, reports with only what is open, proven fact apart from hypothesis",
+	},
+	{
+		Name:    "engineering",
+		Kind:    KindRule,
+		Summary: "Fix the cause in its owner, simplest fix first, search before creating, no builds for rare cases",
 	},
 }
 

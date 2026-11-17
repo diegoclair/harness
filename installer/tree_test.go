@@ -207,6 +207,7 @@ func fixtureTree(t *testing.T) string {
 		"orchestrator":        "lead body",
 		"implementation-plan": "plan body",
 		"unbiased-reviewer":   "reviewer body",
+		"language":            "language rule body",
 	}
 	for _, a := range catalog {
 		body := bodies[a.Name]
@@ -215,6 +216,10 @@ func fixtureTree(t *testing.T) string {
 		}
 		if a.Kind == KindAgent {
 			mustWrite(t, filepath.Join(root, "agents", a.Name+".md"), "---\nname: "+a.Name+"\n---\n"+body+"\n")
+			continue
+		}
+		if a.Kind == KindRule {
+			mustWrite(t, filepath.Join(root, "rules", a.Name+".md"), body+"\n")
 			continue
 		}
 		mustWrite(t, filepath.Join(root, "skills", a.Name, "SKILL.md"), "---\nname: "+a.Name+"\n---\n"+body+"\n")
@@ -393,6 +398,32 @@ func TestAgentInstallBacksUpDifferingContent(t *testing.T) {
 	}
 }
 
+// A session may be reading the rule while it is replaced, so the new version
+// lands by rename; a read-only installed copy proves no write went over it.
+func TestRuleInstallReplacesThePreviousVersionByRename(t *testing.T) {
+	home := sandboxHome(t)
+	root := fixtureTree(t)
+	rule, _ := findArtifact("language")
+	dst := filepath.Join(home, ".claude", "rules", "language.md")
+
+	if err := installOne(t, rule, localTree{path: root}, io.Discard); err != nil {
+		t.Fatalf("first install: %v", err)
+	}
+	assertFile(t, dst, "language rule body")
+	if err := os.Chmod(dst, 0o444); err != nil {
+		t.Fatal(err)
+	}
+
+	mustWrite(t, filepath.Join(root, "rules", "language.md"), "language rule v2\n")
+	if err := installOne(t, rule, localTree{path: root}, io.Discard); err != nil {
+		t.Fatalf("reinstall: %v", err)
+	}
+	assertFile(t, dst, "language rule v2")
+	if _, err := os.Stat(filepath.Join(home, ".claude", "rules", ".language.md.new")); err == nil {
+		t.Error("the temp file of the rename must not stay behind")
+	}
+}
+
 // Reinstalling identical content is not a replacement and must not litter.
 func TestAgentInstallDoesNotBackUpIdenticalContent(t *testing.T) {
 	home := sandboxHome(t)
@@ -476,8 +507,8 @@ func installOne(t *testing.T, a Artifact, tree treeProvider, out io.Writer) erro
 	if err != nil {
 		return err
 	}
-	if a.Kind == KindAgent {
-		return installAgent(a, root, "test", out)
+	if a.Kind == KindSkill {
+		return installSkill(a, root, installOptions{Repo: defaultRepo, Ref: "test", Out: out})
 	}
-	return installSkill(a, root, installOptions{Repo: defaultRepo, Ref: "test", Out: out})
+	return installFile(a, root, "test", out)
 }

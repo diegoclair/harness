@@ -16,7 +16,7 @@ app/sitemap.ts             reads the registry; footer and "read also" do too
 ```
 
 New page = 1 data file + 1 line in the registry. Zero code, zero new token. Note this in the
-repo's `AGENTS.md` in the "where to change what" table.
+"where to change what" table of the `AGENTS.md` that governs the page data's folder (or the repo's root one).
 
 ## Answer-first lead
 

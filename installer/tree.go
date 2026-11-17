@@ -155,14 +155,14 @@ func writeTarEntry(tr *tar.Reader, target string, mode os.FileMode) error {
 	return nil
 }
 
-func installAgent(a Artifact, root, ref string, out io.Writer) error {
-	fmt.Fprintf(out, "Installing %s (agent) from %s\n", a.Name, ref)
+func installFile(a Artifact, root, ref string, out io.Writer) error {
+	fmt.Fprintf(out, "Installing %s (%s) from %s\n", a.Name, a.Kind, ref)
 
-	src := filepath.Join(root, "agents", a.Name+".md")
+	src := filepath.Join(root, a.Kind.dir(), a.Name+".md")
 	if _, err := os.Stat(src); err != nil {
-		return fmt.Errorf("agent %s not found in the repo tree", a.Name)
+		return fmt.Errorf("%s %s not found in the repo tree", a.Kind, a.Name)
 	}
-	dir, err := agentDir()
+	dir, err := installDir(a.Kind)
 	if err != nil {
 		return err
 	}
@@ -173,16 +173,15 @@ func installAgent(a Artifact, root, ref string, out io.Writer) error {
 	if err := backupIfForeign(src, dst, out); err != nil {
 		return err
 	}
-	if err := copyFile(src, dst); err != nil {
+	if err := replaceFile(src, dst, 0o644); err != nil {
 		return err
 	}
 	fmt.Fprintf(out, "  Installed: %s\n", dst)
 	return nil
 }
 
-// backupIfForeign preserves a hand-written agent before replacing it. Agents
-// are single files with nowhere to keep a marker, and a skill's dependency can
-// pull one in without the user ever naming it.
+// A single-file artifact has nowhere to keep a marker, and a wildcard or a
+// dependency can install one the user never named.
 func backupIfForeign(src, dst string, out io.Writer) error {
 	existing, err := os.ReadFile(dst)
 	if os.IsNotExist(err) {

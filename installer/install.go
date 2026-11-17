@@ -160,7 +160,7 @@ func installBinaryStage(a Artifact, binSrc, dir, version string, opts installOpt
 		return fmt.Errorf("create %s: %w", binDir, err)
 	}
 	binPath := filepath.Join(binDir, binaryName(a.Name))
-	if err := installBinary(binSrc, binPath); err != nil {
+	if err := replaceFile(binSrc, binPath, 0o755); err != nil {
 		return err
 	}
 	fmt.Fprintf(out, "  Installed binary: %s\n", binPath)
@@ -264,20 +264,20 @@ func writeZipEntry(f *zip.File, target string) error {
 	return nil
 }
 
-// installBinary writes through a sibling temp file and renames. Copying onto a
-// running executable fails with ETXTBSY, which is exactly the `<skill> update`
-// path: the running binary asks the installer to replace it.
-func installBinary(src, dst string) error {
+// Through a temp file and a rename: a running session never reads a half-written
+// file, and a running executable cannot be copied over (ETXTBSY on `<skill> update`).
+func replaceFile(src, dst string, perm os.FileMode) error {
 	tmp := filepath.Join(filepath.Dir(dst), "."+filepath.Base(dst)+".new")
 	if err := copyFile(src, tmp); err != nil {
 		return err
 	}
-	if err := os.Chmod(tmp, 0o755); err != nil {
+	if err := os.Chmod(tmp, perm); err != nil {
+		os.Remove(tmp)
 		return fmt.Errorf("chmod %s: %w", tmp, err)
 	}
 	if err := os.Rename(tmp, dst); err != nil {
 		os.Remove(tmp)
-		return fmt.Errorf("install binary: %w", err)
+		return fmt.Errorf("replace %s: %w", dst, err)
 	}
 	return nil
 }
