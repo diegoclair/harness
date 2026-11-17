@@ -1,6 +1,6 @@
 ---
 name: ui-ux
-version: 0.2.0
+version: 0.2.1
 description: >-
   Designs and reviews landing pages, product pages and app screens that hold attention on first load — live product UI instead of illustration, scroll-driven reversible motion, neutral surfaces with one accent — through one divergent taste round, a review loop where every complaint becomes the smallest fix plus a measurement, and bundled Playwright checks (void scroll, blurred rest state, loops, no-JS final state, clipped content, fold runway). Use it WHENEVER Diego builds, designs, redesigns or "reimagines" a landing, page, section or screen, wants it bonito, "encantador", with WOW, motion, effects or "coisas vivas", reviews a design from screenshots, or complains it looks ugly, crooked, blurred, cramped, too far, too short or startling — even without saying "UI" or "UX". Not for SEO or indexing (that is landing-seo-geo). Replies match the user's language.
 ---
@@ -156,8 +156,8 @@ A question the human asks twice gets the answer first, alone, then the reasons �
 buried in a long reply.
 
 Dispatch itself follows the `orchestrator` skill; what is specific to a design round:
-one design agent carries the whole round by continuation; switch only near ~70% context and at a natural
-seam, after it writes a technical note + copies its tools out of the scratchpad. Every follow-up is a
+one design agent carries the whole round by continuation; switch only when the harness shows it was
+summarised, at a natural seam, after it writes a technical note + copies its tools out of the scratchpad. Every follow-up is a
 numbered minimal delta with "change nothing else" and a 1–8 line report ceiling.
 
 ## Adding a lesson
