@@ -78,8 +78,11 @@ composes its own name or sentence instead of asking the owner is REJECT.
 **I3 — facts after effects, errors kept.** For every write of a state that records an act (paid, sent,
 answered, published, claimed), find the act and read the order: a fact written before its effect with
 no compensating update on every failure path is REJECT, and so is a claim and a result folded into one
-flag. For every error the path touches: an error turned into a zero value, an empty result or a
-warning-then-continue is REJECT, unless it is the owner's declared not-found.
+flag. For every path that retries (a queue, a pass, a redelivered consumer), list the external calls of
+one attempt: a retry that repeats a call whose answer an earlier attempt already holds is REJECT — each
+repeated call is one more way the retry fails after the thing it waited for came back. For every error
+the path touches: an error turned into a zero value, an empty result or a warning-then-continue is
+REJECT, unless it is the owner's declared not-found.
 
 **I4 — dependency direction, vendor shape and names.** Run the project's layer greps (concrete infrastructure
 imported inside the domain; a vendor's word in shared code) and paste their output. A vendor's shape leaks
