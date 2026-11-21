@@ -6,6 +6,7 @@ paths:
 
 - **Type-check and lint prove nothing about a screen.** Changed layout, color, height, column, focus or keyboard? Open it in Playwright, screenshot at **390×844 and 1440×900**, and look before saying it is done.
 - **Don't wait for the real backend**: run the front against a stand-in of the API and inject the session into `localStorage` with `addInitScript`. How each front does it is in that front's `AGENTS.md`.
+- **Run the matrix in parallel**: widths, themes and states are independent, so one Playwright run with parallel workers (or one browser context per combination) over one shared dev server; never a serial loop through them.
 - **Measure, don't only look**: `boundingBox()` for row and modal height, `isVisible()` per column per breakpoint, `scrollWidth > clientWidth` for horizontal scroll.
 - **Open what is collapsed** (details, accordion, sheet) and measure inside; a "closed/invisible" warning is never dismissed as an artifact.
 - **Switching a tab, option or state never changes the screen's height**: prove it with `boundingBox()` across states.
