@@ -3,9 +3,11 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
@@ -59,10 +61,16 @@ func allSourceFiles(cfg *Config) ([]string, error) {
 }
 
 func git(root string, args ...string) (string, error) {
+	out, err := gitRaw(root, args...)
+	return strings.TrimSpace(out), err
+}
+
+// gitRaw keeps the leading space a porcelain status line starts with.
+func gitRaw(root string, args ...string) (string, error) {
 	cmd := exec.Command("git", args...)
 	cmd.Dir = root
 	out, err := cmd.Output()
-	return strings.TrimSpace(string(out)), err
+	return string(out), err
 }
 
 // baseRef picks the branch the delivery is measured against.
@@ -95,46 +103,100 @@ func mergeBase(cfg *Config, since string) (string, error) {
 	return mb, nil
 }
 
-// changedFiles is the delivery: everything different from the base branch plus
-// everything still uncommitted, because a gate that only sees commits is a gate
-// you run too late.
-func changedFiles(cfg *Config, since string) ([]string, error) {
-	set := map[string]bool{}
-	if mb, err := mergeBase(cfg, since); err == nil && mb != "" {
-		if out, err := git(cfg.Root, "diff", "--name-only", "--diff-filter=ACMR", mb); err == nil {
-			addLines(set, out)
-		}
+var (
+	errNoBaseBranch  = errors.New("no base branch: none of origin/main, main, origin/master, master exists")
+	errUnrelatedBase = errors.New("git cannot relate HEAD to the base branch")
+)
+
+// Delivery is everything different from the base branch plus everything still
+// uncommitted, deletions and both sides of a rename included.
+type Delivery struct {
+	Base  string   `json:"base"`
+	Head  string   `json:"head"`
+	Paths []string `json:"paths"`
+}
+
+func readDelivery(cfg *Config, since string) (Delivery, error) {
+	base := since
+	if base == "" {
+		base = baseRef(cfg)
 	}
-	if out, err := git(cfg.Root, "status", "--porcelain"); err == nil {
-		for _, line := range strings.Split(out, "\n") {
-			if len(line) < 4 {
-				continue
-			}
-			path := strings.TrimSpace(line[2:])
-			if i := strings.Index(path, " -> "); i >= 0 { // rename
-				path = path[i+4:]
-			}
+	if base == "" {
+		return Delivery{}, errNoBaseBranch
+	}
+	head, err := git(cfg.Root, "rev-parse", "HEAD")
+	if err != nil {
+		return Delivery{}, fmt.Errorf("git rev-parse HEAD: %w", err)
+	}
+	mb, err := git(cfg.Root, "merge-base", "HEAD", base)
+	if err != nil {
+		return Delivery{}, fmt.Errorf("%w: git merge-base HEAD %s: %w", errUnrelatedBase, base, err)
+	}
+	committed, err := gitRaw(cfg.Root, "diff", "--name-only", "--no-renames", "-z", mb)
+	if err != nil {
+		return Delivery{}, fmt.Errorf("git diff %s: %w", mb, err)
+	}
+	uncommitted, err := uncommittedPaths(cfg)
+	if err != nil {
+		return Delivery{}, err
+	}
+	set := map[string]bool{}
+	for _, path := range append(strings.Split(committed, "\x00"), uncommitted...) {
+		if path != "" {
 			set[path] = true
 		}
 	}
-
-	var out []string
+	paths := make([]string, 0, len(set))
 	for path := range set {
-		path = filepath.ToSlash(path)
-		if lang, ok := langOf(path); ok && cfg.wants(lang) && !cfg.excluded(path) {
-			out = append(out, path)
-		}
+		paths = append(paths, filepath.ToSlash(path))
 	}
-	sort.Strings(out)
+	sort.Strings(paths)
+	return Delivery{Base: mb, Head: head, Paths: paths}, nil
+}
+
+// changedFiles is the part of the delivery the rules read: source files still on disk.
+// With no base branch, or one git cannot relate to HEAD, the rules still read what is uncommitted.
+func changedFiles(cfg *Config, since string) ([]string, error) {
+	paths, err := deliveredPaths(cfg, since)
+	if err != nil {
+		return nil, err
+	}
+	var out []string
+	for _, path := range paths {
+		if lang, ok := langOf(path); !ok || !cfg.wants(lang) || cfg.excluded(path) {
+			continue
+		}
+		if _, err := os.Stat(filepath.Join(cfg.Root, path)); errors.Is(err, fs.ErrNotExist) {
+			continue
+		} else if err != nil {
+			return nil, err
+		}
+		out = append(out, path)
+	}
 	return out, nil
 }
 
-func addLines(set map[string]bool, out string) {
-	for _, line := range strings.Split(out, "\n") {
-		if line = strings.TrimSpace(line); line != "" {
-			set[line] = true
+func deliveredPaths(cfg *Config, since string) ([]string, error) {
+	d, err := readDelivery(cfg, since)
+	if errors.Is(err, errNoBaseBranch) || errors.Is(err, errUnrelatedBase) {
+		return uncommittedPaths(cfg)
+	}
+	return d.Paths, err
+}
+
+func uncommittedPaths(cfg *Config) ([]string, error) {
+	// -uall lists each file of a new directory, which the default collapses into the directory itself.
+	status, err := gitRaw(cfg.Root, "status", "--porcelain=v1", "-z", "-uall", "--no-renames")
+	if err != nil {
+		return nil, fmt.Errorf("git status: %w", err)
+	}
+	var out []string
+	for _, entry := range strings.Split(status, "\x00") {
+		if len(entry) > 3 {
+			out = append(out, filepath.ToSlash(entry[3:]))
 		}
 	}
+	return out, nil
 }
 
 // addedLineRanges maps each changed file to the lines this delivery added.

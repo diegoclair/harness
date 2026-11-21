@@ -290,7 +290,8 @@ the whole context, so a long session makes *each* step expensive — not only th
   blast radius — not a narrow run that only shows the new code works, and not the whole suite repeated.
 - **In a tree another session is also working in, each session proves and reviews only its own delivery.**
   Every implementer and reviewer prompt carries a closed list — the files the delivery changed, and the
-  packages to run: what it touched and what depends directly on what it changed — and forbids the wide
+  packages to run: what it touched and everything that depends on it, transitively — what the project's
+  scoped check selects, never a hand list — and forbids the wide
   run, the repo-wide lint and the tree-wide gate. A red outside that list is the other session's work
   mid-flight: it is not investigated, not waited on, and gets one line in the report. The whole run
   happens once, by whoever commits, on the tree that ships. Two sessions each validating the whole tree

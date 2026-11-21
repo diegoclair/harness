@@ -30,6 +30,7 @@ spent on the ones that are not.
 quality-gate check          # the delivery: diff vs base branch + uncommitted
 quality-gate check --all    # the whole repo
 quality-gate explain CMT-02 # why a rule exists and how to satisfy it
+quality-gate delivery       # the delivery's paths, every kind; exit 2 when git cannot read it whole
 ```
 
 Exit 0 clean, 1 new errors, 2 configuration failure. **Warnings never fail the

@@ -7,6 +7,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -15,7 +16,7 @@ import (
 	"strings"
 )
 
-var version = "v0.4.0"
+var version = "v0.5.0"
 
 const (
 	exitOK       = 0
@@ -29,6 +30,7 @@ USAGE:
   quality-gate check     [--all] [--since REF] [--format text|json] [--quiet]
   quality-gate baseline  [--prune] [--dir PATH]
   quality-gate baseline remap --from OLD... --to NEW [--dir PATH]
+  quality-gate delivery  [--since REF] [--format text|json]
   quality-gate explain   RULE-ID
   quality-gate rules
   quality-gate init      [--ruleset go|web|auto]
@@ -47,6 +49,12 @@ CHECK:
 
   Exit 0 clean, 1 new errors, 2 configuration or usage failure. Warnings never
   change the exit code.
+
+DELIVERY:
+  Prints the delivery's paths, one per line, relative to the repo root: every
+  file kind, deletions and both sides of a rename included, so a tool can
+  scope its own run to what changed. json adds the merge-base and HEAD.
+  Exit 2 when the delivery cannot be read whole (no base branch, a git error).
 
 BASELINE:
   Records today's debt in .quality-gate-baseline.json so the gate blocks new
@@ -88,6 +96,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return cmdCheck(args[1:], stdout, stderr)
 	case "baseline":
 		return cmdBaseline(args[1:], stdout, stderr)
+	case "delivery":
+		return cmdDelivery(args[1:], stdout, stderr)
 	case "explain":
 		return cmdExplain(args[1:], stdout, stderr)
 	case "rules":
@@ -146,6 +156,43 @@ func cmdCheck(args []string, stdout, stderr io.Writer) int {
 	}
 	if res.Errors > 0 {
 		return exitFindings
+	}
+	return exitOK
+}
+
+func cmdDelivery(args []string, stdout, stderr io.Writer) int {
+	fs := flag.NewFlagSet("delivery", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	since := fs.String("since", "", "base ref to diff against")
+	format := fs.String("format", "text", "text or json")
+	dir := fs.String("dir", ".", "directory to resolve the config from")
+	if err := fs.Parse(args); err != nil {
+		return exitUsage
+	}
+	cfg, err := loadConfig(*dir)
+	if err != nil {
+		fmt.Fprintln(stderr, err)
+		return exitUsage
+	}
+	d, err := readDelivery(cfg, *since)
+	if err != nil {
+		fmt.Fprintln(stderr, err)
+		return exitUsage
+	}
+	switch *format {
+	case "json":
+		enc := json.NewEncoder(stdout)
+		if err := enc.Encode(d); err != nil {
+			fmt.Fprintln(stderr, err)
+			return exitUsage
+		}
+	case "text":
+		for _, path := range d.Paths {
+			fmt.Fprintln(stdout, path)
+		}
+	default:
+		fmt.Fprintf(stderr, "unknown format %q\n", *format)
+		return exitUsage
 	}
 	return exitOK
 }
