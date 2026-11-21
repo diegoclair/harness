@@ -52,6 +52,7 @@ seconds. Each rule below quotes the complaint that produced it, so a familiar co
 | "imaginando um vendedor lendo esse slide, ele não vai entender nada" | "2020, um bot pro teste de release" | A founder's history is told by what each tool spared people, in the reader's words. Job jargon (stack, release, dev) means nothing outside the trade |
 | "pra que colocar o valor de depois?!" | "a partir de R$ 49,50 por mês e de R$ 99 depois" | A post gives the discount, how many months and the offer price, and stops there. The later price lives on the page the reader lands on |
 | "pessoal lá não é de interagir muito" | a group post closing on "me conta: qual seria a primeira pergunta…?" | An ask for replies fits only where that audience replies. In a group that does not interact, the post ends on the link |
+| "não queria soar como vendedor e mais como empreendedor", "textos de vendedor no grupo não geram engajamento" | a founder's group caption opening on a shouted headline, then the offer and "por tempo limitado" | In a peers' group the founder writes as an entrepreneur sharing the work: a plain hello, what he built and why, the offer in one light line before the link. The image carries the selling |
 | "deixar a postagem pra quando a gente ligar mesmo" | a feed post announcing an integration still waiting on the marketplace | What is close but not live goes to stories, for followers; the feed post waits for the day the seller can use it |
 
 ## What worked
