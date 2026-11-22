@@ -1,6 +1,6 @@
 ---
 name: ui-ux
-version: 0.2.1
+version: 0.2.2
 description: >-
   Designs and reviews landing pages, product pages and app screens that hold attention on first load — live product UI instead of illustration, scroll-driven reversible motion, neutral surfaces with one accent — through one divergent taste round, a review loop where every complaint becomes the smallest fix plus a measurement, and bundled Playwright checks (void scroll, blurred rest state, loops, no-JS final state, clipped content, fold runway). Use it WHENEVER Diego builds, designs, redesigns or "reimagines" a landing, page, section or screen, wants it bonito, "encantador", with WOW, motion, effects or "coisas vivas", reviews a design from screenshots, or complains it looks ugly, crooked, blurred, cramped, too far, too short or startling — even without saying "UI" or "UX". Not for SEO or indexing (that is landing-seo-geo). Replies match the user's language.
 ---
@@ -24,7 +24,10 @@ work, and motion there has to earn its place on every visit, not once.
    divergent). Every scene, list and caption later draws only from the left column. A beautiful page that
    promises an unbuilt feature is the most expensive defect there is.
 2. **One divergent taste round.** 2–3 directions that differ in ground, composition *and* motion (not three
-   palettes of one layout), each a self-contained HTML file in a lab folder outside git, served locally so
+   palettes of one layout), each an HTML page in **the project's design lab when it has one** — a round
+   folder built on the lab's own system CSS and the patterns of its neighbouring pages, never loose HTML with
+   fonts and colours of its own (find it in the project's agent docs before drawing); a lab folder outside git
+   only when the project has none. One index page switches direction, theme and width; served locally so
    the human **scrolls** it — motion can't be judged from a screenshot. Same two sections in every
    direction (hero + one proof section) so the comparison is fair.
 3. **The human picks; then there is ONE file**, edited in place. No `-v2`, `-v3` copies: they multiply
