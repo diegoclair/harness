@@ -80,6 +80,13 @@ Score 0 to 100 with the checklist in `references/technical-checklist.md` and the
 GEO) work well **if the file territories are disjoint**; the split that produced no conflicts is
 in `references/technical-checklist.md` § "Two agents".
 
+### 1b. Demand and intent before any page, title or new term
+
+Read `references/demand-and-intent.md` before proposing a page, renaming a title or targeting a term:
+the site's own Search Console numbers first, then relative demand, intent from the autocomplete, who
+owns the results, and absolute volume from the owner's account. A word chosen without this is a guess
+at the audience, and the commonest miss is a query typed by someone else (a buyer, an affiliate).
+
 ### 2. Apply the technical layer (it is the cheap part; do it all at once)
 
 Title ≤60 with the term at the start, description ≤155, canonical, OG/Twitter, robots meta,
@@ -157,6 +164,7 @@ which third parties the mentions plan targets. Method in `references/measurement
 | `references/geo.md` | How each assistant retrieves, what moves citation ranked by evidence, myths, AI user-agents, citable passage, page checklist, agent-facing distribution |
 | `references/geo-new-brand.md` | Why an indexed brand still gets "I don't know", the per-index checks, the mentions plan with evidence per channel |
 | `references/measurement.md` | Signup attribution question, Search Console / Bing AI reports, analytics, the N prompts × M runs panel with its confidence math, paid tools |
+| `references/demand-and-intent.md` | Before choosing a page, a title or a term: Search Console first, Trends for relative demand, autocomplete for intent, who owns the results, Keyword Planner for volume, and how to brief the researcher |
 | `references/content-pages.md` | Architecture page = data + template, answer-first lead, honest comparison, what keeps many pages out of spam, brand 404 |
 | `references/sources-and-competitors.md` | The "no link, no go-live" rule, how to re-read sources that block bots, what CONAR allows when naming a competitor |
 | `references/publish-and-index.md` | Cloudflare deploy, Search Console, Bing Webmaster (import, sitemaps, IndexNow, AI Performance, Site Scan), Crawler Hints |
